@@ -92,20 +92,38 @@
 </div>
 
 <script>
+/* ============================================================
+   PASTE YOUR APPS SCRIPT WEB APP URL BELOW (the /exec link from
+   Deploy > Manage deployments). Keep the quotes.
+   ============================================================ */
+var API_URL = "PASTE_YOUR_EXEC_URL_HERE";
+
 var DATA=[], FROM='', TO='', floorFilter='', sortKey='eff', sortDir=1, query='';
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
 function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
 
+function apiGet(params){
+  var qs=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
+  return fetch(API_URL+'?'+qs).then(function(r){
+    if(!r.ok)throw new Error('API responded '+r.status);
+    return r.json();
+  });
+}
+
 function setToday(){
-  google.script.run.withSuccessHandler(function(dates){
+  if(API_URL.indexOf('PASTE_')===0){
+    document.getElementById('content').innerHTML='<div class="empty">Setup incomplete: open index.html and paste your Apps Script /exec URL into API_URL at the top of the script.</div>';
+    return;
+  }
+  apiGet({action:'dates'}).then(function(dates){
     if(!dates.length){document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return}
     var last=dates[dates.length-1];
     document.getElementById('d1').value=last;
     document.getElementById('d2').value='';
     load();
-  }).getAvailableDates();
+  }).catch(showErr);
 }
 
 function load(){
@@ -115,15 +133,18 @@ function load(){
   if(d2<d1){var t=d1;d1=d2;d2=t}
   FROM=d1;TO=d2;
   document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+d1+(d2!==d1?' to '+d2:'')+' ...</div>';
-  google.script.run.withSuccessHandler(function(res){
+  apiGet({action:'data',from:d1,to:d2}).then(function(res){
+    if(res.error)throw new Error(res.error);
     DATA=res.rows;
     document.getElementById('stamp').innerHTML='Data refreshed<br>'+res.generatedAt;
     document.getElementById('mode').textContent = (FROM===TO)?('Single day: '+FROM):('Range: '+FROM+' to '+TO+' (Eff% = ΣOutput ÷ ΣInput)');
     floorFilter='';query='';
     render();
-  }).withFailureHandler(function(e){
-    document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message+'</div>';
-  }).getData(d1,d2);
+  }).catch(showErr);
+}
+
+function showErr(e){
+  document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message+'<br><br>Check: 1) API_URL is your /exec link, 2) the Apps Script deployment access is "Anyone with the link", 3) you deployed a NEW VERSION after pasting the JSON Code.gs.</div>';
 }
 
 /* Aggregate one row per operator across the selected range */
