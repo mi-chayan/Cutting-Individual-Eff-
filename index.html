@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2447; --navy2:#16325c; --red:#d63031; --amber:#e67e22;
+    --green:#1e8e4e; --bg:#f2f5f9; --card:#ffffff; --line:#e3e9f1;
+    --txt:#1b2b44; --mut:#6b7a90;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+
+  .topbar{background:var(--navy);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .badge{background:var(--red);color:#fff;font-weight:800;padding:4px 12px;border-radius:6px;letter-spacing:1px}
+  .topbar h1{font-size:16px;font-weight:700}
+  .topbar .sub{font-size:11px;color:#aebedb;margin-top:2px}
+  .stamp{margin-left:auto;font-size:11px;color:#aebedb;text-align:right}
+
+  .controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:14px 22px 0}
+  .ctrl label{display:block;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .ctrl input[type=date]{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;background:#fff}
+  .btn{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:9px 18px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  .btn:hover{background:var(--navy2)}
+  .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+  .mode{font-size:11px;color:var(--mut);padding-bottom:10px}
+
+  .wrap{padding:14px 22px 40px;max-width:1500px;margin:0 auto}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .k{font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .v{font-size:26px;font-weight:800;margin-top:4px}
+  .kpi .s{font-size:11px;color:var(--mut);margin-top:2px}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.amber{color:var(--amber)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .card .hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .card .hd h2{font-size:13px;font-weight:800;color:var(--navy)}
+  .hint{font-size:11px;color:var(--mut)}
+  .search{margin-left:auto;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12px;width:220px}
+
+  table{width:100%;border-collapse:collapse}
+  th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:9px 10px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
+  th .arr{font-size:9px;opacity:.8}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  td.l{text-align:left}
+  tbody tr:hover{background:#f6f9fd}
+  tr.clickable{cursor:pointer}
+  tr.active-floor{outline:2px solid var(--red);outline-offset:-2px}
+
+  .pct{font-weight:700}
+  .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
+  .cell-red{background:#fdecec} .cell-green{background:#e9f7ef}
+
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;color:var(--mut)}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+  .foot{font-size:11px;color:var(--mut);padding:10px 16px}
+  .loading{padding:60px;text-align:center;color:var(--mut);font-weight:600}
+  .spin{display:inline-block;width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:sp 1s linear infinite;margin-bottom:10px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:40px;text-align:center;color:var(--mut)}
+  .dayscol{font-size:11px;color:var(--mut)}
+  @media(max-width:700px){ .search{width:100%} .stamp{display:none} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="badge">SNOWTEX</span>
+  <div>
+    <h1>SOSL Cutting Section &mdash; Individual Efficiency Dashboard</h1>
+    <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Floors</div>
+  </div>
+  <div class="stamp" id="stamp"></div>
+</div>
+
+<div class="controls">
+  <div class="ctrl"><label>From date</label><input type="date" id="d1"></div>
+  <div class="ctrl"><label>To date (optional)</label><input type="date" id="d2"></div>
+  <button class="btn" onclick="load()">Apply</button>
+  <button class="btn ghost" onclick="setToday()">Latest day</button>
+  <div class="mode" id="mode"></div>
+</div>
+
+<div class="wrap">
+  <div id="content"><div class="loading"><div class="spin"></div><br>Loading data from the sheet...</div></div>
+</div>
+
+<script>
+var DATA=[], FROM='', TO='', floorFilter='', sortKey='eff', sortDir=1, query='';
+var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
+
+function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
+function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
+
+function setToday(){
+  google.script.run.withSuccessHandler(function(dates){
+    if(!dates.length){document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return}
+    var last=dates[dates.length-1];
+    document.getElementById('d1').value=last;
+    document.getElementById('d2').value='';
+    load();
+  }).getAvailableDates();
+}
+
+function load(){
+  var d1=document.getElementById('d1').value;
+  var d2=document.getElementById('d2').value||d1;
+  if(!d1){setToday();return}
+  if(d2<d1){var t=d1;d1=d2;d2=t}
+  FROM=d1;TO=d2;
+  document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+d1+(d2!==d1?' to '+d2:'')+' ...</div>';
+  google.script.run.withSuccessHandler(function(res){
+    DATA=res.rows;
+    document.getElementById('stamp').innerHTML='Data refreshed<br>'+res.generatedAt;
+    document.getElementById('mode').textContent = (FROM===TO)?('Single day: '+FROM):('Range: '+FROM+' to '+TO+' (Eff% = ΣOutput ÷ ΣInput)');
+    floorFilter='';query='';
+    render();
+  }).withFailureHandler(function(e){
+    document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message+'</div>';
+  }).getData(d1,d2);
+}
+
+/* Aggregate one row per operator across the selected range */
+function operatorAgg(){
+  var map={};
+  DATA.forEach(function(r){
+    var k=r.floor+'|'+r.opId;
+    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,days:0,wh:0,eng:0,inMin:0,outMin:0,types:{}};
+    var o=map[k];
+    o.days++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
+    r.types.split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
+    if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
+  });
+  return Object.keys(map).map(function(k){
+    var o=map[k];
+    o.avgWh=o.wh/o.days; o.avgEng=o.eng/o.days;
+    o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
+    o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
+    return o;
+  });
+}
+
+function floorAgg(ops){
+  var map={};
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0,u100:0,o100:0}});
+  ops.forEach(function(o){
+    var f=map[o.floor]; if(!f)return;
+    f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
+    if(o.eff<65)f.u65++;
+    if(o.eff<100)f.u100++; else f.o100++;
+  });
+  return FLOOR_ORDER.map(function(k){
+    var f=map[k];
+    f.eff=f.inMin>0?(f.outMin/f.inMin*100):0;
+    f.ok=f.man>0?(f.o100/f.man*100):0;
+    return f;
+  });
+}
+
+function render(){
+  var ops=operatorAgg();
+  var floors=floorAgg(ops);
+  var tot={man:0,inMin:0,outMin:0,u65:0,u100:0,o100:0};
+  floors.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65;tot.u100+=f.u100;tot.o100+=f.o100});
+  var totEff=tot.inMin>0?(tot.outMin/tot.inMin*100):0;
+  var okPct=tot.man>0?(tot.o100/tot.man*100):0;
+
+  var h='';
+  /* KPI cards */
+  h+='<div class="kpis">'
+    +kpi('Man Count',tot.man,'operators with data','')
+    +kpi('Overall Eff%',fmt(totEff,1)+'%','ΣOutput ÷ ΣInput',pctClass(totEff))
+    +kpi('Below 100%',tot.u100,fmt(tot.man?tot.u100/tot.man*100:0,0)+'% of manpower',tot.u100>tot.o100?'red':'')
+    +kpi('OK% (≥100%)',fmt(okPct,0)+'%',tot.o100+' operators',pctClass(okPct<65?60:okPct))
+    +'</div>';
+
+  /* Floor table */
+  h+='<div class="card"><div class="hd"><h2>Floor Wise Report</h2><span class="hint">click a floor row to filter the operator table</span></div>';
+  h+='<table><thead><tr><th>Floor</th><th>Man Count</th><th>Floor Eff%</th><th>Eff% &lt; 65</th><th>Eff% &lt; 100</th><th>Eff% &ge; 100</th><th>OK%</th></tr></thead><tbody>';
+  floors.forEach(function(f){
+    if(f.man===0)return;
+    h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
+      +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
+      +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
+      +'<td class="'+(f.u65>0?'cell-red':'')+'">'+f.u65+'</td>'
+      +'<td>'+f.u100+'</td><td class="cell-green">'+f.o100+'</td>'
+      +'<td class="pct '+pctClass(f.ok<65?60:f.ok)+'">'+fmt(f.ok,0)+'%</td></tr>';
+  });
+  h+='<tr style="background:#eef3f9;font-weight:800"><td>Total</td><td>'+tot.man+'</td>'
+    +'<td class="pct '+pctClass(totEff)+'">'+fmt(totEff,1)+'%</td>'
+    +'<td>'+tot.u65+'</td><td>'+tot.u100+'</td><td>'+tot.o100+'</td>'
+    +'<td class="pct">'+fmt(okPct,0)+'%</td></tr>';
+  h+='</tbody></table></div>';
+
+  /* Individual table */
+  var shown=ops.filter(function(o){
+    if(floorFilter&&o.floor!==floorFilter)return false;
+    if(query){
+      var q=query.toLowerCase();
+      if(o.name.toLowerCase().indexOf(q)<0 && o.opId.indexOf(q)<0 && o.desig.toLowerCase().indexOf(q)<0)return false;
+    }
+    return true;
+  });
+  shown.sort(function(a,b){
+    var va=a[sortKey],vb=b[sortKey];
+    if(typeof va==='string')return va.localeCompare(vb)*sortDir;
+    return (va-vb)*sortDir;
+  });
+
+  h+='<div class="card"><div class="hd"><h2>Individual Report</h2>';
+  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All floors</span>';
+  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
+  h+='</div><input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+='<table><thead><tr>'
+    +thSort('floor','Floor')+thSort('opId','Op. ID')+thSort('name','Op. Name')+thSort('desig','Designation')
+    +(FROM!==TO?thSort('days','Days'):'')
+    +thSort('avgWh','WH')+thSort('avgEng','Engage %')+'<th>Type</th>'
+    +thSort('inMin','Input Min')+thSort('outMin','Output Min')+thSort('eff','Eff%')
+    +'</tr></thead><tbody>';
+  if(shown.length===0)h+='<tr><td colspan="11" class="empty">No operators match.</td></tr>';
+  shown.forEach(function(o){
+    h+='<tr><td>'+o.floor+'</td><td>'+o.opId+'</td><td class="l">'+o.name+'</td><td class="l">'+o.desig+'</td>'
+      +(FROM!==TO?'<td class="dayscol">'+o.days+'</td>':'')
+      +'<td>'+fmt(o.avgWh,2)+'</td><td>'+fmt(o.avgEng,0)+'%</td><td>'+o.typeStr+'</td>'
+      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
+      +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
+  });
+  h+='</tbody></table><div class="foot">'+shown.length+' operator(s) shown &bull; Ignored (ticked) operators excluded &bull; Red &lt;65% &bull; Amber 65-99% &bull; Green &ge;100%</div></div>';
+
+  document.getElementById('content').innerHTML=h;
+}
+
+function kpi(k,v,s,cls){return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+cls+'">'+v+'</div><div class="s">'+s+'</div></div>'}
+function thSort(key,label){
+  var arr=sortKey===key?(sortDir===1?' ▲':' ▼'):'';
+  return '<th onclick="setSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
+}
+function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
+function toggleFloor(f){ floorFilter=(floorFilter===f)?'':f; render(); }
+function renderKeepFocus(){ render(); var q=document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length); }
+
+setToday();
+</script>
+</body>
+</html>
