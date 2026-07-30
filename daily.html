@@ -59,6 +59,15 @@
   .donutwrap{position:relative;width:100px;height:100px;flex:0 0 auto}
   .donut{width:100px;height:100px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
+  /* hovering the ring dims the other slices so the hovered one reads clearly */
+  .donut circle.seg{cursor:pointer;transition:opacity .13s}
+  .donut:hover circle.seg{opacity:.35}
+  .donut circle.seg:hover{opacity:1}
+  .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.15}
+  .dcen b{font-size:17px;font-weight:800;line-height:1}
+  .dcen span{font-size:8px;font-weight:700;color:var(--mut);margin-top:2px;white-space:nowrap}
+  .dcen span.pc{font-size:9.5px;color:var(--txt);margin-top:0}
   .legend{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-width:0}
   .lgrow{display:flex;align-items:center;gap:7px;font-size:11px}
   .lgrow .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
@@ -787,9 +796,11 @@ function bandChart(b){
     var len=C*(s.n/t);
     /* tiny gap between slices, but never wider than the slice itself */
     var gap=Math.min(2,len/3);
-    ring+='<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="17"'
+    ring+='<circle class="seg" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="17"'
         + ' stroke-dasharray="'+(len-gap).toFixed(2)+' '+(C-len+gap).toFixed(2)+'"'
-        + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"></circle>';
+        + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"'
+        + ' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+        + ' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)"></circle>';
     off+=len;
   });
   /* Colour guide only. Counts and shares are deliberately left off, the cards
@@ -810,10 +821,27 @@ function bandChart(b){
           +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
           +ring
         +'</svg>'
+        /* filled on hover, empty otherwise, so the card stays clean and the
+           readout can never be clipped the way a floating tooltip would be */
+        +'<div class="dcen" id="dcen"></div>'
       +'</div>'
       +'<div class="legend">'+legend+'</div>'
     +'</div>'
   +'</div>';
+}
+
+/* Hovering a slice writes its count and share into the middle of the donut.
+   Also bound to click so it works on touch screens, which have no hover. */
+function segHover(el){
+  var d=document.getElementById('dcen');
+  if(!d) return;
+  d.innerHTML='<b style="color:'+el.getAttribute('data-c')+'">'+el.getAttribute('data-n')+'</b>'
+    +'<span>'+esc(el.getAttribute('data-l'))+'</span>'
+    +'<span class="pc">'+el.getAttribute('data-p')+'%</span>';
+}
+function segOut(){
+  var d=document.getElementById('dcen');
+  if(d) d.innerHTML='';
 }
 
 function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
