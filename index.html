@@ -39,18 +39,28 @@
   .burger.on span:nth-child(1){transform:translateY(6px) rotate(45deg)}
   .burger.on span:nth-child(2){opacity:0}
   .burger.on span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
-  .menu{position:absolute;left:0;top:calc(100% + 7px);background:#fff;border:1px solid var(--line);
-        border-radius:10px;box-shadow:0 12px 30px -6px rgba(20,25,55,.35);padding:6px;
+  /* Dark panel on purpose. A white menu sat on the white report page with no
+     visible edge, so the two blended together. */
+  .menu{position:absolute;left:0;top:calc(100% + 7px);background:#2B3358;
+        border:1px solid rgba(255,255,255,.18);
+        border-radius:10px;box-shadow:0 16px 38px -8px rgba(10,14,35,.6);padding:6px;
         min-width:250px;display:none;z-index:60}
   .menu.open{display:block}
-  .menu .menuhd{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
+  .menu .menuhd{font-size:9px;font-weight:800;color:#9AA2C8;text-transform:uppercase;
                 letter-spacing:.7px;padding:6px 9px 5px}
   .menu .mi{display:block;width:100%;text-align:left;background:transparent;border:0;
-            font-family:inherit;font-size:12px;font-weight:700;color:var(--txt);
+            font-family:inherit;font-size:12px;font-weight:700;color:#E7EAF6;
             padding:8px 10px;border-radius:7px;cursor:pointer}
-  .menu .mi:hover{background:var(--cream)}
+  .menu .mi:hover{background:rgba(255,255,255,.12);color:#fff}
   .menu .mi.on{background:var(--violet);color:#fff}
-  .stamp{font-size:10px;color:#BFC4E0;text-align:right;line-height:1.45}
+  /* Was 10px #BFC4E0 on navy, too low contrast to read. Now a bordered chip
+     with a muted label and the timestamp itself in solid white. */
+  .stamp{font-size:10px;text-align:right;line-height:1.35;
+         background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+         border-radius:8px;padding:4px 9px;white-space:nowrap}
+  .stamp .lbl{display:block;color:#C9CFE8;font-size:8.5px;font-weight:700;
+              text-transform:uppercase;letter-spacing:.5px}
+  .stamp b{color:#fff;font-size:11px;font-weight:800}
   .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:7px 14px;
     font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
   .refresh:hover{filter:brightness(1.1)}
@@ -137,7 +147,7 @@
     <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
   </div>
   <div class="hdrright">
-    <div class="stamp" id="stamp">Data as of<br>&ndash;</div>
+    <div class="stamp" id="stamp"><span class="lbl">Data as of</span><b>&ndash;</b></div>
     <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
   </div>
 </div>
@@ -212,7 +222,8 @@ function setBusy(on){
 }
 
 function setStamp(t){
-  document.getElementById('stamp').innerHTML='Data as of<br>'+(t||'&ndash;');
+  document.getElementById('stamp').innerHTML=
+    '<span class="lbl">Data as of</span><b>'+(t||'&ndash;')+'</b>';
 }
 
 /* Rebuild server snapshot, cache it, tell the report page to redraw.
