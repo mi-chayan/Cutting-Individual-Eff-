@@ -343,9 +343,10 @@ function currentSets(){
   floorsAll.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65});
   tot.eff=tot.inMin>0?(tot.outMin/tot.inMin*100):0;
 
+  /* Floor table always lists every floor. Selecting a row only highlights it
+     and filters the Individual Report below. */
   var floorsShown=floorsAll.filter(function(f){
     if(f.man===0)return false;
-    if(floorFilter && f.floor!==floorFilter)return false;
     return effPass(f.eff,effFloorFilter);
   });
   floorsShown.sort(function(a,b){
@@ -413,10 +414,8 @@ function render(){
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
       +'<td>'+f.u65+'</td></tr>';
   });
-  if(!floorFilter){
-    h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+tot.man+'</td>'
-      +'<td class="pct">'+fmt(tot.eff,1)+'%</td><td>'+tot.u65+'</td></tr>';
-  }
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+tot.man+'</td>'
+    +'<td class="pct">'+fmt(tot.eff,1)+'%</td><td>'+tot.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
 
   h+='<div class="card"><div class="hd"><h3>Individual Report</h3>';
@@ -506,10 +505,8 @@ function exportExcel(){
   S.floorsShown.forEach(function(f){
     t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
   });
-  if(!floorFilter){
-    t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
-      +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
-  }
+  t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
+    +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
   t+='</table><table><tr><td></td></tr></table>';
 
   /* Individual table */
