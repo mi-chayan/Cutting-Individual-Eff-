@@ -158,7 +158,9 @@ function doRefresh(){
       if(res.error) throw new Error(res.error);
       try{
         sessionStorage.setItem(SNAP_KEY, JSON.stringify(res));
-        Object.keys(sessionStorage).forEach(function(k){ if(k.indexOf('sosl_day_')===0) sessionStorage.removeItem(k); });
+        Object.keys(sessionStorage).forEach(function(k){
+          if(k.indexOf('sosl_day_')===0 || k.indexOf('sosl_det_')===0) sessionStorage.removeItem(k);
+        });
       }catch(e){}
       setStamp(res.generatedAt);
       var f=document.getElementById('frame');
