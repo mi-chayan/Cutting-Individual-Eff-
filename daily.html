@@ -277,6 +277,8 @@ function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
 function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
 function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
 function shortId(id){return padId(id).slice(-5)}
+/* Sort floors in factory order (SOL 1A-1E, 3A, then SSL 2A-2E), not alphabetically */
+function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
 function prettyDate(s){
   if(!s)return '';
   var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -477,6 +479,7 @@ function currentSets(){
     return effPass(f.eff,effFloorFilter);
   });
   floorsShown.sort(function(a,b){
+    if(fSortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*fSortDir;
     var va=a[fSortKey],vb=b[fSortKey];
     if(typeof va==='string')return String(va).localeCompare(String(vb))*fSortDir;
     return (va-vb)*fSortDir;
@@ -492,6 +495,7 @@ function currentSets(){
     return true;
   });
   indShown.sort(function(a,b){
+    if(sortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*sortDir;
     var va=a[sortKey],vb=b[sortKey];
     if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
     return (va-vb)*sortDir;
@@ -653,7 +657,7 @@ function detailBlock(o,colspan){
     +'<th>Cut No</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
     +'<th>ML (Yds)</th><th>CL (Yds)</th><th>Lay Qty (Pcs)</th><th>Ratio (Pcs)</th>'
     +'<th>Process</th><th>Total Input Min (min)</th><th>Individual Process Time</th>'
-    +'<th>Input Min (min)</th><th>SMV (min)</th><th>Total Output Min (min)</th>'
+    +'<th>Input Min (min)</th><th>Total Output Min (min)</th>'
     +'<th>Individual Output Minute (min)</th><th>Marker wise Effi% (%)</th>'
     +'</tr></thead><tbody>';
   rows.forEach(function(r){
@@ -661,7 +665,7 @@ function detailBlock(o,colspan){
       +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
       +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
       +'<td>'+esc(r[9])+'</td><td>'+fmt(r[18],0)+'</td>'
-      +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td><td>'+fmt(r[14],3)+'</td>'
+      +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
       +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
   });
