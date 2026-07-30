@@ -86,7 +86,8 @@
   .pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--mut)}
   .pill b{color:var(--navy)}
   .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:#fff}
-  table.dettable{min-width:900px;margin:0}
+  table.dettable{min-width:1080px;margin:0}
+  table.dettable td:first-child{color:var(--mut);font-weight:700}
   table.dettable th{background:#5A6396;font-size:8.5px;padding:6px 7px;cursor:default}
   table.dettable th:hover{background:#5A6396}
   table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #EEF0F7}
@@ -374,7 +375,7 @@ function prefetchDetail(floor){
   var k=detKey(floor);
   if(DETAIL[k]||DETLOADING[k]) return;
 
-  var cached=cacheGet('sosl_det_'+k);
+  var cached=cacheGet('sosl_det2_'+k);
   if(cached){ DETAIL[k]=cached.rows||[]; return; }
 
   DETLOADING[k]=true;
@@ -384,7 +385,7 @@ function prefetchDetail(floor){
       DETLOADING[k]=false;
       if(res.error) return;
       DETAIL[k]=res.rows||[];
-      cacheSet('sosl_det_'+k,res);
+      cacheSet('sosl_det2_'+k,res);
       /* only repaint if the user is already waiting on this floor */
       if(expandKey && expandKey.split('|')[0]===floor) render();
     })
@@ -654,17 +655,19 @@ function detailBlock(o,colspan){
     +'</div></div>';
 
   h+='<div class="detscroll"><table class="dettable"><thead><tr>'
-    +'<th>Cut No</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
+    +'<th>Sl</th><th>Cut No</th><th>Process</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
     +'<th>ML (Yds)</th><th>CL (Yds)</th><th>Lay Qty (Pcs)</th><th>Ratio (Pcs)</th>'
-    +'<th>Process</th><th>Total Input Min (min)</th><th>Individual Process Time</th>'
-    +'<th>Input Min (min)</th><th>Total Output Min (min)</th>'
-    +'<th>Individual Output Minute (min)</th><th>Marker wise Effi% (%)</th>'
+    +'<th>Team Input Min (min)</th><th>Individual Process Time</th><th>Indv. Input Min (min)</th>'
+    +'<th>Team Output Min (min)</th><th>Indv. Output Min (min)</th><th>Effi% (%)</th>'
     +'</tr></thead><tbody>';
-  rows.forEach(function(r){
-    h+='<tr><td class="l"><b>'+esc(r[1])+'</b></td><td class="l">'+esc(r[2])+'</td>'
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+(i+1)+'</td>'
+      +'<td class="l"><b>'+esc(r[1])+'</b></td>'
+      +'<td>'+esc(r[9])+'</td>'
+      +'<td class="l">'+esc(r[2])+'</td>'
       +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
       +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
-      +'<td>'+esc(r[9])+'</td><td>'+fmt(r[18],0)+'</td>'
+      +'<td>'+fmt(r[18],0)+'</td>'
       +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
       +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
