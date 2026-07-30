@@ -55,12 +55,9 @@
   /* ---- efficiency band donut ---- */
   .chartcard{padding:9px 12px;display:flex;flex-direction:column}
   .chartcard:before{background:var(--blue)}
-  /* grows to take up whatever height is left, so the card stack finishes level
-     with the floor table instead of leaving a gap above the table below */
-  .toprow .chartcard{flex:1 1 auto;justify-content:center}
   .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
-  .donutwrap{position:relative;width:86px;height:86px;flex:0 0 auto}
-  .donut{width:86px;height:86px;display:block}
+  .donutwrap{position:relative;width:100px;height:100px;flex:0 0 auto}
+  .donut{width:100px;height:100px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
   .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center;pointer-events:none}
@@ -113,6 +110,14 @@
      strip, and the table's column header row sits directly under that. Both
      stick only while their own card is on screen, then scroll away with it.
      Detail drill-down table is deliberately excluded. */
+  /* Desktop: all four cards share the leftover height rather than one card
+     growing and holding a big empty middle. The chart takes a larger share
+     because the donut needs the room. */
+  @media(min-width:901px){
+    .toprow .kpis>.kpi{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+    .toprow .kpis>.chartcard{flex:1.7 1 auto}
+  }
+
   #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
   /* Direct child combinator (>) between table and thead is the important
      part: #indtable's tbody holds the drill-down's own <table class="dettable">,
