@@ -99,17 +99,19 @@
   /* Third layer: the drill-down's own header, once an operator row is expanded.
      Sits directly under the Individual Report column header, so it stays fixed
      only while that operator's cut list is scrolling by.
-     Gated at 1200px because the detail table is 1080px wide and below that the
-     card is too narrow, so .detscroll must stay a real horizontal scroller
-     (and a scroll container cannot host a viewport-sticky header). Above it,
-     overflow:clip keeps the rounded corner without creating that container. */
+
+     .detscroll MUST be overflow:visible here, not clip. Chrome measures a
+     sticky offset from the nearest clipping ancestor, so with overflow:clip the
+     --detTop value was applied from the top of .detscroll instead of the top of
+     the page, parking the header roughly four rows into the cut list. Only
+     overflow:visible lets it anchor to the viewport like the other two headers.
+     Gated at 1200px because the table is 1080px wide and below that the card is
+     too narrow, so .detscroll has to stay a real horizontal scroller. */
   @media(min-width:1200px){
-    .detscroll{overflow:clip}
-    /* border-collapse:separate on this nested table is deliberate. Chrome
-       miscalculates the sticky offset of a <th> when the table has collapsed
-       borders, which lands the header partway down the rows instead of at the
-       top. Separate borders with zero spacing look identical here because the
-       cells already draw their own bottom border. */
+    .detscroll{overflow:visible}
+    /* border-collapse:separate avoids Chrome's sticky-offset miscalculation on
+       collapsed-border tables. Visually identical, the cells draw their own
+       bottom border already. */
     table.dettable{border-collapse:separate;border-spacing:0}
     table.dettable>thead th{position:sticky;top:var(--detTop,0px);
       z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
