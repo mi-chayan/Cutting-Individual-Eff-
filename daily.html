@@ -68,7 +68,7 @@
 
   .pct{font-weight:800}
   .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
-  .cell-red{background:#FCEDEE;color:var(--red);font-weight:700}
+  .idshort{display:none}
 
   .chips{display:flex;gap:4px;flex-wrap:wrap}
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
@@ -80,6 +80,19 @@
   .spin{display:inline-block;width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:10px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:40px;text-align:center;color:var(--mut);line-height:1.7}
+
+  /* ---- ERP source card ---- */
+  .erp{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+       display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .erp .ic{width:34px;height:34px;border-radius:9px;background:var(--cream);border:1px solid var(--peach);
+           display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .erp .ic svg{width:16px;height:16px;fill:var(--violet)}
+  .erp .txt h4{font-size:12px;font-weight:800;color:var(--navy)}
+  .erp .txt .u{font-size:10.5px;color:var(--mut);margin-top:2px;word-break:break-all;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .erp .go{margin-left:auto;background:var(--violet);color:#fff;text-decoration:none;border-radius:8px;
+           padding:8px 15px;font-weight:700;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .erp .go:hover{filter:brightness(1.1)}
+  .erp .go svg{width:12px;height:12px;fill:#fff}
 
   /* ---- print-only header ---- */
   .printhead{display:none}
@@ -112,6 +125,10 @@
     .card .hd{padding:8px 10px;gap:6px}
     .card .hd h3{font-size:11px;width:100%}
     .hint{display:none}
+    .erp{padding:11px 12px;gap:10px}
+    .erp .txt h4{font-size:11px}
+    .erp .txt .u{font-size:9.5px}
+    .erp .go{margin-left:0;width:100%;justify-content:center;padding:9px 14px}
     .push{margin-left:0}
     .fsel{font-size:10.5px;flex:1;min-width:0}
     .search{width:100%}
@@ -126,7 +143,7 @@
   @page{ size:A4 portrait; margin:11mm 9mm; }
   @media print{
     body{background:#fff;font-size:9pt}
-    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before,.erp{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
     .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto}
@@ -152,8 +169,9 @@
     tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .pct.red{color:#C0392B !important} .pct.amber{color:#B9700F !important} .pct.green{color:#146C3A !important}
-    .cell-red{background:#FBE4E6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .hs{display:table-cell !important}
+    .nop{display:none !important}                 /* WH column dropped so all others fit */
+    .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
     .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
     .printfoot{display:block !important;margin-top:5mm;font-size:7pt;color:#666;text-align:center;
                border-top:.5pt solid #ccc;padding-top:2mm}
@@ -186,15 +204,18 @@
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
+var ERP_URL="http://192.168.15.15:3000/#/SpreadingCutting/CuttingSectionIndividualPerformance";
 
 var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', sortKey='eff', sortDir=1, query='';
+var fSortKey='floor', fSortDir=1;                 /* Floor Wise Report sorting */
 var effFloorFilter='all', effIndFilter='all';
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
 function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
 function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
+function shortId(id){return padId(id).slice(-5)}
 function prettyDate(s){
   if(!s)return '';
   var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -327,6 +348,11 @@ function currentSets(){
     if(floorFilter && f.floor!==floorFilter)return false;
     return effPass(f.eff,effFloorFilter);
   });
+  floorsShown.sort(function(a,b){
+    var va=a[fSortKey],vb=b[fSortKey];
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*fSortDir;
+    return (va-vb)*fSortDir;
+  });
 
   var indShown=ops.filter(function(o){
     if(floorFilter&&o.floor!==floorFilter)return false;
@@ -378,14 +404,14 @@ function render(){
       +opt('65to99','Team Avg Eff%: 65% to 99%',effFloorFilter)+opt('gte100','Team Avg Eff%: 100% and above',effFloorFilter)
     +'</select></div>';
   h+='<div class="scroll"><table><thead><tr>'
-    +'<th>Floor</th><th>Man Count (nos)</th><th>Team Avg Eff% (%)</th><th>Eff% &lt; 65% (nos)</th>'
+    +fTh('floor','Floor')+fTh('man','Man Count (nos)')+fTh('eff','Team Avg Eff% (%)')+fTh('u65','Eff% &lt; 65% (nos)')
     +'</tr></thead><tbody>';
   if(!S.floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this filter.</td></tr>';
   S.floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
       +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
-      +'<td class="'+(f.u65>0?'cell-red':'')+'">'+f.u65+'</td></tr>';
+      +'<td>'+f.u65+'</td></tr>';
   });
   if(!floorFilter){
     h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+tot.man+'</td>'
@@ -404,19 +430,30 @@ function render(){
     +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
   h+='<div class="scroll"><table><thead><tr>'
     +thSort('floor','Floor','')+thSort('opId','Op. ID','')+thSort('name','Op. Name','')
-    +thSort('desig','Designation','hs')+thSort('avgWh','WH (hrs)','hs')
+    +thSort('desig','Designation','hs')+thSort('avgWh','WH (hrs)','hs nop')
     +thSort('avgEng','Engagement% (%)','')+'<th class="hs">Type</th>'
     +thSort('inMin','Input Min (min)','')+thSort('outMin','Output Min (min)','')+thSort('eff','Individual Eff% (%)','')
     +'</tr></thead><tbody>';
   if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
   S.indShown.forEach(function(o){
-    h+='<tr><td>'+o.floor+'</td><td>'+padId(o.opId)+'</td><td class="l">'+o.name+'</td>'
-      +'<td class="l hs">'+o.desig+'</td><td class="hs">'+fmt(o.avgWh,2)+'</td>'
+    h+='<tr><td>'+o.floor+'</td>'
+      +'<td><span class="idfull">'+padId(o.opId)+'</span><span class="idshort">'+shortId(o.opId)+'</span></td>'
+      +'<td class="l">'+o.name+'</td>'
+      +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
       +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
   });
   h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
+
+  /* ERP source link */
+  h+='<div class="erp">'
+    +'<div class="ic"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/></svg></div>'
+    +'<div class="txt"><h4>View the full detail report in Snowtex ERP</h4>'
+    +'<div class="u">'+ERP_URL+'</div></div>'
+    +'<a class="go" href="'+ERP_URL+'" target="_blank" rel="noopener noreferrer">'
+    +'Open in ERP <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg></a>'
+    +'</div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
   h+='</div>';
@@ -430,6 +467,13 @@ function thSort(key,label,cls){
   return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
 }
 function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
+
+/* Floor Wise Report header sorting */
+function fTh(key,label){
+  var arr=fSortKey===key?(fSortDir===1?'&#9650;':'&#9660;'):'';
+  return '<th onclick="setFSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
+}
+function setFSort(k){ if(fSortKey===k)fSortDir*=-1; else {fSortKey=k;fSortDir=(k==='floor')?1:-1;} render(); }
 function toggleFloor(f){ floorFilter=(floorFilter===f)?'':f; render(); }
 function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
 
@@ -452,32 +496,32 @@ function exportExcel(){
 
   /* KPI block */
   t+='<table border="1"><tr>'
-    +th2('Total Man Count (nos)')+th2('Overall Avg Eff% (%)')+th2('Operators Below 65% (nos)')+'</tr>'
-    +'<tr><td>'+tot.man+'</td><td>'+fmt(tot.eff,1)+'</td><td>'+tot.u65+'</td></tr></table>';
+    +th2('Total Man Count (nos)')+th2('Overall Avg Eff%')+th2('Operators Below 65% (nos)')+'</tr>'
+    +'<tr><td>'+tot.man+'</td>'+pctTd(tot.eff,1)+'<td>'+tot.u65+'</td></tr></table>';
   t+='<table><tr><td></td></tr></table>';
 
   /* Floor table */
   t+='<table border="1"><tr><td colspan="4" style="font-weight:bold;color:#333D6D">Floor Wise Report</td></tr><tr>'
-    +th2('Floor')+th2('Man Count (nos)')+th2('Team Avg Eff% (%)')+th2('Eff% < 65% (nos)')+'</tr>';
+    +th2('Floor')+th2('Man Count (nos)')+th2('Team Avg Eff%')+th2('Eff% < 65% (nos)')+'</tr>';
   S.floorsShown.forEach(function(f){
-    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td><td>'+fmt(f.eff,1)+'</td><td>'+f.u65+'</td></tr>';
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
   });
   if(!floorFilter){
     t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
-      +'</td><td style="font-weight:bold">'+fmt(tot.eff,1)+'</td><td style="font-weight:bold">'+tot.u65+'</td></tr>';
+      +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
   }
   t+='</table><table><tr><td></td></tr></table>';
 
   /* Individual table */
   t+='<table border="1"><tr><td colspan="10" style="font-weight:bold;color:#333D6D">Individual Report</td></tr><tr>'
     +th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('WH (hrs)')
-    +th2('Engagement% (%)')+th2('Type')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff% (%)')+'</tr>';
+    +th2('Engagement%')+th2('Type')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
   S.indShown.forEach(function(o){
     t+='<tr><td>'+esc(o.floor)+'</td>'
       +'<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
       +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
-      +'<td>'+fmt(o.avgEng,0)+'</td><td>'+esc(o.typeStr)+'</td>'
-      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td><td>'+fmt(o.eff,0)+'</td></tr>';
+      +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
+      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
   });
   t+='</table>';
   t+='<table><tr><td></td></tr><tr><td colspan="10">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
@@ -496,6 +540,15 @@ function exportExcel(){
   setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
 }
 function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
+
+/* Real Excel percentage: value stored as a fraction, displayed with a % sign,
+   so the column still sorts and averages correctly instead of being plain text. */
+function pctTd(v,dec,extra){
+  if(v==null||isNaN(v)) return '<td>-</td>';
+  var f='0'+(dec>0?'.'+Array(dec+1).join('0'):'')+'%';
+  var st="mso-number-format:'"+f+"';"+(extra||'');
+  return '<td style="'+st+'">'+(v/100)+'</td>';
+}
 
 boot();
 </script>
