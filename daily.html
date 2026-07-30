@@ -105,8 +105,13 @@
      overflow:clip keeps the rounded corner without creating that container. */
   @media(min-width:1200px){
     .detscroll{overflow:clip}
-    table.dettable>thead th{position:sticky;
-      top:calc(var(--stripH) + var(--indHdH,0px) + var(--indColH,0px));
+    /* border-collapse:separate on this nested table is deliberate. Chrome
+       miscalculates the sticky offset of a <th> when the table has collapsed
+       borders, which lands the header partway down the rows instead of at the
+       top. Separate borders with zero spacing look identical here because the
+       cells already draw their own bottom border. */
+    table.dettable{border-collapse:separate;border-spacing:0}
+    table.dettable>thead th{position:sticky;top:var(--detTop,0px);
       z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
   }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
@@ -805,17 +810,36 @@ function syncStripH(){
    directly below it. The two title bars are different heights (the Individual
    Report one carries the floor chips), so each offset is measured separately
    after every render instead of being hard coded. */
+/* Heights are read with getBoundingClientRect, not offsetHeight. offsetHeight
+   on a <thead> is unreliable across engines (table sections are not ordinary
+   boxes), and a wrong reading here pushes a sticky header far down the page.
+   Reading the header <tr> instead gives the true rendered row height. */
+function boxH(sel){
+  var el=document.querySelector(sel);
+  return el ? el.getBoundingClientRect().height : 0;
+}
 function syncStickyOffsets(){
   syncStripH();
   var r=document.documentElement;
-  var fh=document.querySelector('#floorcard>.hd');
-  var ih=document.querySelector('#indcard>.hd');
-  var ic=document.querySelector('#indtable>thead');
-  r.style.setProperty('--flrHdH',(fh?fh.offsetHeight:0)+'px');
-  r.style.setProperty('--indHdH',(ih?ih.offsetHeight:0)+'px');
-  r.style.setProperty('--indColH',(ic?ic.offsetHeight:0)+'px');
+  var strip=boxH('.strip');
+  var flrHd=boxH('#floorcard>.hd');
+  var indHd=boxH('#indcard>.hd');
+  var indCol=boxH('#indtable>thead>tr');
+
+  r.style.setProperty('--flrHdH',flrHd+'px');
+  r.style.setProperty('--indHdH',indHd+'px');
+
+  /* One resolved number for the drill-down header instead of a chain of three
+     CSS vars, so a single bad reading cannot silently offset it down the page.
+     Clamped because an absurd value is what strands the header mid-table. */
+  var detTop=strip+indHd+indCol;
+  if(!isFinite(detTop) || detTop<0 || detTop>400) detTop=strip+indHd+28;
+  r.style.setProperty('--detTop',detTop+'px');
 }
 window.addEventListener('resize', syncStickyOffsets);
+/* Web font swaps in after first paint and changes row heights, so re-measure
+   once everything has settled. */
+window.addEventListener('load', syncStickyOffsets);
 
 boot();
 syncStickyOffsets();
