@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Date Range Report</title>
+<title>Weekly Individual Eff% Report</title>
+<link rel="icon" href="favicon.ico" sizes="any">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -20,7 +21,16 @@
 
   .wrap{padding:14px 18px 24px;max-width:1560px;margin:0 auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .placeholder{padding:80px 30px;text-align:center}
+  .placeholder{padding:70px 24px;text-align:center}
+  @media(max-width:560px){
+    .strip{padding:6px 9px;gap:7px}
+    .strip h2{font-size:11px}
+    .strip .rsub{display:none}
+    .wrap{padding:10px 9px 20px}
+    .placeholder{padding:44px 16px}
+    .placeholder h3{font-size:13.5px}
+    .placeholder p{font-size:11.5px}
+  }
   .placeholder .ic{width:54px;height:54px;border-radius:14px;background:var(--cream);border:1px solid var(--peach);
     display:inline-flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:14px}
   .placeholder h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:8px}
@@ -30,7 +40,7 @@
 <body>
 
 <div class="strip">
-  <h2>SOSL Cutting Section: Individual Efficiency Dashboard</h2>
+  <h2>Weekly Individual Eff% Report</h2>
   <span class="rsub">Multi day view</span>
 </div>
 
@@ -38,12 +48,12 @@
   <div class="card">
     <div class="placeholder">
       <div class="ic">&#128198;</div>
-      <h3>Date Range Report</h3>
+      <h3>Weekly Individual Eff% Report</h3>
       <p>
         Reserved for multi-day analysis &mdash; per-operator average efficiency across a selected
-        range, floor trend lines, and the weekly PIB view.
+        week, floor trend lines, and the weekly PIB view.
         <br><br>
-        Not built yet. Use the Daily Report tab above for single-day figures.
+        Not built yet. Use the Daily Individual Eff% Report tab above for single-day figures.
       </p>
     </div>
   </div>
