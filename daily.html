@@ -56,20 +56,22 @@
   .chartcard{padding:9px 12px;display:flex;flex-direction:column}
   .chartcard:before{background:var(--blue)}
   .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
-  .donutwrap{position:relative;width:100px;height:100px;flex:0 0 auto}
-  .donut{width:100px;height:100px;display:block}
+  .donutwrap{position:relative;width:104px;height:104px;flex:0 0 auto}
+  .donut{width:104px;height:104px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
-  /* hovering the ring dims the other slices so the hovered one reads clearly */
+  /* Dimming is driven from JS, not :hover, so the legend rows can trigger the
+     exact same highlight as the slices themselves. */
   .donut circle.seg{cursor:pointer;transition:opacity .13s}
-  .donut:hover circle.seg{opacity:.35}
-  .donut circle.seg:hover{opacity:1}
   .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.15}
-  .dcen b{font-size:17px;font-weight:800;line-height:1}
-  .dcen span{font-size:8px;font-weight:700;color:var(--mut);margin-top:2px;white-space:nowrap}
-  .dcen span.pc{font-size:9.5px;color:var(--txt);margin-top:0}
+  /* kept compact: the thicker ring leaves a smaller hole to write into */
+  .dcen b{font-size:15px;font-weight:800;line-height:1}
+  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);margin-top:1px;white-space:nowrap}
+  .dcen span.pc{font-size:9px;color:var(--txt);margin-top:0}
   .legend{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-width:0}
-  .lgrow{display:flex;align-items:center;gap:7px;font-size:11px}
+  .lgrow{display:flex;align-items:center;gap:7px;font-size:11px;cursor:pointer;
+         padding:2px 5px;margin:-2px -5px;border-radius:6px;transition:background .12s}
+  .lgrow:hover{background:#F2F4FA}
   .lgrow .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
   .lgrow .lgl{color:var(--txt);font-weight:700;white-space:nowrap}
 
@@ -94,6 +96,8 @@
   .hint{font-size:10px;font-weight:700;color:var(--peach);letter-spacing:.2px;
         background:rgba(255,255,255,.13);border:1px solid rgba(255,207,149,.5);
         border-radius:20px;padding:3px 10px;white-space:nowrap}
+  /* Individual card header is cream, not navy, so peach would disappear there */
+  #indcard .hint{color:var(--violet);background:#F3EEFC;border-color:#D6C8F0}
   .fsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:11px;background:#fff;color:var(--txt);font-weight:700;max-width:100%}
   .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:200px}
   .push{margin-left:auto}
@@ -731,7 +735,8 @@ function render(){
   h+=kpisHtml;
   h+='</div>'; // close toprow
 
-  h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>';
+  h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>'
+    +'<span class="hint">click to get details</span>';
   h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
   FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
@@ -790,24 +795,30 @@ function bandChart(b){
     {n:b.mid,c:'var(--green)', label:'65 &ndash; 90%'},
     {n:b.hi, c:'var(--blue)',  label:'&gt; 90%'}
   ];
-  var R=54, C=2*Math.PI*R, off=0, ring='';
+  /* Thick ring on a slightly smaller radius: widens the hover target a lot
+     while keeping the outer edge inside the 140 unit viewBox. */
+  var R=50, W=27, C=2*Math.PI*R, off=0, ring='';
   segs.forEach(function(s){
     if(!s.n) return;
     var len=C*(s.n/t);
     /* tiny gap between slices, but never wider than the slice itself */
     var gap=Math.min(2,len/3);
-    ring+='<circle class="seg" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="17"'
+    ring+='<circle class="seg" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="'+W+'"'
         + ' stroke-dasharray="'+(len-gap).toFixed(2)+' '+(C-len+gap).toFixed(2)+'"'
         + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"'
         + ' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
         + ' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)"></circle>';
     off+=len;
   });
-  /* Colour guide only. Counts and shares are deliberately left off, the cards
-     above and the floor table already carry those numbers. */
+  /* Colour guide. Counts and shares stay off the label, they appear in the
+     middle of the donut on hover. Carries the same data attributes and
+     handlers as the slices, so hovering a legend row reads out identically. */
   var legend='';
   segs.forEach(function(s){
-    legend+='<div class="lgrow"><span class="dot" style="background:'+s.c+'"></span>'
+    legend+='<div class="lgrow"'
+      +' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+      +' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)">'
+      +'<span class="dot" style="background:'+s.c+'"></span>'
       +'<span class="lgl">'+s.label+'</span></div>';
   });
 
@@ -818,7 +829,7 @@ function bandChart(b){
     +'<div class="chartrow">'
       +'<div class="donutwrap">'
         +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
-          +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
+          +'<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#EDEFF7" stroke-width="'+W+'"></circle>'
           +ring
         +'</svg>'
         /* filled on hover, empty otherwise, so the card stays clean and the
@@ -830,18 +841,27 @@ function bandChart(b){
   +'</div>';
 }
 
-/* Hovering a slice writes its count and share into the middle of the donut.
-   Also bound to click so it works on touch screens, which have no hover. */
+/* Hovering a slice OR its legend row writes that band's count and share into
+   the middle of the donut and dims the other slices. Both carry the same data
+   attributes, so one pair of handlers serves both. Click is bound too, for
+   touch screens where there is no hover. */
 function segHover(el){
   var d=document.getElementById('dcen');
   if(!d) return;
-  d.innerHTML='<b style="color:'+el.getAttribute('data-c')+'">'+el.getAttribute('data-n')+'</b>'
+  var c=el.getAttribute('data-c');
+  d.innerHTML='<b style="color:'+c+'">'+el.getAttribute('data-n')+'</b>'
     +'<span>'+esc(el.getAttribute('data-l'))+'</span>'
     +'<span class="pc">'+el.getAttribute('data-p')+'%</span>';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++){
+    segs[i].style.opacity = (segs[i].getAttribute('data-c')===c) ? '1' : '.3';
+  }
 }
 function segOut(){
   var d=document.getElementById('dcen');
   if(d) d.innerHTML='';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++) segs[i].style.opacity='';
 }
 
 function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
