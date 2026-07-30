@@ -53,11 +53,9 @@
             padding:8px 10px;border-radius:7px;cursor:pointer}
   .menu .mi:hover{background:rgba(255,255,255,.12);color:#fff}
   .menu .mi.on{background:var(--violet);color:#fff}
-  /* Was 10px #BFC4E0 on navy, too low contrast to read. Now a bordered chip
-     with a muted label and the timestamp itself in solid white. */
-  .stamp{font-size:10px;text-align:right;line-height:1.35;
-         background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
-         border-radius:8px;padding:4px 9px;white-space:nowrap}
+  /* No chip or border, just readable text. The old colour was too dim, so the
+     label is lightened and the timestamp itself is solid white. */
+  .stamp{font-size:10px;text-align:right;line-height:1.35;white-space:nowrap}
   .stamp .lbl{display:block;color:#C9CFE8;font-size:8.5px;font-weight:700;
               text-transform:uppercase;letter-spacing:.5px}
   .stamp b{color:#fff;font-size:11px;font-weight:800}
@@ -147,7 +145,7 @@
     <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
   </div>
   <div class="hdrright">
-    <div class="stamp" id="stamp"><span class="lbl">Data as of</span><b>&ndash;</b></div>
+    <div class="stamp" id="stamp"><span class="lbl">Last updated</span><b>&ndash;</b></div>
     <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
   </div>
 </div>
@@ -223,7 +221,7 @@ function setBusy(on){
 
 function setStamp(t){
   document.getElementById('stamp').innerHTML=
-    '<span class="lbl">Data as of</span><b>'+(t||'&ndash;')+'</b>';
+    '<span class="lbl">Last updated</span><b>'+(t||'&ndash;')+'</b>';
 }
 
 /* Rebuild server snapshot, cache it, tell the report page to redraw.
