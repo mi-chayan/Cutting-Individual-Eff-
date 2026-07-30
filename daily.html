@@ -100,15 +100,16 @@
      Sits directly under the Individual Report column header, so it stays fixed
      only while that operator's cut list is scrolling by.
 
-     .detscroll MUST be overflow:visible here, not clip. Chrome measures a
-     sticky offset from the nearest clipping ancestor, so with overflow:clip the
-     --detTop value was applied from the top of .detscroll instead of the top of
-     the page, parking the header roughly four rows into the cut list. Only
-     overflow:visible lets it anchor to the viewport like the other two headers.
+     .detscroll must stay overflow:visible for this to work. A scroll container
+     ancestor makes the browser measure --detTop from that box instead of the
+     page, and because sticky also pushes an element DOWN when it sits above the
+     threshold, the header got parked ~99px into the cut list permanently.
+     Its overflow is therefore declared in a max-width rule further down rather
+     than as a base rule, since a later same-specificity declaration would
+     otherwise override this block regardless of the media query.
      Gated at 1200px because the table is 1080px wide and below that the card is
      too narrow, so .detscroll has to stay a real horizontal scroller. */
   @media(min-width:1200px){
-    .detscroll{overflow:visible}
     /* border-collapse:separate avoids Chrome's sticky-offset miscalculation on
        collapsed-border tables. Visually identical, the cells draw their own
        bottom border already. */
@@ -146,7 +147,13 @@
   .detpills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
   .pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--mut)}
   .pill b{color:var(--navy)}
-  .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:#fff}
+  /* No overflow here on purpose, so it stays 'visible' and the sticky header
+     below can anchor to the page. Horizontal scrolling is added back only on
+     narrow screens, in the max-width rule further down. */
+  .detscroll{border:1px solid var(--line);border-radius:8px;background:#fff}
+  @media(max-width:1199px){
+    .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  }
   table.dettable{min-width:1080px;margin:0}
   table.dettable td:first-child{color:var(--mut);font-weight:700}
   table.dettable th{background:#5A6396;font-size:8.5px;padding:6px 7px;cursor:default}
