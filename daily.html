@@ -84,10 +84,15 @@
   @media(min-width:901px){
     .scroll{overflow:visible}
     #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
-    #flrtable thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
-    #indtable thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
+    /* Direct child combinator (>) between table and thead is the important
+       part: #indtable's tbody holds the drill-down's own <table class="dettable">,
+       which also has its own thead>th. A plain descendant selector would catch
+       that nested header too and stick it right under the real one. This only
+       matches a thead that is a direct child of #flrtable/#indtable itself. */
+    #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
+    #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
     /* border-collapse drops cell borders when sticky, so redraw them */
-    #flrtable thead th,#indtable thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+    #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
   }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
