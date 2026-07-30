@@ -34,8 +34,9 @@
 
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:13px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px;position:relative;overflow:hidden}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;margin-bottom:15px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px;position:relative;overflow:hidden;
+       box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
   .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
   .kpi .k{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.3}
@@ -43,9 +44,20 @@
   .kpi .s{font-size:10px;color:var(--mut);margin-top:2px}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.amber{color:var(--amber)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:13px;overflow:hidden}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:hidden;
+        box-shadow:0 1px 2px rgba(37,42,69,.05);transition:box-shadow .15s}
   .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
   .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
+
+  /* Floor Wise Report: raised "pop" card, visually distinct from Individual Report below it */
+  #floorcard{border:1px solid var(--peach);border-radius:14px;
+        box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
+        background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
+  #floorcard .hd{background:linear-gradient(90deg,var(--navy),#4A56A0)}
+  #floorcard .hd h3{color:#fff}
+  #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
+  #floorcard th{background:#404B8C}
+  #floorcard th:hover{background:#4A56A0}
   .hint{font-size:10px;color:var(--mut)}
   .fsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:11px;background:#fff;color:var(--txt);font-weight:700;max-width:100%}
   .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:200px}
@@ -59,6 +71,7 @@
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
   tbody tr:nth-child(even){background:#FAFBFE}
+  tbody tr{transition:background .1s}
   tbody tr:hover{background:var(--cream)}
   tr.clickable{cursor:pointer}
   tr.active-floor{background:#EFE7FB !important;box-shadow:inset 3px 0 0 var(--violet)}
@@ -154,9 +167,12 @@
     .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
-    .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto}
+    .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto;
+          box-shadow:none !important;background:#fff !important}
     .card .hd{background:#fff !important;padding:4pt 0;border-bottom:1.2pt solid var(--navy)}
-    .card .hd h3{font-size:10.5pt}
+    .card .hd h3{font-size:10.5pt;color:var(--navy) !important}
+    .card .hd h3:before{content:'' !important;margin:0 !important}
+    #floorcard th{background:#333D6D !important}
     .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:5mm;
                border-bottom:1.5pt solid #333D6D;padding-bottom:3mm}
     .printhead img{height:10mm;width:auto;flex:0 0 auto;display:block}
@@ -538,7 +554,7 @@ function render(){
     +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
 
-  h+='<div class="card"><div class="hd"><h3>Individual Report</h3>';
+  h+='<div class="card" id="indcard"><div class="hd"><h3>Individual Report</h3>';
   h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
   FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
