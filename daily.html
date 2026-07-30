@@ -37,36 +37,40 @@
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
   /* Floor Wise Report on the left, the 3 KPI cards stacked on the right - uses the width better */
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px;align-items:start;margin-bottom:15px}
+  /* align-items:stretch (the default) so the card column and the floor table
+     share one row height and their bottom edges line up */
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-bottom:15px}
   .toprow #floorcard{margin-bottom:0}
-  .kpis{display:flex;flex-direction:column;gap:11px}
+  .kpis{display:flex;flex-direction:column;gap:11px;height:100%}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px;position:relative;overflow:hidden;
        box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
+  .kpi.k2:before{background:var(--peach)}
   .kpi .k{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.3}
   .kpi .v{font-size:25px;font-weight:800;margin-top:2px;line-height:1.1}
   .kpi .s{font-size:10px;color:var(--mut);margin-top:2px}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
 
   /* ---- efficiency band donut ---- */
-  .chartcard{padding:12px 13px 11px}
+  .chartcard{padding:11px 13px;display:flex;flex-direction:column}
   .chartcard:before{background:var(--blue)}
-  .donutwrap{position:relative;margin:9px auto 8px;width:132px;height:132px}
-  .donut{width:132px;height:132px;display:block;transform:rotate(0deg)}
+  /* grows to take up whatever height is left, so the card stack finishes level
+     with the floor table instead of leaving a gap above the table below */
+  .toprow .chartcard{flex:1 1 auto;justify-content:center}
+  .chartrow{display:flex;align-items:center;gap:11px;margin-top:8px}
+  .donutwrap{position:relative;width:94px;height:94px;flex:0 0 auto}
+  .donut{width:94px;height:94px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
   .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center;pointer-events:none}
-  .dcen b{font-size:23px;font-weight:800;line-height:1;color:var(--navy)}
-  .dcen span{font-size:8.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
-  .legend{display:flex;flex-direction:column;gap:5px}
+  .dcen b{font-size:18px;font-weight:800;line-height:1;color:var(--navy)}
+  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+  .legend{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0}
   .lgrow{display:flex;align-items:center;gap:6px;font-size:10.5px}
   .lgrow .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
   .lgrow .lgl{color:var(--mut);font-weight:700;flex:1 1 auto;white-space:nowrap}
   .lgrow .lgv{font-weight:800;color:var(--txt)}
-  .lgrow .lgp{font-weight:800;color:var(--mut);min-width:30px;text-align:right}
-  .chartcard .s{margin-top:8px;border-top:1px solid var(--line);padding-top:7px}
-  .chartcard .s b{color:var(--navy)}
+  .lgrow .lgp{font-weight:800;color:var(--mut);min-width:28px;text-align:right}
 
   /* overflow:clip, not hidden. Both clip the rounded corners identically, but
      'hidden' creates a scroll container which breaks position:sticky headers. */
@@ -213,9 +217,9 @@
     .search{width:170px}
     .toprow{grid-template-columns:1fr;gap:11px}
     .toprow #floorcard{margin-bottom:0}
-    .kpis{flex-direction:row;flex-wrap:wrap}
+    .kpis{flex-direction:row;flex-wrap:wrap;height:auto}
     .kpis .kpi{flex:1 1 180px}
-    .chartcard{flex:1 1 240px}
+    .toprow .chartcard{flex:1 1 260px}
 
     /* Both tables must fit the screen from here down, otherwise they would need
        a scrolling wrapper and the sticky headers above would stop pinning.
@@ -690,8 +694,9 @@ function render(){
   var kpisHtml='<div class="kpis">'
     +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
     +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
-    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
-    +bandChart(S.bands,scopeNote)
+    /* No "Operators Below 65%" card here on purpose: the donut legend already
+       states that count and its share, so it would be the same figure twice. */
+    +bandChart(S.bands)
     +'</div>';
 
   h+='<div class="toprow">';
@@ -769,7 +774,7 @@ function render(){
 
 /* Donut of the three efficiency bands. Plain inline SVG, no chart library, so
    the page stays a single self-contained file with nothing to load. */
-function bandChart(b,scopeNote){
+function bandChart(b){
   var t=b.total||0;
   if(!t) return '';
   var segs=[
@@ -788,8 +793,6 @@ function bandChart(b,scopeNote){
         + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"></circle>';
     off+=len;
   });
-  var big=segs.slice().sort(function(x,y){return y.n-x.n})[0];
-
   var legend='';
   segs.forEach(function(s){
     legend+='<div class="lgrow"><span class="dot" style="background:'+s.c+'"></span>'
@@ -798,17 +801,20 @@ function bandChart(b,scopeNote){
       +'<span class="lgp">'+fmt(s.n/t*100,0)+'%</span></div>';
   });
 
+  /* Donut and legend sit side by side, not stacked, so the card stays short
+     enough for the three KPI cards plus this one to match the floor table. */
   return '<div class="kpi chartcard">'
     +'<div class="k">Operators by Eff% Band</div>'
-    +'<div class="donutwrap">'
-      +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
-        +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
-        +ring
-      +'</svg>'
-      +'<div class="dcen"><b>'+t+'</b><span>operators</span></div>'
+    +'<div class="chartrow">'
+      +'<div class="donutwrap">'
+        +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
+          +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
+          +ring
+        +'</svg>'
+        +'<div class="dcen"><b>'+t+'</b><span>ops</span></div>'
+      +'</div>'
+      +'<div class="legend">'+legend+'</div>'
     +'</div>'
-    +'<div class="legend">'+legend+'</div>'
-    +'<div class="s">most in <b>'+big.label+'</b>, '+scopeNote+'</div>'
   +'</div>';
 }
 
