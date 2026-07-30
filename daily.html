@@ -10,7 +10,9 @@
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    --red:#D64550; --amber:#E08A1E; --green:#1E8E4E; --stripH:40px;
+    /* Efficiency bands: 90% is the practical ceiling, not 100%.
+       red below 65, green 65 to 90, blue above 90. */
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --stripH:40px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
@@ -45,7 +47,26 @@
   .kpi .k{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.3}
   .kpi .v{font-size:25px;font-weight:800;margin-top:2px;line-height:1.1}
   .kpi .s{font-size:10px;color:var(--mut);margin-top:2px}
-  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.amber{color:var(--amber)}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
+
+  /* ---- efficiency band donut ---- */
+  .chartcard{padding:12px 13px 11px}
+  .chartcard:before{background:var(--blue)}
+  .donutwrap{position:relative;margin:9px auto 8px;width:132px;height:132px}
+  .donut{width:132px;height:132px;display:block;transform:rotate(0deg)}
+  .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
+  .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;pointer-events:none}
+  .dcen b{font-size:23px;font-weight:800;line-height:1;color:var(--navy)}
+  .dcen span{font-size:8.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .legend{display:flex;flex-direction:column;gap:5px}
+  .lgrow{display:flex;align-items:center;gap:6px;font-size:10.5px}
+  .lgrow .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .lgrow .lgl{color:var(--mut);font-weight:700;flex:1 1 auto;white-space:nowrap}
+  .lgrow .lgv{font-weight:800;color:var(--txt)}
+  .lgrow .lgp{font-weight:800;color:var(--mut);min-width:30px;text-align:right}
+  .chartcard .s{margin-top:8px;border-top:1px solid var(--line);padding-top:7px}
+  .chartcard .s b{color:var(--navy)}
 
   /* overflow:clip, not hidden. Both clip the rounded corners identically, but
      'hidden' creates a scroll container which breaks position:sticky headers. */
@@ -130,7 +151,7 @@
   tr.totalrow .pct{color:#fff !important}
 
   .pct{font-weight:800}
-  .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
+  .pct.red{color:var(--red)} .pct.green{color:var(--green)} .pct.blue{color:var(--blue)}
   .idshort{display:none}
   .lblp{display:none}   /* short header label, print only */
 
@@ -194,6 +215,7 @@
     .toprow #floorcard{margin-bottom:0}
     .kpis{flex-direction:row;flex-wrap:wrap}
     .kpis .kpi{flex:1 1 180px}
+    .chartcard{flex:1 1 240px}
 
     /* Both tables must fit the screen from here down, otherwise they would need
        a scrolling wrapper and the sticky headers above would stop pinning.
@@ -221,6 +243,7 @@
     .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
     .kpi{padding:9px 11px}
     .kpi:first-child{grid-column:span 2}
+    .chartcard{grid-column:span 2}
     .kpi .v{font-size:21px}
     .kpi .k{font-size:8.5px}
     .kpi .s{font-size:9px}
@@ -279,6 +302,8 @@
     .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .printhead .meta b{color:#111;font-weight:700}
     .toprow{display:block}
+    /* chart is screen-only, the PDF layout stays exactly as it was */
+    .chartcard{display:none !important}
     .kpis{display:flex;gap:4mm;margin-bottom:6mm}
     .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:3mm;page-break-inside:avoid}
     .kpi .v{font-size:15pt}
@@ -317,7 +342,7 @@
     #flrtable th:nth-child(4),#flrtable td:nth-child(4){width:26%}
     tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pct.red{color:#C0392B !important} .pct.amber{color:#B9700F !important} .pct.green{color:#146C3A !important}
+    .pct.red{color:#C0392B !important} .pct.green{color:#146C3A !important} .pct.blue{color:#14539E !important}
     .hs{display:table-cell !important}
     .hp{display:table-cell !important}            /* Input/Output Min return on paper */
     .nop{display:none !important}                 /* WH column dropped so all others fit */
@@ -370,7 +395,8 @@ var expandKey='';     /* floor|opId of the currently open operator */
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
-function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
+/* Bands: red below 65, green 65 to 90, blue above 90. */
+function pctClass(p){return p<65?'red':(p<=90?'green':'blue')}
 function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
 function shortId(id){return padId(id).slice(-5)}
 /* Sort floors in factory order (SOL 1A-1E, 3A, then SSL 2A-2E), not alphabetically */
@@ -382,12 +408,12 @@ function prettyDate(s){
 }
 function effPass(v,mode){
   if(mode==='lt65')return v<65;
-  if(mode==='65to99')return v>=65&&v<100;
-  if(mode==='gte100')return v>=100;
+  if(mode==='65to90')return v>=65&&v<=90;
+  if(mode==='gt90')return v>90;
   return true;
 }
 function effLabel(mode){
-  return mode==='lt65'?'Below 65%':mode==='65to99'?'65% to 99%':mode==='gte100'?'100% and above':'All';
+  return mode==='lt65'?'Below 65%':mode==='65to90'?'65% to 90%':mode==='gt90'?'Above 90%':'All';
 }
 function mapRows(arr){
   return (arr||[]).map(function(r){
@@ -597,6 +623,14 @@ function currentSets(){
     tot=grand;
   }
 
+  /* Operator counts per efficiency band, in the same scope the KPI cards use,
+     so the chart follows the floor selection too. */
+  var bandOps = floorFilter ? ops.filter(function(o){return o.floor===floorFilter}) : ops;
+  var bands={lo:0,mid:0,hi:0,total:bandOps.length};
+  bandOps.forEach(function(o){
+    if(o.eff<65) bands.lo++; else if(o.eff<=90) bands.mid++; else bands.hi++;
+  });
+
   /* Floor table always lists every floor. Selecting a row only highlights it
      and filters the Individual Report below. */
   var floorsShown=floorsAll.filter(function(f){
@@ -626,7 +660,7 @@ function currentSets(){
     return (va-vb)*sortDir;
   });
 
-  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand};
+  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand,bands:bands};
 }
 
 /* ---------- render ---------- */
@@ -648,7 +682,7 @@ function render(){
         +'<span>Scope <b>'+scopeLabel+'</b></span>'
         +'<span>Team Avg Eff% filter <b>'+effLabel(effFloorFilter)+'</b></span>'
         +'<span>Individual Eff% filter <b>'+effLabel(effIndFilter)+'</b></span>'
-        +'<span>Data as of <b>'+(STAMP||'-')+'</b></span>'
+        +'<span>Last updated <b>'+(STAMP||'-')+'</b></span>'
       +'</div>'
     +'</div></div>';
 
@@ -657,6 +691,7 @@ function render(){
     +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
     +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
     +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
+    +bandChart(S.bands,scopeNote)
     +'</div>';
 
   h+='<div class="toprow">';
@@ -664,7 +699,7 @@ function render(){
     +'<span class="hint">click a floor row to filter</span><div class="push"></div>'
     +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
       +opt('all','Team Avg Eff%: All',effFloorFilter)+opt('lt65','Team Avg Eff%: Below 65%',effFloorFilter)
-      +opt('65to99','Team Avg Eff%: 65% to 99%',effFloorFilter)+opt('gte100','Team Avg Eff%: 100% and above',effFloorFilter)
+      +opt('65to90','Team Avg Eff%: 65% to 90%',effFloorFilter)+opt('gt90','Team Avg Eff%: Above 90%',effFloorFilter)
     +'</select></div>';
   h+='<div class="scroll"><table id="flrtable"><thead><tr>'
     +fTh('floor','Floor','Floor')+fTh('man','Man Count (nos)','Man Count')
@@ -689,7 +724,7 @@ function render(){
   h+='</div><div class="push"></div>'
     +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
       +opt('all','Individual Eff%: All',effIndFilter)+opt('lt65','Individual Eff%: Below 65%',effIndFilter)
-      +opt('65to99','Individual Eff%: 65% to 99%',effIndFilter)+opt('gte100','Individual Eff%: 100% and above',effIndFilter)
+      +opt('65to90','Individual Eff%: 65% to 90%',effIndFilter)+opt('gt90','Individual Eff%: Above 90%',effIndFilter)
     +'</select>'
     +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
   h+='<div class="scroll"><table id="indtable"><thead><tr>'
@@ -717,7 +752,7 @@ function render(){
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
     if(isOpen) h+=detailBlock(o,10);
   });
-  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
+  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Green 65&ndash;90% &bull; Blue &gt; 90%</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
   h+='</div>';
@@ -730,6 +765,51 @@ function render(){
   var floorsOnScreen={};
   S.indShown.forEach(function(o){ floorsOnScreen[o.floor]=1; });
   prefetchVisibleFloors(Object.keys(floorsOnScreen));
+}
+
+/* Donut of the three efficiency bands. Plain inline SVG, no chart library, so
+   the page stays a single self-contained file with nothing to load. */
+function bandChart(b,scopeNote){
+  var t=b.total||0;
+  if(!t) return '';
+  var segs=[
+    {n:b.lo, c:'var(--red)',   label:'Below 65%'},
+    {n:b.mid,c:'var(--green)', label:'65% to 90%'},
+    {n:b.hi, c:'var(--blue)',  label:'Above 90%'}
+  ];
+  var R=54, C=2*Math.PI*R, off=0, ring='';
+  segs.forEach(function(s){
+    if(!s.n) return;
+    var len=C*(s.n/t);
+    /* tiny gap between slices, but never wider than the slice itself */
+    var gap=Math.min(2,len/3);
+    ring+='<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="17"'
+        + ' stroke-dasharray="'+(len-gap).toFixed(2)+' '+(C-len+gap).toFixed(2)+'"'
+        + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"></circle>';
+    off+=len;
+  });
+  var big=segs.slice().sort(function(x,y){return y.n-x.n})[0];
+
+  var legend='';
+  segs.forEach(function(s){
+    legend+='<div class="lgrow"><span class="dot" style="background:'+s.c+'"></span>'
+      +'<span class="lgl">'+s.label+'</span>'
+      +'<span class="lgv">'+s.n+'</span>'
+      +'<span class="lgp">'+fmt(s.n/t*100,0)+'%</span></div>';
+  });
+
+  return '<div class="kpi chartcard">'
+    +'<div class="k">Operators by Eff% Band</div>'
+    +'<div class="donutwrap">'
+      +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
+        +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
+        +ring
+      +'</svg>'
+      +'<div class="dcen"><b>'+t+'</b><span>operators</span></div>'
+    +'</div>'
+    +'<div class="legend">'+legend+'</div>'
+    +'<div class="s">most in <b>'+big.label+'</b>, '+scopeNote+'</div>'
+  +'</div>';
 }
 
 function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
@@ -806,7 +886,7 @@ function exportExcel(){
   t+='<tr><td colspan="10">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Team Avg Eff% filter: '+esc(effLabel(effFloorFilter))
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Individual Eff% filter: '+esc(effLabel(effIndFilter))
-    +'&nbsp;&nbsp;|&nbsp;&nbsp;Data as of: '+esc(STAMP)+'</td></tr>';
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
   t+='<tr><td></td></tr></table>';
 
   /* KPI block */
