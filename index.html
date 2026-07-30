@@ -8,382 +8,122 @@
 <style>
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
-    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    --red:#D64550; --amber:#E08A1E; --green:#1E8E4E;
+    --bg:#F4F5F9; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+  html,body{height:100%}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
+       font-size:13px;display:flex;flex-direction:column;overflow:hidden}
 
-  /* ---------- Fixed top zone ---------- */
-  .topfix{position:sticky;top:0;z-index:60;box-shadow:0 2px 10px rgba(37,42,69,.12)}
-  .hdr{background:var(--navy);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;
-       justify-content:center;position:relative;min-height:56px}
-  .hdr img.logo{height:30px;display:block;border-radius:3px}
-  .hdr h1{font-size:16px;font-weight:800;line-height:1.3;letter-spacing:.2px}
-  .hdr .sub{font-size:10.5px;color:#BFC4E0;margin-top:1px}
-  .hdrright{position:absolute;right:20px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:12px}
-  .stamp{font-size:10.5px;color:#BFC4E0;text-align:right;line-height:1.5}
-  .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:8px 14px;
+  .hdr{background:var(--navy);color:#fff;padding:8px 20px;display:flex;align-items:center;gap:14px;
+       justify-content:center;position:relative;min-height:52px;flex:0 0 auto}
+  .hdr img.logo{height:28px;display:block;border-radius:3px}
+  .hdr h1{font-size:15.5px;font-weight:800;line-height:1.25;letter-spacing:.2px}
+  .hdr .sub{font-size:10px;color:#BFC4E0;margin-top:1px}
+  .hdrright{position:absolute;right:18px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:11px}
+  .stamp{font-size:10px;color:#BFC4E0;text-align:right;line-height:1.45}
+  .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:7px 14px;
     font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
   .refresh:hover{filter:brightness(1.1)}
-  .refresh:disabled{opacity:.7;cursor:default}
+  .refresh:disabled{opacity:.75;cursor:default}
   .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none}
   .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
-
-  /* ---------- Report heading ---------- */
-  .rpthead{background:#fff;border-bottom:1px solid var(--line);padding:13px 20px}
-  .rpthead h2{font-size:14px;font-weight:800;color:var(--navy)}
-  .rpthead .rsub{font-size:10.5px;color:var(--mut);margin-top:2px}
-
-  /* ---------- Report tabs ---------- */
-  .navtabs{background:var(--navy);padding:0 20px;display:flex;gap:2px;justify-content:center;border-bottom:1px solid rgba(255,255,255,.12)}
-  .navtabs a{color:#BFC4E0;text-decoration:none;font-size:12px;font-weight:700;padding:10px 18px;border-radius:8px 8px 0 0}
-  .navtabs a:hover{background:rgba(255,255,255,.08);color:#fff}
-  .navtabs a.on{background:var(--bg);color:var(--navy)}
-
-  /* ---------- Control bar ---------- */
-  .bar{background:#fff;border-bottom:1px solid var(--line);padding:11px 20px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
-  .ctrl label{display:block;font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-  .ctrl input[type=date],.ctrl select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12.5px;background:#fff;color:var(--txt)}
-  .btn{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
-  .btn:hover{filter:brightness(1.08)}
-  .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
-  .btn.ghost:hover{background:var(--cream);border-color:var(--peach)}
-  .mode{font-size:11px;color:var(--mut);padding-bottom:8px;margin-left:4px}
-
-  .wrap{padding:16px 20px 8px;max-width:1560px;margin:0 auto;transition:opacity .2s}
-  .wrap.dim{opacity:.55}
-
-  /* ---------- KPI ---------- */
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 16px;position:relative;overflow:hidden}
-  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
-  .kpi .k{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
-  .kpi .v{font-size:27px;font-weight:800;margin-top:3px;line-height:1.1}
-  .kpi .s{font-size:10.5px;color:var(--mut);margin-top:3px}
-  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.amber{color:var(--amber)}
-
-  /* ---------- Cards & tables ---------- */
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden}
-  .card .hd{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
-  .card .hd h2{font-size:12.5px;font-weight:800;color:var(--navy);letter-spacing:.2px}
-  .hint{font-size:10.5px;color:var(--mut)}
-  .fsel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--txt);font-weight:700}
-  .search{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12px;width:220px}
-  .push{margin-left:auto}
-
-  .scroll{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;min-width:760px}
-  th{background:var(--navy);color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:9px 10px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
-  th:hover{background:#3D4880}
-  th .arr{font-size:8px;opacity:.85;margin-left:2px}
-  td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
-  td.l{text-align:left}
-  tbody tr:nth-child(even){background:#FAFBFE}
-  tbody tr:hover{background:var(--cream)}
-  tr.clickable{cursor:pointer}
-  tr.active-floor{background:#EFE7FB !important;box-shadow:inset 3px 0 0 var(--violet)}
-  tr.totalrow{background:var(--navy) !important;color:#fff;font-weight:800}
-  tr.totalrow td{border-bottom:0}
-  tr.totalrow .pct{color:#fff !important}
-
-  .pct{font-weight:800}
-  .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
-  .cell-red{background:#FCEDEE;color:var(--red);font-weight:700}
-
-  .chips{display:flex;gap:5px;flex-wrap:wrap}
-  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 12px;font-size:10.5px;font-weight:800;cursor:pointer;color:var(--mut)}
-  .chip:hover{border-color:var(--violet);color:var(--violet)}
-  .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
-
-  .foot{font-size:10.5px;color:var(--mut);padding:9px 16px;background:#FAFBFE}
-  .copyright{text-align:center;font-size:10px;color:var(--mut);padding:14px 20px 22px}
-  .loading{padding:70px;text-align:center;color:var(--mut);font-weight:700}
-  .spin{display:inline-block;width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:12px}
   @keyframes sp{to{transform:rotate(360deg)}}
-  .empty{padding:44px;text-align:center;color:var(--mut);line-height:1.7}
+
+  .navtabs{background:var(--navy);padding:0 20px;display:flex;gap:2px;justify-content:center;
+           border-bottom:1px solid rgba(255,255,255,.12);flex:0 0 auto}
+  .navtabs button{background:transparent;border:0;color:#BFC4E0;font-family:inherit;font-size:12px;
+    font-weight:700;padding:9px 20px;border-radius:8px 8px 0 0;cursor:pointer}
+  .navtabs button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .navtabs button.on{background:var(--bg);color:var(--navy)}
+
+  #frame{flex:1 1 auto;width:100%;border:0;display:block;background:var(--bg)}
+
+  .ftr{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);text-align:center;
+       font-size:10.5px;color:var(--mut);padding:8px 20px;display:flex;align-items:center;
+       justify-content:center;gap:8px}
+  .ftr .help{display:inline-flex;align-items:center;gap:5px;color:var(--navy);font-weight:700}
+  .ftr svg{width:12px;height:12px;fill:var(--violet)}
+
   @media(max-width:860px){
-    .search{width:100%} .stamp{display:none} .hdr h1{font-size:13px}
-    .hdr{flex-wrap:wrap;padding-bottom:52px}
-    .hdrright{position:static;transform:none;width:100%;justify-content:center;margin-top:2px}
-    .hdr{padding-bottom:10px}
+    .stamp{display:none}
+    .hdr h1{font-size:13px}
+    .hdrright{right:12px}
   }
 </style>
 </head>
 <body>
 
-<div class="topfix">
-  <div class="hdr">
-    <img src="logo.jpg" alt="SNOWTEX" class="logo">
-    <div>
-      <h1>SOSL Cutting Section Dashboard</h1>
-      <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
-    </div>
-    <div class="hdrright">
-      <div class="stamp" id="stamp"></div>
-      <button class="refresh" id="rbtn" onclick="refreshNow()"><span class="dot"></span><span id="rtxt">Refresh</span></button>
-    </div>
+<div class="hdr">
+  <img src="logo.jpg" alt="SNOWTEX" class="logo">
+  <div>
+    <h1>SOSL Cutting Section Dashboard</h1>
+    <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
   </div>
-
-  <div class="navtabs">
-    <a href="index.html" class="on">Daily Report</a>
-    <a href="range.html">Date Range Report</a>
+  <div class="hdrright">
+    <div class="stamp" id="stamp">Data as of<br>&ndash;</div>
+    <button class="refresh" id="rbtn" onclick="doRefresh()"><span class="dot"></span><span id="rtxt">Refresh</span></button>
   </div>
 </div>
 
-<div class="rpthead">
-  <h2>SOSL Cutting Section: Individual Efficiency Dashboard</h2>
-  <div class="rsub">Single day view &bull; operator level efficiency by floor</div>
+<div class="navtabs">
+  <button id="t_daily" class="on" onclick="go('daily')">Daily Report</button>
+  <button id="t_range" onclick="go('range')">Date Range Report</button>
 </div>
 
-<div class="bar">
-  <div class="ctrl"><label>Report Date</label><input type="date" id="d1" onchange="load(false)"></div>
-  <button class="btn ghost" onclick="goLatest()">Latest Day</button>
-  <div class="mode" id="mode"></div>
-</div>
+<iframe id="frame" src="daily.html"></iframe>
 
-<div class="wrap" id="wrap">
-  <div id="content"><div class="loading"><div class="spin"></div><br>Loading latest day&hellip;</div></div>
+<div class="ftr">
+  <span>&copy; 2026 SNOWTEX CI Team</span>
+  <span>|</span>
+  <span class="help">
+    <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/></svg>
+    Help 2803
+  </span>
 </div>
-
-<div class="copyright">&copy; 2026 SNOWTEX CI Team. All rights reserved.</div>
 
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+var SNAP_KEY = 'sosl_snapshot_v1';
 
-var DATA=[], DATES=[], LATEST='', DAY='';
-var floorFilter='', sortKey='eff', sortDir=1, query='';
-var effFloorFilter='all', effIndFilter='all';
-var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
-
-function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
-function pctClass(p){return p<65?'red':(p<100?'amber':'green')}
-function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
-function prettyDate(s){
-  if(!s)return '';
-  var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
-}
-function effPass(v,mode){
-  if(mode==='all')return true;
-  if(mode==='lt65')return v<65;
-  if(mode==='65to99')return v>=65&&v<100;
-  if(mode==='gte100')return v>=100;
-  return true;
-}
-
-function apiGet(params){
-  var qs=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
-  return fetch(API_URL+'?'+qs).then(function(r){
-    if(!r.ok)throw new Error('API responded '+r.status);
-    return r.json();
-  });
-}
-
-/* rows arrive as arrays: [floor,opId,name,desig,wh,eng,types,inMin,outMin] */
-function mapRows(arr){
-  return arr.map(function(r){
-    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],inMin:r[7],outMin:r[8]};
-  });
+function go(which){
+  document.getElementById('t_daily').classList.toggle('on', which==='daily');
+  document.getElementById('t_range').classList.toggle('on', which==='range');
+  document.getElementById('frame').src = (which==='daily') ? 'daily.html' : 'range.html';
 }
 
 function setBusy(on){
   var b=document.getElementById('rbtn');
   b.classList.toggle('busy',on);
   b.disabled=on;
-  document.getElementById('rtxt').textContent=on?'Loading':'Refresh';
-  document.getElementById('wrap').classList.toggle('dim',on);
+  document.getElementById('rtxt').textContent = on ? 'Loading' : 'Refresh';
 }
 
-/* First paint: one call, served from the cached snapshot */
-function boot(){
-  if(API_URL.indexOf('PASTE_')===0){
-    document.getElementById('content').innerHTML='<div class="empty">Setup incomplete: paste your Apps Script /exec URL into API_URL.</div>';return;
-  }
+function setStamp(t){
+  document.getElementById('stamp').innerHTML='Data as of<br>'+(t||'&ndash;');
+}
+
+/* Refresh: rebuild server snapshot, cache it, tell the report page to redraw.
+   Nothing on screen is dimmed or cleared while this runs. */
+function doRefresh(){
   setBusy(true);
-  apiGet({action:'snapshot'}).then(function(res){
-    if(res.error)throw new Error(res.error);
-    DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST;
-    DATA=mapRows(res.rows||[]);
-    document.getElementById('d1').value=LATEST;
-    setStamp(res);
-    if(!DATA.length&&!LATEST){document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';setBusy(false);return}
-    resetFilters(); render(); setBusy(false);
-  }).catch(function(e){showErr(e);setBusy(false)});
+  fetch(API_URL+'?action=snapshot&fresh=1')
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error) throw new Error(res.error);
+      try{ sessionStorage.setItem(SNAP_KEY, JSON.stringify(res)); }catch(e){}
+      setStamp(res.generatedAt);
+      var f=document.getElementById('frame');
+      if(f.contentWindow) f.contentWindow.postMessage({type:'snapshot-updated'},'*');
+      setBusy(false);
+    })
+    .catch(function(e){ setBusy(false); alert('Refresh failed: '+e.message); });
 }
 
-/* Refresh button: rebuild server snapshot, keep current view on screen meanwhile */
-function refreshNow(){
-  setBusy(true);
-  apiGet({action:'snapshot',fresh:'1'}).then(function(res){
-    if(res.error)throw new Error(res.error);
-    DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST;
-    DATA=mapRows(res.rows||[]);
-    document.getElementById('d1').value=LATEST;
-    setStamp(res);
-    render(); setBusy(false);
-  }).catch(function(e){showErr(e);setBusy(false)});
-}
-
-function goLatest(){
-  if(!LATEST){boot();return}
-  document.getElementById('d1').value=LATEST;
-  load(false);
-}
-
-/* Any other date: live read */
-function load(){
-  var d1=document.getElementById('d1').value;
-  if(!d1){boot();return}
-  if(d1===LATEST){ /* latest day already cached, reuse snapshot */ }
-  DAY=d1;
-  setBusy(true);
-  apiGet({action:'data',from:d1,to:d1}).then(function(res){
-    if(res.error)throw new Error(res.error);
-    DATA=mapRows(res.rows||[]);
-    setStamp(res);
-    resetFilters(); render(); setBusy(false);
-  }).catch(function(e){showErr(e);setBusy(false)});
-}
-
-function setStamp(res){
-  document.getElementById('stamp').innerHTML='Data as of<br>'+(res.generatedAt||'-');
-  document.getElementById('mode').textContent='Showing: '+prettyDate(DAY);
-}
-function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all'}
-
-function showErr(e){
-  document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
-    +'<br><br>Check: 1) API_URL is the /exec link, 2) deployment access is "Anyone with the link", 3) a NEW VERSION was deployed after the last code change.</div>';
-}
-
-function operatorAgg(){
-  var map={};
-  DATA.forEach(function(r){
-    var k=r.floor+'|'+r.opId;
-    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,types:{}};
-    var o=map[k];
-    o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
-    String(r.types||'').split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
-    if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
-  });
-  return Object.keys(map).map(function(k){
-    var o=map[k];
-    o.avgWh=o.wh/o.n; o.avgEng=o.eng/o.n;
-    o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
-    o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
-    return o;
-  });
-}
-
-function floorAgg(ops){
-  var map={};
-  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0}});
-  ops.forEach(function(o){
-    var f=map[o.floor]; if(!f)return;
-    f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
-    if(o.eff<65)f.u65++;
-  });
-  return FLOOR_ORDER.map(function(k){
-    var f=map[k];
-    f.eff=f.inMin>0?(f.outMin/f.inMin*100):0;
-    return f;
-  });
-}
-
-function render(){
-  var ops=operatorAgg();
-  var floorsAll=floorAgg(ops);
-
-  /* totals always reflect the full day, not the filters */
-  var tot={man:0,inMin:0,outMin:0,u65:0};
-  floorsAll.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65});
-  var totEff=tot.inMin>0?(tot.outMin/tot.inMin*100):0;
-
-  var h='';
-  h+='<div class="kpis">'
-    +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data</div></div>'
-    +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(totEff)+'">'+fmt(totEff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min</div></div>'
-    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of total man count</div></div>'
-    +'</div>';
-
-  /* ---- Floor wise report ---- */
-  var floorsShown=floorsAll.filter(function(f){return f.man>0 && effPass(f.eff,effFloorFilter)});
-  h+='<div class="card"><div class="hd"><h2>Floor Wise Report</h2>'
-    +'<span class="hint">click a floor row to filter the individual report</span>'
-    +'<div class="push"></div>'
-    +'<label style="font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px">Team Avg Eff% filter</label>'
-    +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
-      +opt('all','All',effFloorFilter)+opt('lt65','Below 65%',effFloorFilter)
-      +opt('65to99','65% to 99%',effFloorFilter)+opt('gte100','100% and above',effFloorFilter)
-    +'</select></div>';
-  h+='<div class="scroll"><table><thead><tr>'
-    +'<th>Floor</th><th>Man Count (nos)</th><th>Team Avg Eff% (%)</th><th>Eff% &lt; 65% (nos)</th>'
-    +'</tr></thead><tbody>';
-  if(!floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this efficiency filter.</td></tr>';
-  floorsShown.forEach(function(f){
-    h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
-      +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
-      +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
-      +'<td class="'+(f.u65>0?'cell-red':'')+'">'+f.u65+'</td></tr>';
-  });
-  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+tot.man+'</td>'
-    +'<td class="pct">'+fmt(totEff,1)+'%</td><td>'+tot.u65+'</td></tr>';
-  h+='</tbody></table></div></div>';
-
-  /* ---- Individual report ---- */
-  var shown=ops.filter(function(o){
-    if(floorFilter&&o.floor!==floorFilter)return false;
-    if(!effPass(o.eff,effIndFilter))return false;
-    if(query){
-      var q=query.toLowerCase();
-      if(o.name.toLowerCase().indexOf(q)<0 && padId(o.opId).indexOf(q)<0 && o.desig.toLowerCase().indexOf(q)<0)return false;
-    }
-    return true;
-  });
-  shown.sort(function(a,b){
-    var va=a[sortKey],vb=b[sortKey];
-    if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
-    return (va-vb)*sortDir;
-  });
-
-  h+='<div class="card"><div class="hd"><h2>Individual Report</h2>';
-  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
-  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
-  h+='</div><div class="push"></div>'
-    +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
-      +opt('all','Eff%: All',effIndFilter)+opt('lt65','Eff%: Below 65%',effIndFilter)
-      +opt('65to99','Eff%: 65% to 99%',effIndFilter)+opt('gte100','Eff%: 100% and above',effIndFilter)
-    +'</select>'
-    +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
-  h+='<div class="scroll"><table><thead><tr>'
-    +thSort('floor','Floor')+thSort('opId','Op. ID')+thSort('name','Op. Name')+thSort('desig','Designation')
-    +thSort('avgWh','WH (hrs)')+thSort('avgEng','Engagement% (%)')+'<th>Type</th>'
-    +thSort('inMin','Input Min (min)')+thSort('outMin','Output Min (min)')+thSort('eff','Individual Eff% (%)')
-    +'</tr></thead><tbody>';
-  if(shown.length===0)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
-  shown.forEach(function(o){
-    h+='<tr><td>'+o.floor+'</td><td>'+padId(o.opId)+'</td><td class="l">'+o.name+'</td><td class="l">'+o.desig+'</td>'
-      +'<td>'+fmt(o.avgWh,2)+'</td><td>'+fmt(o.avgEng,0)+'%</td><td>'+o.typeStr+'</td>'
-      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
-      +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
-  });
-  h+='</tbody></table></div><div class="foot">'+shown.length+' of '+ops.length+' operator(s) shown &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
-
-  document.getElementById('content').innerHTML=h;
-}
-
-function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
-function thSort(key,label){
-  var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
-  return '<th onclick="setSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
-}
-function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
-function toggleFloor(f){ floorFilter=(floorFilter===f)?'':f; render(); }
-function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
-
-boot();
+/* Report pages report their data timestamp up to the header */
+window.addEventListener('message', function(ev){
+  if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
+});
 </script>
 </body>
 </html>
