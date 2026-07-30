@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SNOWTEX | Cutting Individual Efficiency &mdash; Daily</title>
+<title>SNOWTEX | SOSL Cutting Section Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -16,19 +16,27 @@
 
   /* ---------- Fixed top zone ---------- */
   .topfix{position:sticky;top:0;z-index:60;box-shadow:0 2px 10px rgba(37,42,69,.12)}
-  .hdr{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .logo{background:var(--violet);color:#fff;font-weight:800;font-size:12px;padding:5px 12px;border-radius:6px;letter-spacing:1.5px}
+  .hdr{background:var(--navy);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;
+       justify-content:center;position:relative;min-height:56px}
+  .hdr img.logo{height:30px;display:block;border-radius:3px}
   .hdr h1{font-size:16px;font-weight:800;line-height:1.3;letter-spacing:.2px}
   .hdr .sub{font-size:10.5px;color:#BFC4E0;margin-top:1px}
-  .stamp{margin-left:auto;font-size:10.5px;color:#BFC4E0;text-align:right;line-height:1.5}
+  .hdrright{position:absolute;right:20px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:12px}
+  .stamp{font-size:10.5px;color:#BFC4E0;text-align:right;line-height:1.5}
+  .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:8px 14px;
+    font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .refresh:hover{filter:brightness(1.1)}
+  .refresh:disabled{opacity:.7;cursor:default}
+  .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none}
+  .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
 
   /* ---------- Report heading ---------- */
   .rpthead{background:#fff;border-bottom:1px solid var(--line);padding:13px 20px}
   .rpthead h2{font-size:14px;font-weight:800;color:var(--navy)}
   .rpthead .rsub{font-size:10.5px;color:var(--mut);margin-top:2px}
 
-  /* ---------- Report tabs (Looker Studio style) ---------- */
-  .navtabs{background:var(--navy);padding:0 20px;display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.12)}
+  /* ---------- Report tabs ---------- */
+  .navtabs{background:var(--navy);padding:0 20px;display:flex;gap:2px;justify-content:center;border-bottom:1px solid rgba(255,255,255,.12)}
   .navtabs a{color:#BFC4E0;text-decoration:none;font-size:12px;font-weight:700;padding:10px 18px;border-radius:8px 8px 0 0}
   .navtabs a:hover{background:rgba(255,255,255,.08);color:#fff}
   .navtabs a.on{background:var(--bg);color:var(--navy)}
@@ -36,14 +44,15 @@
   /* ---------- Control bar ---------- */
   .bar{background:#fff;border-bottom:1px solid var(--line);padding:11px 20px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
   .ctrl label{display:block;font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
-  .ctrl input[type=date]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13px;background:#fff;color:var(--txt)}
+  .ctrl input[type=date],.ctrl select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12.5px;background:#fff;color:var(--txt)}
   .btn{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
   .btn:hover{filter:brightness(1.08)}
   .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
   .btn.ghost:hover{background:var(--cream);border-color:var(--peach)}
   .mode{font-size:11px;color:var(--mut);padding-bottom:8px;margin-left:4px}
 
-  .wrap{padding:16px 20px 8px;max-width:1560px;margin:0 auto}
+  .wrap{padding:16px 20px 8px;max-width:1560px;margin:0 auto;transition:opacity .2s}
+  .wrap.dim{opacity:.55}
 
   /* ---------- KPI ---------- */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
@@ -60,7 +69,9 @@
   .card .hd{padding:11px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
   .card .hd h2{font-size:12.5px;font-weight:800;color:var(--navy);letter-spacing:.2px}
   .hint{font-size:10.5px;color:var(--mut)}
-  .search{margin-left:auto;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12px;width:230px}
+  .fsel{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-family:inherit;font-size:11.5px;background:#fff;color:var(--txt);font-weight:700}
+  .search{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12px;width:220px}
+  .push{margin-left:auto}
 
   .scroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;min-width:760px}
@@ -92,19 +103,27 @@
   .spin{display:inline-block;width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:12px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:44px;text-align:center;color:var(--mut);line-height:1.7}
-  @media(max-width:700px){ .search{width:100%;margin-left:0} .stamp{display:none} .hdr h1{font-size:13px} }
+  @media(max-width:860px){
+    .search{width:100%} .stamp{display:none} .hdr h1{font-size:13px}
+    .hdr{flex-wrap:wrap;padding-bottom:52px}
+    .hdrright{position:static;transform:none;width:100%;justify-content:center;margin-top:2px}
+    .hdr{padding-bottom:10px}
+  }
 </style>
 </head>
 <body>
 
 <div class="topfix">
   <div class="hdr">
-    <span class="logo">SNOWTEX</span>
+    <img src="logo.jpg" alt="SNOWTEX" class="logo">
     <div>
       <h1>SOSL Cutting Section Dashboard</h1>
       <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
     </div>
-    <div class="stamp" id="stamp"></div>
+    <div class="hdrright">
+      <div class="stamp" id="stamp"></div>
+      <button class="refresh" id="rbtn" onclick="refreshNow()"><span class="dot"></span><span id="rtxt">Refresh</span></button>
+    </div>
   </div>
 
   <div class="navtabs">
@@ -119,13 +138,13 @@
 </div>
 
 <div class="bar">
-  <div class="ctrl"><label>Report Date</label><input type="date" id="d1" onchange="load()"></div>
-  <button class="btn ghost" onclick="setLatest()">Latest Day</button>
+  <div class="ctrl"><label>Report Date</label><input type="date" id="d1" onchange="load(false)"></div>
+  <button class="btn ghost" onclick="goLatest()">Latest Day</button>
   <div class="mode" id="mode"></div>
 </div>
 
-<div class="wrap">
-  <div id="content"><div class="loading"><div class="spin"></div><br>Loading latest day from the sheet&hellip;</div></div>
+<div class="wrap" id="wrap">
+  <div id="content"><div class="loading"><div class="spin"></div><br>Loading latest day&hellip;</div></div>
 </div>
 
 <div class="copyright">&copy; 2026 SNOWTEX CI Team. All rights reserved.</div>
@@ -133,7 +152,9 @@
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 
-var DATA=[], DAY='', floorFilter='', sortKey='eff', sortDir=1, query='';
+var DATA=[], DATES=[], LATEST='', DAY='';
+var floorFilter='', sortKey='eff', sortDir=1, query='';
+var effFloorFilter='all', effIndFilter='all';
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
@@ -144,6 +165,13 @@ function prettyDate(s){
   var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
 }
+function effPass(v,mode){
+  if(mode==='all')return true;
+  if(mode==='lt65')return v<65;
+  if(mode==='65to99')return v>=65&&v<100;
+  if(mode==='gte100')return v>=100;
+  return true;
+}
 
 function apiGet(params){
   var qs=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
@@ -153,31 +181,77 @@ function apiGet(params){
   });
 }
 
-function setLatest(){
+/* rows arrive as arrays: [floor,opId,name,desig,wh,eng,types,inMin,outMin] */
+function mapRows(arr){
+  return arr.map(function(r){
+    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],inMin:r[7],outMin:r[8]};
+  });
+}
+
+function setBusy(on){
+  var b=document.getElementById('rbtn');
+  b.classList.toggle('busy',on);
+  b.disabled=on;
+  document.getElementById('rtxt').textContent=on?'Loading':'Refresh';
+  document.getElementById('wrap').classList.toggle('dim',on);
+}
+
+/* First paint: one call, served from the cached snapshot */
+function boot(){
   if(API_URL.indexOf('PASTE_')===0){
     document.getElementById('content').innerHTML='<div class="empty">Setup incomplete: paste your Apps Script /exec URL into API_URL.</div>';return;
   }
-  apiGet({action:'dates'}).then(function(dates){
-    if(!dates.length){document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return}
-    document.getElementById('d1').value=dates[dates.length-1];
-    load();
-  }).catch(showErr);
+  setBusy(true);
+  apiGet({action:'snapshot'}).then(function(res){
+    if(res.error)throw new Error(res.error);
+    DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST;
+    DATA=mapRows(res.rows||[]);
+    document.getElementById('d1').value=LATEST;
+    setStamp(res);
+    if(!DATA.length&&!LATEST){document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';setBusy(false);return}
+    resetFilters(); render(); setBusy(false);
+  }).catch(function(e){showErr(e);setBusy(false)});
 }
 
+/* Refresh button: rebuild server snapshot, keep current view on screen meanwhile */
+function refreshNow(){
+  setBusy(true);
+  apiGet({action:'snapshot',fresh:'1'}).then(function(res){
+    if(res.error)throw new Error(res.error);
+    DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST;
+    DATA=mapRows(res.rows||[]);
+    document.getElementById('d1').value=LATEST;
+    setStamp(res);
+    render(); setBusy(false);
+  }).catch(function(e){showErr(e);setBusy(false)});
+}
+
+function goLatest(){
+  if(!LATEST){boot();return}
+  document.getElementById('d1').value=LATEST;
+  load(false);
+}
+
+/* Any other date: live read */
 function load(){
   var d1=document.getElementById('d1').value;
-  if(!d1){setLatest();return}
+  if(!d1){boot();return}
+  if(d1===LATEST){ /* latest day already cached, reuse snapshot */ }
   DAY=d1;
-  document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+prettyDate(d1)+'&hellip;</div>';
+  setBusy(true);
   apiGet({action:'data',from:d1,to:d1}).then(function(res){
     if(res.error)throw new Error(res.error);
-    DATA=res.rows;
-    document.getElementById('stamp').innerHTML='Data refreshed<br>'+res.generatedAt;
-    document.getElementById('mode').textContent='Showing: '+prettyDate(d1);
-    floorFilter='';query='';
-    render();
-  }).catch(showErr);
+    DATA=mapRows(res.rows||[]);
+    setStamp(res);
+    resetFilters(); render(); setBusy(false);
+  }).catch(function(e){showErr(e);setBusy(false)});
 }
+
+function setStamp(res){
+  document.getElementById('stamp').innerHTML='Data as of<br>'+(res.generatedAt||'-');
+  document.getElementById('mode').textContent='Showing: '+prettyDate(DAY);
+}
+function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all'}
 
 function showErr(e){
   document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
@@ -191,7 +265,7 @@ function operatorAgg(){
     if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,types:{}};
     var o=map[k];
     o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
-    r.types.split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
+    String(r.types||'').split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
     if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
   });
   return Object.keys(map).map(function(k){
@@ -220,9 +294,11 @@ function floorAgg(ops){
 
 function render(){
   var ops=operatorAgg();
-  var floors=floorAgg(ops);
+  var floorsAll=floorAgg(ops);
+
+  /* totals always reflect the full day, not the filters */
   var tot={man:0,inMin:0,outMin:0,u65:0};
-  floors.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65});
+  floorsAll.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65});
   var totEff=tot.inMin>0?(tot.outMin/tot.inMin*100):0;
 
   var h='';
@@ -232,13 +308,21 @@ function render(){
     +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of total man count</div></div>'
     +'</div>';
 
-  /* Floor wise */
-  h+='<div class="card"><div class="hd"><h2>Floor Wise Report</h2><span class="hint">click any floor row to filter the individual report &bull; click again to clear</span></div>';
+  /* ---- Floor wise report ---- */
+  var floorsShown=floorsAll.filter(function(f){return f.man>0 && effPass(f.eff,effFloorFilter)});
+  h+='<div class="card"><div class="hd"><h2>Floor Wise Report</h2>'
+    +'<span class="hint">click a floor row to filter the individual report</span>'
+    +'<div class="push"></div>'
+    +'<label style="font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px">Team Avg Eff% filter</label>'
+    +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
+      +opt('all','All',effFloorFilter)+opt('lt65','Below 65%',effFloorFilter)
+      +opt('65to99','65% to 99%',effFloorFilter)+opt('gte100','100% and above',effFloorFilter)
+    +'</select></div>';
   h+='<div class="scroll"><table><thead><tr>'
     +'<th>Floor</th><th>Man Count (nos)</th><th>Team Avg Eff% (%)</th><th>Eff% &lt; 65% (nos)</th>'
     +'</tr></thead><tbody>';
-  floors.forEach(function(f){
-    if(f.man===0)return;
+  if(!floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this efficiency filter.</td></tr>';
+  floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
       +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
@@ -248,9 +332,10 @@ function render(){
     +'<td class="pct">'+fmt(totEff,1)+'%</td><td>'+tot.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
 
-  /* Individual */
+  /* ---- Individual report ---- */
   var shown=ops.filter(function(o){
     if(floorFilter&&o.floor!==floorFilter)return false;
+    if(!effPass(o.eff,effIndFilter))return false;
     if(query){
       var q=query.toLowerCase();
       if(o.name.toLowerCase().indexOf(q)<0 && padId(o.opId).indexOf(q)<0 && o.desig.toLowerCase().indexOf(q)<0)return false;
@@ -259,14 +344,19 @@ function render(){
   });
   shown.sort(function(a,b){
     var va=a[sortKey],vb=b[sortKey];
-    if(typeof va==='string')return va.localeCompare(vb)*sortDir;
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
     return (va-vb)*sortDir;
   });
 
   h+='<div class="card"><div class="hd"><h2>Individual Report</h2>';
   h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
   FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
-  h+='</div><input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+='</div><div class="push"></div>'
+    +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
+      +opt('all','Eff%: All',effIndFilter)+opt('lt65','Eff%: Below 65%',effIndFilter)
+      +opt('65to99','Eff%: 65% to 99%',effIndFilter)+opt('gte100','Eff%: 100% and above',effIndFilter)
+    +'</select>'
+    +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
   h+='<div class="scroll"><table><thead><tr>'
     +thSort('floor','Floor')+thSort('opId','Op. ID')+thSort('name','Op. Name')+thSort('desig','Designation')
     +thSort('avgWh','WH (hrs)')+thSort('avgEng','Engagement% (%)')+'<th>Type</th>'
@@ -279,20 +369,21 @@ function render(){
       +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
   });
-  h+='</tbody></table></div><div class="foot">'+shown.length+' operator(s) shown &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
+  h+='</tbody></table></div><div class="foot">'+shown.length+' of '+ops.length+' operator(s) shown &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
 
   document.getElementById('content').innerHTML=h;
 }
 
+function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
 function thSort(key,label){
   var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
   return '<th onclick="setSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
 }
 function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
 function toggleFloor(f){ floorFilter=(floorFilter===f)?'':f; render(); }
-function renderKeepFocus(){ render(); var q=document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length); }
+function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
 
-setLatest();
+boot();
 </script>
 </body>
 </html>
