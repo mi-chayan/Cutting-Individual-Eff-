@@ -140,28 +140,33 @@
          border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;
          margin-right:5px;transition:transform .15s;vertical-align:middle}
   tr.oprow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
-  tr.detrow>td{padding:0;background:#FBFAFE;border-bottom:2px solid var(--violet)}
+  /* Violet-tinted throughout so the nested cut-by-cut table never reads as
+     part of the white parent table above it. */
+  tr.detrow>td{padding:0;background:#EFE9FA;border-bottom:2px solid var(--violet);
+               box-shadow:inset 3px 0 0 var(--violet)}
   .detbox{padding:11px 13px}
   .dethead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:8px}
-  .dethead h4{font-size:11.5px;font-weight:800;color:var(--navy)}
+  .dethead h4{font-size:11.5px;font-weight:800;color:#4A2E86}
   .detpills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-  .pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--mut)}
-  .pill b{color:var(--navy)}
+  .pill{background:#fff;border:1px solid #D6C8F0;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:#6B5B92}
+  .pill b{color:var(--violet)}
   /* No overflow here on purpose, so it stays 'visible' and the sticky header
      below can anchor to the page. Horizontal scrolling is added back only on
      narrow screens, in the max-width rule further down. */
-  .detscroll{border:1px solid var(--line);border-radius:8px;background:#fff}
+  .detscroll{border:1px solid #D6C8F0;border-radius:8px;background:#FBF9FE}
   @media(max-width:1199px){
     .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   }
   table.dettable{min-width:1080px;margin:0}
-  table.dettable td:first-child{color:var(--mut);font-weight:700}
-  table.dettable th{background:#5A6396;font-size:8.5px;padding:6px 7px;cursor:default}
-  table.dettable th:hover{background:#5A6396}
-  table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #EEF0F7}
-  table.dettable tbody tr:nth-child(even){background:#FAFBFE}
-  table.dettable tbody tr:hover{background:#F3EEFC}
-  .detloading{padding:20px;text-align:center;color:var(--mut);font-size:11.5px;font-weight:700}
+  table.dettable td:first-child{color:#8A7CB0;font-weight:700}
+  /* violet header, against the parent table's navy, so the two never blur together */
+  table.dettable th{background:#6A46B5;font-size:8.5px;padding:6px 7px;cursor:default}
+  table.dettable th:hover{background:#6A46B5}
+  table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #E7DFF7}
+  table.dettable tbody tr{background:#FBF9FE}
+  table.dettable tbody tr:nth-child(even){background:#F4EFFC}
+  table.dettable tbody tr:hover{background:#E8DEFA}
+  .detloading{padding:20px;text-align:center;color:#6B5B92;font-size:11.5px;font-weight:700}
 
   .chips{display:flex;gap:4px;flex-wrap:wrap}
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
@@ -457,12 +462,37 @@ function prefetchVisibleFloors(list){
   })();
 }
 
+/* Combined height of whatever is pinned at the top right now, so a scrolled
+   row lands just below it instead of hiding underneath. Which layers are
+   actually sticky depends on the breakpoint, so mirror that here. */
+function stickyStackH(){
+  var h=boxH('.strip');
+  if(window.matchMedia('(min-width:901px)').matches){
+    h+=boxH('#indcard>.hd')+boxH('#indtable>thead>tr');
+  }
+  return h;
+}
+
+/* Glide the opened operator row up under the pinned headers so the eye can
+   follow where the page jumped to. */
+function scrollRowIntoView(){
+  var row=document.querySelector('tr.oprow.open');
+  if(!row) return;
+  var smooth=!window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var top=window.pageYOffset+row.getBoundingClientRect().top-stickyStackH()-10;
+  if(top<0) top=0;
+  window.scrollTo({top:top,behavior:smooth?'smooth':'auto'});
+}
+
 function toggleDetail(floor,opId,ev){
   if(ev) ev.stopPropagation();
   var k=floor+'|'+opId;
-  expandKey = (expandKey===k) ? '' : k;
+  var opening = (expandKey!==k);
+  expandKey = opening ? k : '';
   if(expandKey) prefetchDetail(floor);
   render();
+  /* next frame, so the expanded block is laid out before we measure */
+  if(opening) requestAnimationFrame(scrollRowIntoView);
 }
 
 function detailRowsFor(floor,opId){
