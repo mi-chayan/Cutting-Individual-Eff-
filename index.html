@@ -44,6 +44,11 @@
   .navtabs button.on{background:var(--bg);color:var(--navy)}
 
   #frame{flex:1 1 auto;width:100%;border:0;display:block;background:var(--bg)}
+  @keyframes slideFromRight{from{opacity:0;transform:translateX(45px)}to{opacity:1;transform:translateX(0)}}
+  @keyframes slideFromLeft {from{opacity:0;transform:translateX(-45px)}to{opacity:1;transform:translateX(0)}}
+  #frame.from-right{animation:slideFromRight .34s cubic-bezier(.22,.61,.36,1)}
+  #frame.from-left {animation:slideFromLeft  .34s cubic-bezier(.22,.61,.36,1)}
+  @media(prefers-reduced-motion:reduce){#frame.from-right,#frame.from-left{animation:none}}
 
   .ftr{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);text-align:center;
        font-size:10.5px;color:var(--mut);padding:7px 14px;display:flex;align-items:center;
@@ -115,10 +120,21 @@
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var SNAP_KEY = 'sosl_snapshot_v1';
 
+var TABS=['daily','range'], curTab='daily';
+
 function go(which){
+  if(which===curTab) return;
+  var dir = TABS.indexOf(which) > TABS.indexOf(curTab) ? 'from-right' : 'from-left';
+  curTab = which;
+
   document.getElementById('t_daily').classList.toggle('on', which==='daily');
   document.getElementById('t_range').classList.toggle('on', which==='range');
-  document.getElementById('frame').src = (which==='daily') ? 'daily.html' : 'range.html';
+
+  var f=document.getElementById('frame');
+  f.classList.remove('from-right','from-left');
+  void f.offsetWidth;                       /* force reflow so the animation restarts */
+  f.src = (which==='daily') ? 'daily.html' : 'range.html';
+  f.classList.add(dir);
 }
 
 function setBusy(on){
