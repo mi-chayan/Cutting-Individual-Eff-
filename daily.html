@@ -69,6 +69,7 @@
   .pct{font-weight:800}
   .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
   .idshort{display:none}
+  .lblp{display:none}   /* short header label, print only */
 
   /* ---- operator drill-down ---- */
   tr.oprow{cursor:pointer}
@@ -186,12 +187,37 @@
     .kpi .v{font-size:15pt}
     .kpi .k{font-size:7pt}
     .kpi .s{font-size:6.5pt}
-    table{min-width:0;width:100%;font-size:7.6pt}
+    /* Fixed layout is what stops the table ever overflowing the page again,
+       whatever content or columns change later. */
+    table{min-width:0 !important;width:100% !important;table-layout:fixed;font-size:7.4pt}
     thead{display:table-header-group}
     tr{page-break-inside:avoid}
-    th{background:#333D6D !important;color:#fff !important;padding:4pt 3pt;font-size:6.6pt;
+    th{background:#333D6D !important;color:#fff !important;padding:3.5pt 2pt;font-size:6.2pt;
+       white-space:normal;word-break:break-word;line-height:1.15;
        -webkit-print-color-adjust:exact;print-color-adjust:exact}
-    td{padding:3pt;border-bottom:.5pt solid #ddd}
+    td{padding:2.8pt 2pt;border-bottom:.5pt solid #ddd;white-space:nowrap;
+       overflow:hidden;text-overflow:ellipsis}
+    td.l{white-space:normal;word-break:break-word}
+    .lbl{display:none} .lblp{display:inline}   /* swap to short headers */
+
+    /* Individual Report column widths, total 100%.
+       Column 5 is WH, hidden in print, so it takes no width. */
+    #indtable th:nth-child(1),#indtable td:nth-child(1){width:6%}
+    #indtable th:nth-child(2),#indtable td:nth-child(2){width:8%}
+    #indtable th:nth-child(3),#indtable td:nth-child(3){width:23%}
+    #indtable th:nth-child(4),#indtable td:nth-child(4){width:17%}
+    #indtable th:nth-child(5),#indtable td:nth-child(5){width:0}
+    #indtable th:nth-child(6),#indtable td:nth-child(6){width:9%}
+    #indtable th:nth-child(7),#indtable td:nth-child(7){width:9%}
+    #indtable th:nth-child(8),#indtable td:nth-child(8){width:9%}
+    #indtable th:nth-child(9),#indtable td:nth-child(9){width:9%}
+    #indtable th:nth-child(10),#indtable td:nth-child(10){width:10%}
+
+    /* Floor Wise Report column widths */
+    #flrtable th:nth-child(1),#flrtable td:nth-child(1){width:22%}
+    #flrtable th:nth-child(2),#flrtable td:nth-child(2){width:26%}
+    #flrtable th:nth-child(3),#flrtable td:nth-child(3){width:26%}
+    #flrtable th:nth-child(4),#flrtable td:nth-child(4){width:26%}
     tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .pct.red{color:#C0392B !important} .pct.amber{color:#B9700F !important} .pct.green{color:#146C3A !important}
@@ -510,8 +536,9 @@ function render(){
       +opt('all','Team Avg Eff%: All',effFloorFilter)+opt('lt65','Team Avg Eff%: Below 65%',effFloorFilter)
       +opt('65to99','Team Avg Eff%: 65% to 99%',effFloorFilter)+opt('gte100','Team Avg Eff%: 100% and above',effFloorFilter)
     +'</select></div>';
-  h+='<div class="scroll"><table><thead><tr>'
-    +fTh('floor','Floor')+fTh('man','Man Count (nos)')+fTh('eff','Team Avg Eff% (%)')+fTh('u65','Eff% &lt; 65% (nos)')
+  h+='<div class="scroll"><table id="flrtable"><thead><tr>'
+    +fTh('floor','Floor','Floor')+fTh('man','Man Count (nos)','Man Count')
+    +fTh('eff','Team Avg Eff% (%)','Team Avg Eff%')+fTh('u65','Eff% &lt; 65% (nos)','Eff% &lt; 65%')
     +'</tr></thead><tbody>';
   if(!S.floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this filter.</td></tr>';
   S.floorsShown.forEach(function(f){
@@ -533,11 +560,17 @@ function render(){
       +opt('65to99','Individual Eff%: 65% to 99%',effIndFilter)+opt('gte100','Individual Eff%: 100% and above',effIndFilter)
     +'</select>'
     +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
-  h+='<div class="scroll"><table><thead><tr>'
-    +thSort('floor','Floor','')+thSort('opId','Op. ID','')+thSort('name','Op. Name','')
-    +thSort('desig','Designation','hs')+thSort('avgWh','WH (hrs)','hs nop')
-    +thSort('avgEng','Engagement% (%)','')+'<th class="hs">Type</th>'
-    +thSort('inMin','Input Min (min)','')+thSort('outMin','Output Min (min)','')+thSort('eff','Individual Eff% (%)','')
+  h+='<div class="scroll"><table id="indtable"><thead><tr>'
+    +thSort('floor','Floor','','Floor')
+    +thSort('opId','Op. ID','','Op. ID')
+    +thSort('name','Op. Name','','Name')
+    +thSort('desig','Designation','hs','Designation')
+    +thSort('avgWh','WH (hrs)','hs nop','WH')
+    +thSort('avgEng','Engagement% (%)','','Eng %')
+    +'<th class="hs"><span class="lbl">Type</span><span class="lblp">Type</span></th>'
+    +thSort('inMin','Input Min (min)','','In Min')
+    +thSort('outMin','Output Min (min)','','Out Min')
+    +thSort('eff','Individual Eff% (%)','','Eff %')
     +'</tr></thead><tbody>';
   if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
   S.indShown.forEach(function(o){
@@ -576,16 +609,19 @@ function render(){
 }
 
 function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
-function thSort(key,label,cls){
+/* label = full text on screen, shortLabel = compact text used only in print */
+function thSort(key,label,cls,shortLabel){
   var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
-  return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
 }
 function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
 
 /* Floor Wise Report header sorting */
-function fTh(key,label){
+function fTh(key,label,shortLabel){
   var arr=fSortKey===key?(fSortDir===1?'&#9650;':'&#9660;'):'';
-  return '<th onclick="setFSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th onclick="setFSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
 }
 function setFSort(k){ if(fSortKey===k)fSortDir*=-1; else {fSortKey=k;fSortDir=(k==='floor')?1:-1;} render(); }
 
@@ -615,16 +651,16 @@ function detailBlock(o,colspan){
 
   h+='<div class="detscroll"><table class="dettable"><thead><tr>'
     +'<th>Cut No</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
-    +'<th>ML (yds)</th><th>CL (yds)</th><th>Lay Qty (pcs)</th><th>Ratio (pcs)</th>'
-    +'<th>Process</th><th>Type</th><th>MP (nos)</th><th>Process Time</th>'
+    +'<th>ML (Yds)</th><th>CL (Yds)</th><th>Lay Qty (Pcs)</th><th>Ratio (Pcs)</th>'
+    +'<th>Process</th><th>Total Input Min (min)</th><th>Individual Process Time</th>'
     +'<th>Input Min (min)</th><th>SMV (min)</th><th>Total Output Min (min)</th>'
-    +'<th>Indv Output Min (min)</th><th>Marker wise Eff% (%)</th>'
+    +'<th>Individual Output Minute (min)</th><th>Marker wise Effi% (%)</th>'
     +'</tr></thead><tbody>';
   rows.forEach(function(r){
     h+='<tr><td class="l"><b>'+esc(r[1])+'</b></td><td class="l">'+esc(r[2])+'</td>'
       +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
       +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
-      +'<td>'+esc(r[9])+'</td><td>'+esc(r[10])+'</td><td>'+fmt(r[11],0)+'</td>'
+      +'<td>'+esc(r[9])+'</td><td>'+fmt(r[18],0)+'</td>'
       +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td><td>'+fmt(r[14],3)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
       +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
