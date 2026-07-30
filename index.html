@@ -2,8 +2,11 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SNOWTEX | SOSL Cutting Section Dashboard</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#333D6D">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -13,9 +16,10 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
-       font-size:13px;display:flex;flex-direction:column;overflow:hidden}
+       font-size:13px;display:flex;flex-direction:column;overflow:hidden;
+       -webkit-text-size-adjust:100%}
 
-  .hdr{background:var(--navy);color:#fff;padding:8px 20px;display:flex;align-items:center;gap:14px;
+  .hdr{background:var(--navy);color:#fff;padding:8px 20px;display:flex;align-items:center;gap:13px;
        justify-content:center;position:relative;min-height:52px;flex:0 0 auto}
   .hdr img.logo{height:28px;display:block;border-radius:3px}
   .hdr h1{font-size:15.5px;font-weight:800;line-height:1.25;letter-spacing:.2px}
@@ -26,29 +30,54 @@
     font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
   .refresh:hover{filter:brightness(1.1)}
   .refresh:disabled{opacity:.75;cursor:default}
-  .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none}
+  .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none;flex:0 0 auto}
   .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 
   .navtabs{background:var(--navy);padding:0 20px;display:flex;gap:2px;justify-content:center;
-           border-bottom:1px solid rgba(255,255,255,.12);flex:0 0 auto}
+           border-bottom:1px solid rgba(255,255,255,.12);flex:0 0 auto;
+           overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .navtabs::-webkit-scrollbar{display:none}
   .navtabs button{background:transparent;border:0;color:#BFC4E0;font-family:inherit;font-size:12px;
-    font-weight:700;padding:9px 20px;border-radius:8px 8px 0 0;cursor:pointer}
+    font-weight:700;padding:9px 18px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;flex:0 0 auto}
   .navtabs button:hover{background:rgba(255,255,255,.08);color:#fff}
   .navtabs button.on{background:var(--bg);color:var(--navy)}
 
   #frame{flex:1 1 auto;width:100%;border:0;display:block;background:var(--bg)}
 
   .ftr{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);text-align:center;
-       font-size:10.5px;color:var(--mut);padding:8px 20px;display:flex;align-items:center;
-       justify-content:center;gap:8px}
+       font-size:10.5px;color:var(--mut);padding:7px 14px;display:flex;align-items:center;
+       justify-content:center;gap:7px;flex-wrap:wrap;
+       padding-bottom:calc(7px + env(safe-area-inset-bottom))}
   .ftr .help{display:inline-flex;align-items:center;gap:5px;color:var(--navy);font-weight:700}
   .ftr svg{width:12px;height:12px;fill:var(--violet)}
 
-  @media(max-width:860px){
+  /* ---------------- Tablet ---------------- */
+  @media(max-width:900px){
+    .hdr{padding:7px 12px;gap:10px;min-height:48px}
+    .hdr h1{font-size:13.5px}
+    .hdr .sub{font-size:9px}
+    .hdr img.logo{height:24px}
     .stamp{display:none}
-    .hdr h1{font-size:13px}
-    .hdrright{right:12px}
+    .hdrright{right:10px}
+    .refresh{padding:6px 11px;font-size:11px}
+    .navtabs{padding:0 8px;justify-content:flex-start}
+    .navtabs button{font-size:11px;padding:8px 13px}
+  }
+
+  /* ---------------- Phone ---------------- */
+  @media(max-width:560px){
+    .hdr{gap:9px;padding:6px 10px 6px 10px;min-height:44px;justify-content:flex-start}
+    .hdr img.logo{height:21px}
+    .hdr h1{font-size:12px;line-height:1.2}
+    .hdr .sub{display:none}
+    .hdrright{right:8px}
+    .refresh{padding:6px 9px;font-size:10.5px;gap:5px}
+    .refresh #rtxt{display:none}
+    .refresh:after{content:'\21BB';font-size:14px;line-height:1}
+    .refresh.busy:after{content:''}
+    .navtabs button{font-size:10.5px;padding:8px 11px}
+    .ftr{font-size:9.5px;padding:6px 10px;gap:5px}
   }
 </style>
 </head>
@@ -62,13 +91,13 @@
   </div>
   <div class="hdrright">
     <div class="stamp" id="stamp">Data as of<br>&ndash;</div>
-    <button class="refresh" id="rbtn" onclick="doRefresh()"><span class="dot"></span><span id="rtxt">Refresh</span></button>
+    <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
   </div>
 </div>
 
 <div class="navtabs">
-  <button id="t_daily" class="on" onclick="go('daily')">Daily Report</button>
-  <button id="t_range" onclick="go('range')">Date Range Report</button>
+  <button id="t_daily" class="on" onclick="go('daily')">Daily Individual Eff% Report</button>
+  <button id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
 </div>
 
 <iframe id="frame" src="daily.html"></iframe>
@@ -103,7 +132,7 @@ function setStamp(t){
   document.getElementById('stamp').innerHTML='Data as of<br>'+(t||'&ndash;');
 }
 
-/* Refresh: rebuild server snapshot, cache it, tell the report page to redraw.
+/* Rebuild server snapshot, cache it, tell the report page to redraw.
    Nothing on screen is dimmed or cleared while this runs. */
 function doRefresh(){
   setBusy(true);
@@ -111,7 +140,10 @@ function doRefresh(){
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error) throw new Error(res.error);
-      try{ sessionStorage.setItem(SNAP_KEY, JSON.stringify(res)); }catch(e){}
+      try{
+        sessionStorage.setItem(SNAP_KEY, JSON.stringify(res));
+        Object.keys(sessionStorage).forEach(function(k){ if(k.indexOf('sosl_day_')===0) sessionStorage.removeItem(k); });
+      }catch(e){}
       setStamp(res.generatedAt);
       var f=document.getElementById('frame');
       if(f.contentWindow) f.contentWindow.postMessage({type:'snapshot-updated'},'*');
@@ -120,7 +152,6 @@ function doRefresh(){
     .catch(function(e){ setBusy(false); alert('Refresh failed: '+e.message); });
 }
 
-/* Report pages report their data timestamp up to the header */
 window.addEventListener('message', function(ev){
   if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
 });
