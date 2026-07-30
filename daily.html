@@ -149,12 +149,15 @@
     .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto}
     .card .hd{background:#fff !important;padding:4pt 0;border-bottom:1.2pt solid var(--navy)}
     .card .hd h3{font-size:10.5pt}
-    .printhead{display:block;margin-bottom:6mm;border-bottom:1.5pt solid #333D6D;padding-bottom:4mm}
-    .printhead .row1{display:flex;align-items:center;gap:10px}
-    .printhead img{height:34px}
-    .printhead h1{font-size:13pt;font-weight:800;color:#333D6D}
-    .printhead .meta{margin-top:4px;font-size:8.5pt;color:#444;display:flex;gap:16px;flex-wrap:wrap}
-    .printhead .meta b{color:#000}
+    .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:5mm;
+               border-bottom:1.5pt solid #333D6D;padding-bottom:3mm}
+    .printhead img{height:10mm;width:auto;flex:0 0 auto;display:block}
+    .printhead .phbody{flex:1 1 auto;min-width:0}
+    .printhead h1{font-size:11.5pt;font-weight:800;color:#333D6D;line-height:1.2;margin:0 0 2mm 0}
+    .printhead .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2mm 5mm;
+                     font-size:7.4pt;color:#666;line-height:1.35}
+    .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .printhead .meta b{color:#111;font-weight:700}
     .kpis{display:flex;gap:4mm;margin-bottom:6mm}
     .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:3mm;page-break-inside:avoid}
     .kpi .v{font-size:15pt}
@@ -173,6 +176,8 @@
     .nop{display:none !important}                 /* WH column dropped so all others fit */
     .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
     .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
+    /* a single floor is selected: the whole floor table is noise on paper */
+    body.single-floor #floorcard{display:none !important}
     .printfoot{display:block !important;margin-top:5mm;font-size:7pt;color:#666;text-align:center;
                border-top:.5pt solid #ccc;padding-top:2mm}
   }
@@ -339,9 +344,21 @@ function floorAgg(ops){
 function currentSets(){
   var ops=operatorAgg();
   var floorsAll=floorAgg(ops);
-  var tot={man:0,inMin:0,outMin:0,u65:0};
-  floorsAll.forEach(function(f){tot.man+=f.man;tot.inMin+=f.inMin;tot.outMin+=f.outMin;tot.u65+=f.u65});
-  tot.eff=tot.inMin>0?(tot.outMin/tot.inMin*100):0;
+
+  /* Grand total across all floors, used by the floor table's Total row */
+  var grand={man:0,inMin:0,outMin:0,u65:0};
+  floorsAll.forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
+  grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
+
+  /* KPI totals follow the floor selection */
+  var tot;
+  if(floorFilter){
+    var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
+            || {man:0,inMin:0,outMin:0,u65:0,eff:0};
+    tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff};
+  } else {
+    tot=grand;
+  }
 
   /* Floor table always lists every floor. Selecting a row only highlights it
      and filters the Individual Report below. */
@@ -370,7 +387,7 @@ function currentSets(){
     return (va-vb)*sortDir;
   });
 
-  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot};
+  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand};
 }
 
 /* ---------- render ---------- */
@@ -378,27 +395,32 @@ function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   var S=currentSets(), tot=S.tot;
   var scopeLabel = floorFilter ? ('Floor '+floorFilter) : 'All Floors';
+  document.body.classList.toggle('single-floor', !!floorFilter);
 
   var h='<div class="wrap">';
 
   /* print-only header */
-  h+='<div class="printhead"><div class="row1">'
+  h+='<div class="printhead">'
     +'<img src="logo.jpg" alt="SNOWTEX">'
-    +'<div><h1>SOSL Cutting Section &mdash; Daily Individual Eff% Report</h1>'
-    +'<div class="meta"><span>Date: <b>'+prettyDate(DAY)+'</b></span>'
-    +'<span>Scope: <b>'+scopeLabel+'</b></span>'
-    +'<span>Team Avg Eff% filter: <b>'+effLabel(effFloorFilter)+'</b></span>'
-    +'<span>Individual Eff% filter: <b>'+effLabel(effIndFilter)+'</b></span>'
-    +'<span>Data as of: <b>'+(STAMP||'-')+'</b></span></div></div>'
+    +'<div class="phbody">'
+      +'<h1>SOSL Cutting Section &mdash; Daily Individual Eff% Report</h1>'
+      +'<div class="meta">'
+        +'<span>Date <b>'+prettyDate(DAY)+'</b></span>'
+        +'<span>Scope <b>'+scopeLabel+'</b></span>'
+        +'<span>Team Avg Eff% filter <b>'+effLabel(effFloorFilter)+'</b></span>'
+        +'<span>Individual Eff% filter <b>'+effLabel(effIndFilter)+'</b></span>'
+        +'<span>Data as of <b>'+(STAMP||'-')+'</b></span>'
+      +'</div>'
     +'</div></div>';
 
+  var scopeNote = floorFilter ? ('Floor '+floorFilter) : 'all floors';
   h+='<div class="kpis">'
-    +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data</div></div>'
-    +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min</div></div>'
-    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of total man count</div></div>'
+    +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
+    +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
+    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
     +'</div>';
 
-  h+='<div class="card"><div class="hd"><h3>Floor Wise Report</h3>'
+  h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor Wise Report</h3>'
     +'<span class="hint">click a floor row to filter</span><div class="push"></div>'
     +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
       +opt('all','Team Avg Eff%: All',effFloorFilter)+opt('lt65','Team Avg Eff%: Below 65%',effFloorFilter)
@@ -414,8 +436,8 @@ function render(){
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
       +'<td>'+f.u65+'</td></tr>';
   });
-  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+tot.man+'</td>'
-    +'<td class="pct">'+fmt(tot.eff,1)+'%</td><td>'+tot.u65+'</td></tr>';
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.man+'</td>'
+    +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
 
   h+='<div class="card"><div class="hd"><h3>Individual Report</h3>';
