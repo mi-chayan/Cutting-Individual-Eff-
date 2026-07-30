@@ -93,6 +93,13 @@
     #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
     /* border-collapse drops cell borders when sticky, so redraw them */
     #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+
+    /* Third layer: the drill-down's own header, once an operator row is
+       expanded. Sits directly under the Individual Report column header,
+       so it only stays fixed while its own cut list is scrolling by. */
+    table.dettable>thead th{position:sticky;
+      top:calc(var(--stripH) + var(--indHdH,0px) + var(--indColH,0px));
+      z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
   }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
@@ -795,8 +802,10 @@ function syncStickyOffsets(){
   var r=document.documentElement;
   var fh=document.querySelector('#floorcard>.hd');
   var ih=document.querySelector('#indcard>.hd');
+  var ic=document.querySelector('#indtable>thead');
   r.style.setProperty('--flrHdH',(fh?fh.offsetHeight:0)+'px');
   r.style.setProperty('--indHdH',(ih?ih.offsetHeight:0)+'px');
+  r.style.setProperty('--indColH',(ic?ic.offsetHeight:0)+'px');
 }
 window.addEventListener('resize', syncStickyOffsets);
 
