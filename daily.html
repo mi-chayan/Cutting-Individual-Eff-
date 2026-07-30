@@ -70,6 +70,29 @@
   .pct.red{color:var(--red)} .pct.amber{color:var(--amber)} .pct.green{color:var(--green)}
   .idshort{display:none}
 
+  /* ---- operator drill-down ---- */
+  tr.oprow{cursor:pointer}
+  tr.oprow.open{background:#EFE7FB !important;box-shadow:inset 3px 0 0 var(--violet)}
+  .caret{display:inline-block;width:0;height:0;border-left:4px solid var(--mut);
+         border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;
+         margin-right:5px;transition:transform .15s;vertical-align:middle}
+  tr.oprow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
+  tr.detrow>td{padding:0;background:#FBFAFE;border-bottom:2px solid var(--violet)}
+  .detbox{padding:11px 13px}
+  .dethead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+  .dethead h4{font-size:11.5px;font-weight:800;color:var(--navy)}
+  .detpills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--mut)}
+  .pill b{color:var(--navy)}
+  .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:#fff}
+  table.dettable{min-width:900px;margin:0}
+  table.dettable th{background:#5A6396;font-size:8.5px;padding:6px 7px;cursor:default}
+  table.dettable th:hover{background:#5A6396}
+  table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #EEF0F7}
+  table.dettable tbody tr:nth-child(even){background:#FAFBFE}
+  table.dettable tbody tr:hover{background:#F3EEFC}
+  .detloading{padding:20px;text-align:center;color:var(--mut);font-size:11.5px;font-weight:700}
+
   .chips{display:flex;gap:4px;flex-wrap:wrap}
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
   .chip:hover{border-color:var(--violet);color:var(--violet)}
@@ -175,6 +198,10 @@
     .hs{display:table-cell !important}
     .nop{display:none !important}                 /* WH column dropped so all others fit */
     .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
+    /* drill-down never prints, paper output stays identical whatever is open */
+    tr.detrow{display:none !important}
+    tr.oprow.open{background:transparent !important;box-shadow:none !important}
+    .caret{display:none !important}
     .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
     /* a single floor is selected: the whole floor table is noise on paper */
     body.single-floor #floorcard{display:none !important}
@@ -215,6 +242,9 @@ var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', sortKey='eff', sortDir=1, query='';
 var fSortKey='floor', fSortDir=1;                 /* Floor Wise Report sorting */
 var effFloorFilter='all', effIndFilter='all';
+var DETAIL={};        /* key: date_floor  ->  array of cut rows */
+var DETLOADING={};    /* key: date_floor  ->  true while a background fetch runs */
+var expandKey='';     /* floor|opId of the currently open operator */
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
@@ -259,6 +289,7 @@ function boot(){
 function applySnapshot(res){
   DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST; STAMP=res.generatedAt||'';
   DATA=mapRows(res.rows);
+  DETAIL={}; DETLOADING={};
   document.getElementById('d1').value=LATEST;
   tellParent(STAMP);
   if(!DATA.length && !LATEST){
@@ -302,7 +333,60 @@ function pickDate(){
     }).catch(showErr);
 }
 
-function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all'}
+function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
+
+/* ---------- operator drill-down ---------- */
+function detKey(floor){ return DAY+'_'+floor }
+
+/* Warm the cut-level data for a floor quietly in the background.
+   No spinner, no layout change. By the time an operator row is clicked
+   the data is normally already sitting in memory. */
+function prefetchDetail(floor){
+  if(!floor||!DAY) return;
+  var k=detKey(floor);
+  if(DETAIL[k]||DETLOADING[k]) return;
+
+  var cached=cacheGet('sosl_det_'+k);
+  if(cached){ DETAIL[k]=cached.rows||[]; return; }
+
+  DETLOADING[k]=true;
+  fetch(API_URL+'?action=detail&date='+encodeURIComponent(DAY)+'&floor='+encodeURIComponent(floor))
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      DETLOADING[k]=false;
+      if(res.error) return;
+      DETAIL[k]=res.rows||[];
+      cacheSet('sosl_det_'+k,res);
+      /* only repaint if the user is already waiting on this floor */
+      if(expandKey && expandKey.split('|')[0]===floor) render();
+    })
+    .catch(function(){ DETLOADING[k]=false; });
+}
+
+/* Warm every floor currently on screen, one at a time so the ERP is not hammered */
+function prefetchVisibleFloors(list){
+  var queue=list.slice(), i=0;
+  (function next(){
+    if(i>=queue.length) return;
+    prefetchDetail(queue[i++]);
+    setTimeout(next,400);
+  })();
+}
+
+function toggleDetail(floor,opId,ev){
+  if(ev) ev.stopPropagation();
+  var k=floor+'|'+opId;
+  expandKey = (expandKey===k) ? '' : k;
+  if(expandKey) prefetchDetail(floor);
+  render();
+}
+
+function detailRowsFor(floor,opId){
+  var rows=DETAIL[detKey(floor)];
+  if(!rows) return null;
+  var target=padId(opId);
+  return rows.filter(function(r){ return padId(r[0])===target; });
+}
 function showErr(e){
   document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
     +'<br><br>Check: 1) API_URL is the /exec link, 2) deployment access is "Anyone with the link", 3) a NEW VERSION was deployed after the last code change.</div>';
@@ -457,15 +541,18 @@ function render(){
     +'</tr></thead><tbody>';
   if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
   S.indShown.forEach(function(o){
-    h+='<tr><td>'+o.floor+'</td>'
+    var k=o.floor+'|'+o.opId, isOpen=(expandKey===k);
+    h+='<tr class="oprow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+o.floor+'\',\''+o.opId+'\',event)">'
+      +'<td><span class="caret"></span>'+o.floor+'</td>'
       +'<td><span class="idfull">'+padId(o.opId)+'</span><span class="idshort">'+shortId(o.opId)+'</span></td>'
       +'<td class="l">'+o.name+'</td>'
       +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
       +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
+    if(isOpen) h+=detailBlock(o,10);
   });
-  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
+  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
 
   /* ERP source link */
   h+='<div class="erp">'
@@ -480,6 +567,12 @@ function render(){
   h+='</div>';
 
   document.getElementById('content').innerHTML=h;
+
+  /* Quietly warm cut-level data for whatever floors are on screen, so the
+     drill-down opens instantly when the user clicks. */
+  var floorsOnScreen={};
+  S.indShown.forEach(function(o){ floorsOnScreen[o.floor]=1; });
+  prefetchVisibleFloors(Object.keys(floorsOnScreen));
 }
 
 function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
@@ -495,7 +588,56 @@ function fTh(key,label){
   return '<th onclick="setFSort(\''+key+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
 }
 function setFSort(k){ if(fSortKey===k)fSortDir*=-1; else {fSortKey=k;fSortDir=(k==='floor')?1:-1;} render(); }
-function toggleFloor(f){ floorFilter=(floorFilter===f)?'':f; render(); }
+
+/* Build the expanded cut-by-cut block under an operator */
+function detailBlock(o,colspan){
+  var rows=detailRowsFor(o.floor,o.opId);
+  var h='<tr class="detrow"><td colspan="'+colspan+'"><div class="detbox">';
+
+  if(rows===null){
+    h+='<div class="detloading">Loading cut details for '+esc(o.name)+'&hellip;</div>';
+    return h+'</div></td></tr>';
+  }
+  if(!rows.length){
+    h+='<div class="detloading">No cut rows found for this operator on '+prettyDate(DAY)+'.</div>';
+    return h+'</div></td></tr>';
+  }
+
+  var totOut=0, best=null;
+  rows.forEach(function(r){ totOut+=r[16]; if(!best||r[16]>best[16]) best=r; });
+
+  h+='<div class="dethead"><h4>'+esc(o.name)+' &mdash; cut by cut, '+prettyDate(DAY)+'</h4>'
+    +'<div class="detpills">'
+      +'<span class="pill">Cuts <b>'+rows.length+'</b></span>'
+      +'<span class="pill">Output Min <b>'+fmt(totOut,0)+'</b></span>'
+      +'<span class="pill">Top cut <b>'+esc(best[1])+'</b> ('+fmt(best[16],0)+' min)</span>'
+    +'</div></div>';
+
+  h+='<div class="detscroll"><table class="dettable"><thead><tr>'
+    +'<th>Cut No</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
+    +'<th>ML (yds)</th><th>CL (yds)</th><th>Lay Qty (pcs)</th><th>Ratio (pcs)</th>'
+    +'<th>Process</th><th>Type</th><th>MP (nos)</th><th>Process Time</th>'
+    +'<th>Input Min (min)</th><th>SMV (min)</th><th>Total Output Min (min)</th>'
+    +'<th>Indv Output Min (min)</th><th>Marker wise Eff% (%)</th>'
+    +'</tr></thead><tbody>';
+  rows.forEach(function(r){
+    h+='<tr><td class="l"><b>'+esc(r[1])+'</b></td><td class="l">'+esc(r[2])+'</td>'
+      +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
+      +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
+      +'<td>'+esc(r[9])+'</td><td>'+esc(r[10])+'</td><td>'+fmt(r[11],0)+'</td>'
+      +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td><td>'+fmt(r[14],3)+'</td>'
+      +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
+      +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
+  });
+  h+='</tbody></table></div></div></td></tr>';
+  return h;
+}
+function toggleFloor(f){
+  floorFilter=(floorFilter===f)?'':f;
+  expandKey='';
+  if(floorFilter) prefetchDetail(floorFilter);   /* warm this floor immediately */
+  render();
+}
 function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
 
 /* ---------- print ---------- */
