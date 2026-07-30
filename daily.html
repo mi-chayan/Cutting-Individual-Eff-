@@ -94,9 +94,17 @@
     /* border-collapse drops cell borders when sticky, so redraw them */
     #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
 
-    /* Third layer: the drill-down's own header, once an operator row is
-       expanded. Sits directly under the Individual Report column header,
-       so it only stays fixed while its own cut list is scrolling by. */
+  }
+
+  /* Third layer: the drill-down's own header, once an operator row is expanded.
+     Sits directly under the Individual Report column header, so it stays fixed
+     only while that operator's cut list is scrolling by.
+     Gated at 1200px because the detail table is 1080px wide and below that the
+     card is too narrow, so .detscroll must stay a real horizontal scroller
+     (and a scroll container cannot host a viewport-sticky header). Above it,
+     overflow:clip keeps the rounded corner without creating that container. */
+  @media(min-width:1200px){
+    .detscroll{overflow:clip}
     table.dettable>thead th{position:sticky;
       top:calc(var(--stripH) + var(--indHdH,0px) + var(--indColH,0px));
       z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
