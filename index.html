@@ -15,6 +15,9 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
+  /* Mobile browsers shrink the visible area when the address bar shows. With
+     plain 100% the footer ends up under it. dvh tracks the real viewport. */
+  @supports (height:100dvh){ html,body{height:100dvh} }
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
        font-size:13px;display:flex;flex-direction:column;overflow:hidden;
        -webkit-text-size-adjust:100%}
@@ -84,20 +87,33 @@
 
   /* ---------------- Phone ---------------- */
   @media(max-width:560px){
-    .hdr{gap:8px;padding:6px 10px 6px 52px;min-height:40px;justify-content:flex-start}
-    .hdr img.logo{height:20px}
+    /* Burger sits left and Refresh sits right, both absolute, so the centre
+       block is padded clear of them and allowed to shrink instead of colliding. */
+    .hdr{gap:8px;padding:6px 52px;min-height:42px;justify-content:center}
+    .hdr img.logo{height:20px;flex:0 0 auto}
     .hdr h1{font-size:11.5px;line-height:1.2}
     .hdr .sub{display:none}
     .hdrright{right:8px}
     .hdrleft{left:8px}
-    .burger{width:31px;height:27px}
-    .menu{min-width:210px}
-    .menu .mi{font-size:11.5px}
-    .refresh{padding:6px 9px;font-size:10.5px;gap:5px}
+    .burger{width:34px;height:30px}              /* keep a real tap target */
+    .menu{min-width:min(78vw,250px)}
+    .menu .mi{font-size:12px;padding:10px 11px}  /* thumb friendly rows */
+    .refresh{padding:8px 10px;font-size:10.5px;gap:5px}
     .refresh #rtxt{display:none}
-    .refresh:after{content:'\21BB';font-size:14px;line-height:1}
+    .refresh:after{content:'\21BB';font-size:15px;line-height:1}
     .refresh.busy:after{content:''}
     .ftr{font-size:9.5px;padding:6px 10px;gap:5px}
+  }
+
+  /* ---------------- Small phone ---------------- */
+  @media(max-width:400px){
+    .hdr{padding:6px 46px;gap:6px}
+    .hdr img.logo{height:18px}
+    .hdr h1{font-size:10.5px}
+    .hdrleft{left:6px}
+    .hdrright{right:6px}
+    .burger{width:31px;height:28px}
+    .ftr{font-size:9px}
   }
 </style>
 </head>
