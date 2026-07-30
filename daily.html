@@ -106,19 +106,6 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:40px;text-align:center;color:var(--mut);line-height:1.7}
 
-  /* ---- ERP source card ---- */
-  .erp{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px;
-       display:flex;align-items:center;gap:13px;flex-wrap:wrap}
-  .erp .ic{width:34px;height:34px;border-radius:9px;background:var(--cream);border:1px solid var(--peach);
-           display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .erp .ic svg{width:16px;height:16px;fill:var(--violet)}
-  .erp .txt h4{font-size:12px;font-weight:800;color:var(--navy)}
-  .erp .txt .u{font-size:10.5px;color:var(--mut);margin-top:2px;word-break:break-all;font-family:ui-monospace,Menlo,Consolas,monospace}
-  .erp .go{margin-left:auto;background:var(--violet);color:#fff;text-decoration:none;border-radius:8px;
-           padding:8px 15px;font-weight:700;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-  .erp .go:hover{filter:brightness(1.1)}
-  .erp .go svg{width:12px;height:12px;fill:#fff}
-
   /* ---- print-only header ---- */
   .printhead{display:none}
 
@@ -150,10 +137,6 @@
     .card .hd{padding:8px 10px;gap:6px}
     .card .hd h3{font-size:11px;width:100%}
     .hint{display:none}
-    .erp{padding:11px 12px;gap:10px}
-    .erp .txt h4{font-size:11px}
-    .erp .txt .u{font-size:9.5px}
-    .erp .go{margin-left:0;width:100%;justify-content:center;padding:9px 14px}
     .push{margin-left:0}
     .fsel{font-size:10.5px;flex:1;min-width:0}
     .search{width:100%}
@@ -168,7 +151,7 @@
   @page{ size:A4 portrait; margin:11mm 9mm; }
   @media print{
     body{background:#fff;font-size:9pt}
-    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before,.erp{display:none !important}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
     .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto}
@@ -263,7 +246,6 @@
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
-var ERP_URL="http://192.168.15.15:3000/#/SpreadingCutting/CuttingSectionIndividualPerformance";
 
 var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', sortKey='eff', sortDir=1, query='';
@@ -591,15 +573,6 @@ function render(){
     if(isOpen) h+=detailBlock(o,10);
   });
   h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Amber 65&ndash;99% &bull; Green &ge; 100%</div></div>';
-
-  /* ERP source link */
-  h+='<div class="erp">'
-    +'<div class="ic"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/></svg></div>'
-    +'<div class="txt"><h4>View the full detail report in Snowtex ERP</h4>'
-    +'<div class="u">'+ERP_URL+'</div></div>'
-    +'<a class="go" href="'+ERP_URL+'" target="_blank" rel="noopener noreferrer">'
-    +'Open in ERP <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg></a>'
-    +'</div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
   h+='</div>';
