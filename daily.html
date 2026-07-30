@@ -59,17 +59,10 @@
   .donutwrap{position:relative;width:100px;height:100px;flex:0 0 auto}
   .donut{width:100px;height:100px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
-  .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
-        align-items:center;justify-content:center;pointer-events:none}
-  .dcen b{font-size:17px;font-weight:800;line-height:1;color:var(--navy)}
-  .dcen b.red{color:var(--red)}
-  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);letter-spacing:.3px;margin-top:1px}
-  .legend{display:flex;flex-direction:column;gap:5px;flex:1 1 auto;min-width:0}
-  .lgrow{display:flex;align-items:center;gap:6px;font-size:10.5px}
-  .lgrow .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
-  .lgrow .lgl{color:var(--mut);font-weight:700;flex:1 1 auto;white-space:nowrap}
-  .lgrow .lgv{font-weight:800;color:var(--txt)}
-  .lgrow .lgp{font-weight:800;color:var(--mut);min-width:28px;text-align:right}
+  .legend{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-width:0}
+  .lgrow{display:flex;align-items:center;gap:7px;font-size:11px}
+  .lgrow .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .lgrow .lgl{color:var(--txt);font-weight:700;white-space:nowrap}
 
   /* overflow:clip, not hidden. Both clip the rounded corners identically, but
      'hidden' creates a scroll container which breaks position:sticky headers. */
@@ -799,12 +792,12 @@ function bandChart(b){
         + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"></circle>';
     off+=len;
   });
+  /* Colour guide only. Counts and shares are deliberately left off, the cards
+     above and the floor table already carry those numbers. */
   var legend='';
   segs.forEach(function(s){
     legend+='<div class="lgrow"><span class="dot" style="background:'+s.c+'"></span>'
-      +'<span class="lgl">'+s.label+'</span>'
-      +'<span class="lgv">'+s.n+'</span>'
-      +'<span class="lgp">'+fmt(s.n/t*100,0)+'%</span></div>';
+      +'<span class="lgl">'+s.label+'</span></div>';
   });
 
   /* Donut and legend sit side by side, not stacked, so the card stays short
@@ -817,10 +810,6 @@ function bandChart(b){
           +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
           +ring
         +'</svg>'
-        /* Total is deliberately not repeated here, the Total Man Count card
-           above already carries it. The centre shows the below-65% share,
-           which is the number that actually needs watching. */
-        +'<div class="dcen"><b class="red">'+fmt(b.lo/t*100,0)+'%</b><span>&lt; 65%</span></div>'
       +'</div>'
       +'<div class="legend">'+legend+'</div>'
     +'</div>'
