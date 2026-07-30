@@ -47,8 +47,6 @@
             padding:8px 10px;border-radius:7px;cursor:pointer}
   .menu .mi:hover{background:var(--cream)}
   .menu .mi.on{background:var(--violet);color:#fff}
-  .scrim{position:fixed;inset:0;z-index:55;display:none}
-  .scrim.open{display:block}
   .stamp{font-size:10px;color:#BFC4E0;text-align:right;line-height:1.45}
   .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:7px 14px;
     font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
@@ -105,10 +103,8 @@
 </head>
 <body>
 
-<div class="scrim" id="scrim" onclick="closeMenu()"></div>
-
 <div class="hdr">
-  <div class="hdrleft">
+  <div class="hdrleft" id="hdrleft">
     <button class="burger" id="burger" onclick="toggleMenu(event)" title="Reports" aria-label="Reports" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -150,13 +146,11 @@ var TABS=['daily','range'], curTab='daily';
 /* ---------- pages menu ---------- */
 function openMenu(){
   document.getElementById('menu').classList.add('open');
-  document.getElementById('scrim').classList.add('open');
   document.getElementById('burger').classList.add('on');
   document.getElementById('burger').setAttribute('aria-expanded','true');
 }
 function closeMenu(){
   document.getElementById('menu').classList.remove('open');
-  document.getElementById('scrim').classList.remove('open');
   document.getElementById('burger').classList.remove('on');
   document.getElementById('burger').setAttribute('aria-expanded','false');
 }
@@ -164,6 +158,18 @@ function toggleMenu(ev){
   if(ev) ev.stopPropagation();
   if(document.getElementById('menu').classList.contains('open')) closeMenu(); else openMenu();
 }
+
+/* No full-page overlay is used to catch outside clicks, because that overlay
+   also swallowed clicks meant for the report underneath. Instead: */
+/* 1. a click anywhere in this document outside the menu closes it */
+document.addEventListener('click',function(e){
+  var left=document.getElementById('hdrleft');
+  if(left && !left.contains(e.target)) closeMenu();
+});
+/* 2. a click inside the iframe cannot bubble up here, but it does move focus
+      away from this window, so blur covers the report area */
+window.addEventListener('blur',closeMenu);
+/* 3. keyboard escape */
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeMenu(); });
 
 function go(which){
