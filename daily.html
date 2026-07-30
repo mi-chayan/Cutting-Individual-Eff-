@@ -47,7 +47,9 @@
   .kpi .s{font-size:10px;color:var(--mut);margin-top:2px}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.amber{color:var(--amber)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:hidden;
+  /* overflow:clip, not hidden. Both clip the rounded corners identically, but
+     'hidden' creates a scroll container which breaks position:sticky headers. */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:clip;
         box-shadow:0 1px 2px rgba(37,42,69,.05);transition:box-shadow .15s}
   .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
   .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
@@ -70,11 +72,19 @@
   table{width:100%;border-collapse:collapse;min-width:700px}
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
   th:hover{background:#3D4880}
-  /* Header row sticks under the control strip while its own table scrolls by,
-     then scrolls away naturally once that table's rows run out. Detail
-     drill-down table is excluded on purpose - it's a small nested table. */
-  #flrtable th,#indtable th{position:sticky;top:var(--stripH);z-index:15}
   th .arr{font-size:8px;opacity:.85;margin-left:2px}
+
+  /* Sticky header row. Desktop only: the table already fits, so .scroll needs
+     no horizontal scrolling and can drop its scroll container, which is what
+     lets the header stick to the viewport. Each header sticks only while its
+     own table is on screen, then scrolls away with its card.
+     Detail drill-down table is deliberately excluded. */
+  @media(min-width:901px){
+    .scroll{overflow:visible}
+    #flrtable thead th,#indtable thead th{position:sticky;top:var(--stripH);z-index:15}
+    /* border-collapse drops cell borders when sticky, so redraw them */
+    #flrtable thead th,#indtable thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+  }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
   tbody tr:nth-child(even){background:#FAFBFE}
@@ -436,13 +446,17 @@ function operatorAgg(){
     if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,eff:0,types:{}};
     var o=map[k];
     o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
-    o.eff=r.effPct;   // straight from the sheet's own Individual Eff% (AD) - not recalculated here
+    /* Prefer the sheet's own Individual Eff% (column AD) verbatim. Only if the
+       API hasn't been redeployed yet and that field is absent do we fall back
+       to computing it, so the column never goes blank. */
+    if(typeof r.effPct==='number' && !isNaN(r.effPct)) o.eff=r.effPct;
     String(r.types||'').split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
     if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
   });
   return Object.keys(map).map(function(k){
     var o=map[k];
     o.avgWh=o.wh/o.n; o.avgEng=o.eng/o.n;
+    if(!o.eff) o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
     o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
     return o;
   });
