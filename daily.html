@@ -41,31 +41,33 @@
      share one row height and their bottom edges line up */
   .toprow{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-bottom:15px}
   .toprow #floorcard{margin-bottom:0}
-  .kpis{display:flex;flex-direction:column;gap:11px;height:100%}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px;position:relative;overflow:hidden;
+  .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
+  /* Compact so three cards plus the donut finish level with the floor table */
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;position:relative;overflow:hidden;
        box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)}
-  .kpi .k{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.3}
-  .kpi .v{font-size:25px;font-weight:800;margin-top:2px;line-height:1.1}
-  .kpi .s{font-size:10px;color:var(--mut);margin-top:2px}
+  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
+  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .v{font-size:22px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
 
   /* ---- efficiency band donut ---- */
-  .chartcard{padding:11px 13px;display:flex;flex-direction:column}
+  .chartcard{padding:9px 12px;display:flex;flex-direction:column}
   .chartcard:before{background:var(--blue)}
   /* grows to take up whatever height is left, so the card stack finishes level
      with the floor table instead of leaving a gap above the table below */
   .toprow .chartcard{flex:1 1 auto;justify-content:center}
-  .chartrow{display:flex;align-items:center;gap:11px;margin-top:8px}
-  .donutwrap{position:relative;width:94px;height:94px;flex:0 0 auto}
-  .donut{width:94px;height:94px;display:block}
+  .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .donutwrap{position:relative;width:86px;height:86px;flex:0 0 auto}
+  .donut{width:86px;height:86px;display:block}
   .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
   .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center;pointer-events:none}
-  .dcen b{font-size:18px;font-weight:800;line-height:1;color:var(--navy)}
-  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
-  .legend{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0}
+  .dcen b{font-size:17px;font-weight:800;line-height:1;color:var(--navy)}
+  .dcen b.red{color:var(--red)}
+  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);letter-spacing:.3px;margin-top:1px}
+  .legend{display:flex;flex-direction:column;gap:5px;flex:1 1 auto;min-width:0}
   .lgrow{display:flex;align-items:center;gap:6px;font-size:10.5px}
   .lgrow .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
   .lgrow .lgl{color:var(--mut);font-weight:700;flex:1 1 auto;white-space:nowrap}
@@ -694,8 +696,7 @@ function render(){
   var kpisHtml='<div class="kpis">'
     +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
     +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
-    /* No "Operators Below 65%" card here on purpose: the donut legend already
-       states that count and its share, so it would be the same figure twice. */
+    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
     +bandChart(S.bands)
     +'</div>';
 
@@ -778,9 +779,9 @@ function bandChart(b){
   var t=b.total||0;
   if(!t) return '';
   var segs=[
-    {n:b.lo, c:'var(--red)',   label:'Below 65%'},
-    {n:b.mid,c:'var(--green)', label:'65% to 90%'},
-    {n:b.hi, c:'var(--blue)',  label:'Above 90%'}
+    {n:b.lo, c:'var(--red)',   label:'&lt; 65%'},
+    {n:b.mid,c:'var(--green)', label:'65 &ndash; 90%'},
+    {n:b.hi, c:'var(--blue)',  label:'&gt; 90%'}
   ];
   var R=54, C=2*Math.PI*R, off=0, ring='';
   segs.forEach(function(s){
@@ -811,7 +812,10 @@ function bandChart(b){
           +'<circle cx="70" cy="70" r="54" fill="none" stroke="#EDEFF7" stroke-width="17"></circle>'
           +ring
         +'</svg>'
-        +'<div class="dcen"><b>'+t+'</b><span>ops</span></div>'
+        /* Total is deliberately not repeated here, the Total Man Count card
+           above already carries it. The centre shows the below-65% share,
+           which is the number that actually needs watching. */
+        +'<div class="dcen"><b class="red">'+fmt(b.lo/t*100,0)+'%</b><span>&lt; 65%</span></div>'
       +'</div>'
       +'<div class="legend">'+legend+'</div>'
     +'</div>'
