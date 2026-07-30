@@ -72,33 +72,30 @@
   .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:200px}
   .push{margin-left:auto}
 
-  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* overflow stays visible at every width. A scrolling wrapper would become the
+     anchor for the sticky headers below and stop them pinning to the screen, so
+     instead the two tables are made to fit narrow screens (see phone rules). */
+  .scroll{overflow:visible}
   table{width:100%;border-collapse:collapse;min-width:700px}
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
   th:hover{background:#3D4880}
   th .arr{font-size:8px;opacity:.85;margin-left:2px}
 
-  /* Sticky headers. Desktop only: the table already fits, so .scroll needs
-     no horizontal scrolling and can drop its scroll container, which is what
-     lets the headers stick to the viewport.
+  /* Sticky headers, all screen sizes including mobile.
      Two layers stack: the card title bar (.hd) sits directly under the control
      strip, and the table's column header row sits directly under that. Both
      stick only while their own card is on screen, then scroll away with it.
      Detail drill-down table is deliberately excluded. */
-  @media(min-width:901px){
-    .scroll{overflow:visible}
-    #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
-    /* Direct child combinator (>) between table and thead is the important
-       part: #indtable's tbody holds the drill-down's own <table class="dettable">,
-       which also has its own thead>th. A plain descendant selector would catch
-       that nested header too and stick it right under the real one. This only
-       matches a thead that is a direct child of #flrtable/#indtable itself. */
-    #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
-    #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
-    /* border-collapse drops cell borders when sticky, so redraw them */
-    #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
-
-  }
+  #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
+  /* Direct child combinator (>) between table and thead is the important
+     part: #indtable's tbody holds the drill-down's own <table class="dettable">,
+     which also has its own thead>th. A plain descendant selector would catch
+     that nested header too and stick it right under the real one. This only
+     matches a thead that is a direct child of #flrtable/#indtable itself. */
+  #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
+  #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
+  /* border-collapse drops cell borders when sticky, so redraw them */
+  #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
 
   /* Third layer: the drill-down's own header, once an operator row is expanded.
      Sits directly under the Individual Report column header, so it stays fixed
@@ -197,6 +194,15 @@
     .toprow #floorcard{margin-bottom:0}
     .kpis{flex-direction:row;flex-wrap:wrap}
     .kpis .kpi{flex:1 1 180px}
+
+    /* Both tables must fit the screen from here down, otherwise they would need
+       a scrolling wrapper and the sticky headers above would stop pinning.
+       Input Min and Output Min drop out, and text wraps instead of forcing
+       width. Both columns still appear in the Excel export and the PDF. */
+    .hp{display:none}
+    #flrtable,#indtable{min-width:0}
+    #flrtable th,#indtable th{white-space:normal;line-height:1.2}
+    #indtable td.l{white-space:normal}
   }
 
   /* ---------------- Phone ---------------- */
@@ -237,11 +243,6 @@
     td{padding:7px 6px;font-size:11.5px}
     .hs{display:none}          /* hide lower-priority columns on phone */
 
-    /* Floor table is only 4 columns, so let it fit the screen instead of
-       forcing a sideways scroll. Wider tables below keep scrolling. */
-    #flrtable{min-width:0}
-    #flrtable th{white-space:normal;line-height:1.2}
-    #indtable{min-width:560px}
 
     .detbox{padding:8px 9px}
     .foot{font-size:9px;padding:7px 10px}
@@ -318,6 +319,7 @@
     tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .pct.red{color:#C0392B !important} .pct.amber{color:#B9700F !important} .pct.green{color:#146C3A !important}
     .hs{display:table-cell !important}
+    .hp{display:table-cell !important}            /* Input/Output Min return on paper */
     .nop{display:none !important}                 /* WH column dropped so all others fit */
     .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
     /* drill-down never prints, paper output stays identical whatever is open */
@@ -698,8 +700,8 @@ function render(){
     +thSort('avgWh','WH (hrs)','hs nop','WH')
     +thSort('avgEng','Engagement% (%)','','Eng %')
     +'<th class="hs"><span class="lbl">Type</span><span class="lblp">Type</span></th>'
-    +thSort('inMin','Input Min (min)','','In Min')
-    +thSort('outMin','Output Min (min)','','Out Min')
+    +thSort('inMin','Input Min (min)','hp','In Min')
+    +thSort('outMin','Output Min (min)','hp','Out Min')
     +thSort('eff','Individual Eff% (%)','','Eff %')
     +'</tr></thead><tbody>';
   if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
@@ -711,7 +713,7 @@ function render(){
       +'<td class="l">'+o.name+'</td>'
       +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
-      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
+      +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
     if(isOpen) h+=detailBlock(o,10);
   });
