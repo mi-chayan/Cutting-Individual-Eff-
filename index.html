@@ -163,6 +163,32 @@
 </div>
 
 <script>
+/* ------------------------------------------------------------------
+   Recursion guard.
+   If a report page is missing from the deployed build, the host serves
+   this shell in its place. The shell's own iframe then asks for the same
+   missing page, gets the shell again, and the header stacks down the
+   screen forever. That is a deployment fault, not a code fault, so say
+   so plainly instead of looping.
+   ------------------------------------------------------------------ */
+if (window.self !== window.top) {
+  document.body.innerHTML =
+    '<div style="font-family:\'Plus Jakarta Sans\',sans-serif;padding:38px 26px;'
+    + 'text-align:center;color:#252A45;background:#F4F5F9;min-height:100%">'
+    + '<div style="font-size:15px;font-weight:800;color:#D64550;margin-bottom:12px">'
+    + 'Report page not found on the server</div>'
+    + '<div style="font-size:12.5px;line-height:1.9;max-width:560px;margin:0 auto;color:#7A81A0">'
+    + 'The host could not find <b>' + location.pathname + '</b> and returned the '
+    + 'dashboard shell instead.<br><br>'
+    + 'The <b>efficiency/</b> and <b>compliance/</b> folders are missing from the '
+    + 'deployed build. Commit and push both folders, or re-upload the whole '
+    + 'Dashboard folder, then redeploy.<br><br>'
+    + '<code style="background:#E4E6F0;padding:3px 7px;border-radius:5px;font-size:11.5px">'
+    + 'git add -A &amp;&amp; git commit -m "add report folders" &amp;&amp; git push</code>'
+    + '</div></div>';
+  throw new Error('Shell loaded inside its own iframe, stopping to prevent recursion.');
+}
+
 /* Each report is fed by the Apps Script deployed on ITS OWN spreadsheet, so
    there is no single API_URL any more. Refresh has to hit whichever endpoint
    belongs to the tab currently on screen, otherwise pressing it on the Fabric

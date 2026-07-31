@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Individual Eff% Report</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
+    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 18px;
+         display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .strip .rsub{font-size:10px;color:var(--mut);white-space:nowrap}
+
+  .wrap{padding:14px 18px 24px;max-width:1560px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .placeholder{padding:70px 24px;text-align:center}
+  .placeholder .ic{width:54px;height:54px;border-radius:14px;background:var(--cream);border:1px solid var(--peach);
+    display:inline-flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:14px}
+  .placeholder h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:8px}
+  .placeholder p{font-size:12.5px;color:var(--mut);line-height:1.8;max-width:520px;margin:0 auto}
+
+  /* Kept last on purpose. A media query adds no specificity, so any base rule
+     written after it would silently win and these overrides would do nothing. */
+  @media(max-width:560px){
+    .strip{padding:6px 9px;gap:7px}
+    .strip h2{font-size:11px}
+    .strip .rsub{display:none}
+    .wrap{padding:10px 9px 20px}
+    .placeholder{padding:40px 14px}
+    .placeholder .ic{width:46px;height:46px;font-size:20px;margin-bottom:11px}
+    .placeholder h3{font-size:13.5px}
+    .placeholder p{font-size:11.5px;line-height:1.7}
+  }
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <h2>Weekly Individual Eff% Report</h2>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="placeholder">
+      <div class="ic">&#128198;</div>
+      <h3>Weekly Individual Eff% Report</h3>
+      <p>
+        Reserved for multi-day analysis &mdash; per-operator average efficiency across a selected
+        week, floor trend lines, and the weekly PIB view.
+        <br><br>
+        Not built yet. Use the Daily Individual Eff% Report tab above for single-day figures.
+      </p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

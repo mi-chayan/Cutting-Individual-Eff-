@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fabric Roll Compliance Report</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
+    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    /* Compliance bands. 100% is the target, not 65%, so the ladder is tighter
+       than the efficiency report: red below 80, green 80 to under 100, blue at 100. */
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700; --stripH:40px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
+       font-size:13px;-webkit-text-size-adjust:100%}
+
+  /* ---- compact control strip ---- */
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
+         display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .sep{width:1px;height:22px;background:var(--line)}
+  .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+  .strip input[type=date]{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:12px;background:#fff;color:var(--txt)}
+  .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
+        padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .mini:hover{background:var(--cream);border-color:var(--peach)}
+  .mini svg{width:12px;height:12px;fill:var(--violet)}
+  .showing{font-size:11px;color:var(--mut);white-space:nowrap}
+  .acts{display:flex;gap:7px;flex-wrap:wrap}
+
+  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
+
+  /* ---- KPI row ---- */
+  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;position:relative;overflow:hidden;
+       box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+  .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
+  .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
+  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
+
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;margin-bottom:15px}
+  .toprow>.card{margin-bottom:0}
+
+  /* overflow:clip, not hidden. Both clip the rounded corners identically, but
+     'hidden' creates a scroll container which breaks position:sticky headers. */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:clip;
+        box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
+  .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
+
+  /* Floor card gets the raised treatment, same language as the daily report */
+  #floorcard{border:1px solid var(--peach);border-radius:14px;
+        box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
+        background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
+  #floorcard .hd{background:linear-gradient(90deg,var(--navy),#4A56A0)}
+  #floorcard .hd h3{color:#fff}
+  #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
+  #floorcard th{background:#404B8C}
+  #floorcard th:hover{background:#4A56A0}
+  .hint{font-size:10px;font-weight:700;color:var(--peach);letter-spacing:.2px;
+        background:rgba(255,255,255,.13);border:1px solid rgba(255,207,149,.5);
+        border-radius:20px;padding:3px 10px;white-space:nowrap}
+  #mkcard .hint,#fabcard .hint{color:var(--violet);background:#F3EEFC;border-color:#D6C8F0}
+  .fsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:11px;background:#fff;color:var(--txt);font-weight:700;max-width:100%}
+  .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:210px}
+  .push{margin-left:auto}
+
+  /* ---- fabric type bar list ---- */
+  .fabbody{padding:9px 12px 11px}
+  .fabrow{display:grid;grid-template-columns:82px 1fr 46px;align-items:center;gap:8px;
+          padding:4px 5px;margin:0 -5px;border-radius:6px;cursor:pointer;transition:background .12s}
+  .fabrow:hover{background:#F2F4FA}
+  .fabrow.on{background:#EFE7FB;box-shadow:inset 2px 0 0 var(--violet)}
+  .fabname{font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bartrack{height:11px;background:#EDEFF6;border-radius:3px;overflow:hidden;position:relative}
+  .barfill{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  .barfill.red{background:var(--red)} .barfill.green{background:var(--green)} .barfill.blue{background:var(--blue)}
+  .fabpct{font-size:10.5px;font-weight:800;text-align:right}
+  .fabpct.red{color:var(--red)} .fabpct.green{color:var(--green)} .fabpct.blue{color:var(--blue)}
+  .fabsub{font-size:9px;color:var(--mut);grid-column:2 / span 2;margin-top:-2px}
+
+  .scroll{overflow:visible}
+  table{width:100%;border-collapse:collapse;min-width:700px}
+  th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{background:#3D4880}
+  th .arr{font-size:8px;opacity:.85;margin-left:2px}
+
+  @media(min-width:901px){
+    #floorcard>.hd,#mkcard>.hd{position:sticky;top:var(--stripH);z-index:16}
+    #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
+    #mktable>thead th{position:sticky;top:calc(var(--stripH) + var(--mkHdH,0px));z-index:15}
+    #flrtable>thead th,#mktable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+  }
+
+  td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  td.l{text-align:left}
+  tbody tr:nth-child(even){background:#FAFBFE}
+  tbody tr{transition:background .1s}
+  tbody tr:hover{background:var(--cream)}
+  tr.clickable{cursor:pointer}
+  tr.active-floor{background:#EFE7FB !important;box-shadow:inset 3px 0 0 var(--violet)}
+  tr.totalrow{background:var(--navy) !important;color:#fff;font-weight:800}
+  tr.totalrow td{border-bottom:0}
+  tr.totalrow .pct{color:#fff !important}
+
+  .pct{font-weight:800}
+  .pct.red{color:var(--red)} .pct.green{color:var(--green)} .pct.blue{color:var(--blue)}
+  .bad{color:var(--red);font-weight:800}
+  .waste{color:var(--amber);font-weight:800}
+  .lblp{display:none}   /* short header label, print only */
+
+  /* ---- marker drill-down ---- */
+  tr.mkrow{cursor:pointer}
+  tr.mkrow.open{background:#EFE7FB !important;font-weight:800;color:#3A2470}
+  tr.mkrow.open>td{border-top:2px solid var(--violet);border-bottom:0}
+  tr.mkrow.open>td:first-child{border-left:2px solid var(--violet)}
+  tr.mkrow.open>td:last-child{border-right:2px solid var(--violet)}
+  .caret{display:inline-block;width:0;height:0;border-left:4px solid var(--mut);
+         border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;
+         margin-right:5px;transition:transform .15s;vertical-align:middle}
+  tr.mkrow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
+  tr.detrow>td{padding:0;background:#EFE9FA;border:2px solid var(--violet);border-top:0}
+  .detbox{padding:11px 13px}
+  .detscroll{border:1px solid #D6C8F0;border-radius:8px;background:#FBF9FE;
+             overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.dettable{min-width:1360px;margin:0}
+  table.dettable th{background:#6A46B5;font-size:8.5px;padding:6px 7px;cursor:default}
+  table.dettable th:hover{background:#6A46B5}
+  table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #E7DFF7}
+  table.dettable tbody tr{background:#FBF9FE}
+  table.dettable tbody tr:nth-child(even){background:#F4EFFC}
+  table.dettable tbody tr:hover{background:#E8DEFA}
+  table.dettable tbody tr.fail{background:#FDECEC}
+  table.dettable tbody tr.fail:hover{background:#FADCDC}
+  .detloading{padding:20px;text-align:center;color:#6B5B92;font-size:11.5px;font-weight:700}
+  .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:9.5px;font-weight:800}
+  .tag.yes{background:#E4F4EA;color:var(--green)}
+  .tag.no{background:#FBE3E5;color:var(--red)}
+
+  .chips{display:flex;gap:4px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE;line-height:1.5}
+  .loading{padding:60px;text-align:center;color:var(--mut);font-weight:700}
+  .spin{display:inline-block;width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:10px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:40px;text-align:center;color:var(--mut);line-height:1.7}
+
+  .printhead{display:none}
+
+  /* ---------------- Tablet ---------------- */
+  @media(max-width:900px){
+    .strip{padding:6px 11px;gap:9px}
+    .strip h2{font-size:11.5px}
+    .sep{display:none}
+    .wrap{padding:11px 11px 22px}
+    .search{width:170px}
+    .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .toprow{grid-template-columns:1fr;gap:11px}
+    .hp{display:none}
+    #flrtable,#mktable{min-width:0}
+    #flrtable th,#mktable th{white-space:normal;line-height:1.2}
+    #mktable td.l{white-space:normal}
+  }
+
+  /* ---------------- Phone ---------------- */
+  @media(max-width:560px){
+    .strip{padding:6px 9px;gap:6px 8px;justify-content:flex-start}
+    .strip h2{font-size:11px}
+    .strip label{display:none}
+    .strip input[type=date]{font-size:11.5px;padding:6px;flex:0 1 auto;min-width:0;max-width:150px}
+    .mini{padding:7px 11px;font-size:11px}
+    .showing{font-size:10px;order:5;width:100%}
+    .acts{margin-left:auto}
+    .wrap{padding:10px 9px 20px}
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .kpi:first-child{grid-column:span 2}
+    .kpi .v{font-size:21px}
+    .card .hd{padding:8px 10px;gap:6px}
+    .card .hd h3{font-size:11px;width:100%}
+    .hint{display:none}
+    .push{display:none}
+    .fsel{font-size:11px;padding:7px 8px;flex:1 1 100%;min-width:0}
+    .search{width:100%;padding:7px 9px;font-size:12px}
+    .chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+           scrollbar-width:none;width:100%;padding-bottom:2px}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex:0 0 auto;padding:6px 12px;font-size:11px}
+    th{font-size:8.5px;padding:7px 6px}
+    td{padding:7px 6px;font-size:11.5px}
+    .hs{display:none}
+    .detbox{padding:8px 9px}
+    .foot{font-size:9px;padding:7px 10px}
+  }
+
+  @media(max-width:400px){
+    .strip h2{font-size:10.5px}
+    .mini{padding:7px 9px;font-size:10.5px}
+    .kpi .v{font-size:19px}
+    .card .hd h3{font-size:10.5px}
+  }
+
+  /* ---------------- Print: A4 landscape ---------------- */
+  /* Landscape, not portrait: the marker table carries 11 columns and would be
+     squeezed unreadable on a portrait page. */
+  @page{ size:A4 landscape; margin:9mm 8mm; }
+  @media print{
+    body{background:#fff;font-size:9pt}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
+    .wrap{padding:0;max-width:none}
+    .scroll{overflow:visible}
+    .card{border:1px solid #bbb;border-radius:0;margin-bottom:6mm;break-inside:auto;
+          box-shadow:none !important;background:#fff !important}
+    .card .hd{background:#fff !important;padding:4pt 0;border-bottom:1.2pt solid var(--navy);position:static !important}
+    .card .hd h3{font-size:10.5pt;color:var(--navy) !important}
+    .card .hd h3:before{content:'' !important;margin:0 !important}
+    #floorcard th{background:#333D6D !important}
+    .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:4mm;
+               border-bottom:1.5pt solid #333D6D;padding-bottom:3mm}
+    .printhead img{height:9mm;width:auto;flex:0 0 auto;display:block}
+    .printhead .phbody{flex:1 1 auto;min-width:0}
+    .printhead h1{font-size:11.5pt;font-weight:800;color:#333D6D;line-height:1.2;margin:0 0 2mm 0}
+    .printhead .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2mm 5mm;
+                     font-size:7.4pt;color:#666;line-height:1.35}
+    .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .printhead .meta b{color:#111;font-weight:700}
+    .toprow{display:block}
+    #fabcard{page-break-inside:avoid}
+    .kpis{display:flex;gap:3mm;margin-bottom:5mm;grid-template-columns:none}
+    .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:2.5mm;page-break-inside:avoid}
+    .kpi .v{font-size:13pt}
+    .kpi .k{font-size:6.6pt}
+    .kpi .s{font-size:6.2pt}
+    table{min-width:0 !important;width:100% !important;table-layout:fixed;font-size:7.4pt}
+    thead{display:table-header-group}
+    tr{page-break-inside:avoid}
+    th{background:#333D6D !important;color:#fff !important;padding:3.5pt 2pt;font-size:6.2pt;
+       white-space:normal;word-break:break-word;line-height:1.15;position:static !important;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    td{padding:2.8pt 2pt;border-bottom:.5pt solid #ddd;white-space:nowrap;
+       overflow:hidden;text-overflow:ellipsis}
+    td.l{white-space:normal;word-break:break-word}
+    .lbl{display:none} .lblp{display:inline}
+    tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pct.red{color:#C0392B !important} .pct.green{color:#146C3A !important} .pct.blue{color:#14539E !important}
+    .hs{display:table-cell !important}
+    .hp{display:table-cell !important}
+    /* drill-down never prints, paper output stays identical whatever is open */
+    tr.detrow{display:none !important}
+    tr.mkrow.open{background:transparent !important;box-shadow:none !important}
+    .caret{display:none !important}
+    .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
+    body.single-floor #floorcard{display:none !important}
+    .printfoot{display:block !important;margin-top:4mm;font-size:7pt;color:#666;text-align:center;
+               border-top:.5pt solid #ccc;padding-top:2mm}
+  }
+  .printfoot{display:none}
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <h2>Fabric Roll Compliance Report</h2>
+  <div class="sep"></div>
+  <label>Report Date</label>
+  <input type="date" id="d1" onchange="pickDate()">
+  <button class="mini" onclick="goLatest()">Latest Day</button>
+  <span class="showing" id="showing"></span>
+  <div class="acts">
+    <button class="mini" onclick="exportExcel()" title="Export current view to Excel">
+      <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
+    </button>
+    <button class="mini" onclick="doPrint()" title="Print current view, A4 landscape">
+      <svg viewBox="0 0 24 24"><path d="M7 3h10v4H7V3zm12 6H5a2 2 0 00-2 2v6h4v4h10v-4h4v-6a2 2 0 00-2-2zm-4 10H9v-4h6v4z"/></svg> Print
+    </button>
+  </div>
+</div>
+
+<div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
+
+<script>
+/* =====================================================================
+   Fabric Roll Compliance Report
+   ---------------------------------------------------------------------
+   Read straight from the Google Sheet, never recomputed here:
+     marker compliance %  -> column G
+     roll pass / fail     -> column V
+     floor compliance %   -> Summary tab
+   Calculated in Code.gs because the sheet does not hold it:
+     Excess    = Roll Width - MW
+     Waste Yds = Used Yds x (Excess - 1.00) / Roll Width, failed rolls only
+   ===================================================================== */
+
+var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+var SNAP_KEY='fabric_snapshot_v1', DAYPFX='fabric_day_', DETPFX='fabric_det_';
+
+var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
+var floorFilter='', fabricFilter='', query='', compFilter='all';
+var sortKey='waste', sortDir=-1;
+var fSortKey='floor', fSortDir=1;
+var DETAIL={}, DETLOADING={};
+var expandKey='';
+var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
+var TOLERANCE=1.00;
+
+function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
+/* Compliance bands: red below 80, green 80 to under 100, blue at 100. */
+function pctClass(p){return p<80?'red':(p<100?'green':'blue')}
+function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
+function prettyDate(s){
+  if(!s)return '';
+  var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
+}
+function compPass(v,mode){
+  if(mode==='lt80')return v<80;
+  if(mode==='lt100')return v<100;
+  if(mode==='eq100')return v>=100;
+  return true;
+}
+function compLabel(mode){
+  return mode==='lt80'?'Below 80%':mode==='lt100'?'Below 100%':mode==='eq100'?'100% only':'All';
+}
+function mapMarkers(arr){
+  return (arr||[]).map(function(r){
+    return {floor:r[0],date:r[1],markerSL:r[2],cutNo:r[3],fabric:r[4],ml:r[5],mw:r[6],
+            table:r[7],rolls:r[8],fails:r[9],rate:r[10],used:r[11],waste:r[12]};
+  });
+}
+function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
+function cacheSet(k,o){ try{sessionStorage.setItem(k,JSON.stringify(o))}catch(e){} }
+function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*'); }
+
+/* ---------- boot: cache first, network only if empty ---------- */
+function boot(){
+  var snap=cacheGet(SNAP_KEY);
+  if(snap){ applySnapshot(snap); return; }
+  fetch(API_URL+'?action=snapshot')
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error)throw new Error(res.error);
+      cacheSet(SNAP_KEY,res); applySnapshot(res);
+    }).catch(showErr);
+}
+
+function applySnapshot(res){
+  DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST; STAMP=res.generatedAt||'';
+  MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
+  DETAIL={}; DETLOADING={};
+  document.getElementById('d1').value=LATEST;
+  tellParent(STAMP);
+  if(!MARKERS.length && !LATEST){
+    document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return;
+  }
+  resetFilters(); render();
+}
+
+window.addEventListener('message',function(ev){
+  if(ev.data && ev.data.type==='snapshot-updated'){
+    var snap=cacheGet(SNAP_KEY);
+    if(snap) applySnapshot(snap);
+  }
+});
+
+function goLatest(){
+  if(!LATEST){boot();return}
+  document.getElementById('d1').value=LATEST;
+  pickDate();
+}
+
+function pickDate(){
+  var d=document.getElementById('d1').value;
+  if(!d)return;
+  DAY=d;
+  if(d===LATEST){
+    var snap=cacheGet(SNAP_KEY);
+    if(snap){ MARKERS=mapMarkers(snap.markers); FLOORRATES=snap.floorRates||{};
+              STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+  }
+  var cached=cacheGet(DAYPFX+d);
+  if(cached){ MARKERS=mapMarkers(cached.markers); FLOORRATES=cached.floorRates||{};
+              STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+
+  document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+prettyDate(d)+'&hellip;</div>';
+  fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d))
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error)throw new Error(res.error);
+      cacheSet(DAYPFX+d,res);
+      MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
+      STAMP=res.generatedAt; tellParent(STAMP);
+      resetFilters(); render();
+    }).catch(showErr);
+}
+
+function resetFilters(){floorFilter='';fabricFilter='';query='';compFilter='all';expandKey=''}
+
+/* ---------- roll drill-down ---------- */
+function detKey(floor){ return DAY+'_'+floor }
+
+/* Warm the roll-level data for a floor quietly in the background, so the
+   first marker click normally finds it already in memory. */
+function prefetchDetail(floor){
+  if(!floor||!DAY) return;
+  var k=detKey(floor);
+  if(DETAIL[k]||DETLOADING[k]) return;
+
+  var cached=cacheGet(DETPFX+k);
+  if(cached){ DETAIL[k]=cached.rows||[]; return; }
+
+  DETLOADING[k]=true;
+  fetch(API_URL+'?action=detail&date='+encodeURIComponent(DAY)+'&floor='+encodeURIComponent(floor))
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      DETLOADING[k]=false;
+      if(res.error) return;
+      DETAIL[k]=res.rows||[];
+      cacheSet(DETPFX+k,res);
+      if(expandKey && expandKey.split('|')[0]===floor) render();
+    })
+    .catch(function(){ DETLOADING[k]=false; });
+}
+
+function prefetchVisibleFloors(list){
+  var queue=list.slice(), i=0;
+  (function next(){
+    if(i>=queue.length) return;
+    prefetchDetail(queue[i++]);
+    setTimeout(next,400);
+  })();
+}
+
+function stickyStackH(){
+  var h=boxH('.strip');
+  if(window.matchMedia('(min-width:901px)').matches){
+    h+=boxH('#mkcard>.hd')+boxH('#mktable>thead>tr');
+  }
+  return h;
+}
+function scrollRowIntoView(){
+  var row=document.querySelector('tr.mkrow.open');
+  if(!row) return;
+  var smooth=!window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var top=window.pageYOffset+row.getBoundingClientRect().top-stickyStackH()-10;
+  if(top<0) top=0;
+  window.scrollTo({top:top,behavior:smooth?'smooth':'auto'});
+}
+
+function toggleDetail(floor,markerSL,cutNo,ev){
+  if(ev) ev.stopPropagation();
+  var k=floor+'|'+markerSL+'|'+cutNo;
+  var opening=(expandKey!==k);
+  expandKey=opening?k:'';
+  if(expandKey) prefetchDetail(floor);
+  render();
+  if(opening) requestAnimationFrame(scrollRowIntoView);
+}
+
+function detailRowsFor(floor,markerSL,cutNo){
+  var rows=DETAIL[detKey(floor)];
+  if(!rows) return null;
+  return rows.filter(function(r){
+    return String(r[0])===String(markerSL) && String(r[1])===String(cutNo);
+  });
+}
+function showErr(e){
+  document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
+    +'<br><br>Check: 1) API_URL is the /exec link of the Fabric Compliance sheet, 2) deployment access is "Anyone", 3) a NEW VERSION was deployed after the last code change.</div>';
+}
+
+/* ---------- aggregation ---------- */
+function floorAgg(list){
+  var map={};
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,markers:0,rolls:0,fails:0,used:0,waste:0}});
+  list.forEach(function(m){
+    var f=map[m.floor]; if(!f)return;
+    f.markers++; f.rolls+=m.rolls; f.fails+=m.fails; f.used+=m.used; f.waste+=m.waste;
+  });
+  return FLOOR_ORDER.map(function(k){
+    var f=map[k];
+    /* Summary tab value wins. Roll counts are only the fallback if that floor
+       has no Summary row for this date. */
+    var sheetRate=FLOORRATES[k];
+    f.comp=(typeof sheetRate==='number' && !isNaN(sheetRate))
+             ? sheetRate
+             : (f.rolls>0 ? (f.rolls-f.fails)/f.rolls*100 : 0);
+    return f;
+  });
+}
+function fabricAgg(list){
+  var map={},order=[];
+  list.forEach(function(m){
+    var key=m.fabric||'(blank)';
+    if(!map[key]){map[key]={fabric:key,markers:0,rolls:0,fails:0,used:0,waste:0};order.push(key)}
+    var o=map[key];
+    o.markers++; o.rolls+=m.rolls; o.fails+=m.fails; o.used+=m.used; o.waste+=m.waste;
+  });
+  return order.map(function(k){
+    var o=map[k];
+    o.comp=o.rolls>0?(o.rolls-o.fails)/o.rolls*100:0;
+    return o;
+  }).sort(function(a,b){ return a.comp-b.comp || b.rolls-a.rolls });
+}
+
+function currentSets(){
+  var floorsAll=floorAgg(MARKERS);
+
+  var grand={markers:0,rolls:0,fails:0,used:0,waste:0};
+  MARKERS.forEach(function(m){
+    grand.markers++; grand.rolls+=m.rolls; grand.fails+=m.fails; grand.used+=m.used; grand.waste+=m.waste;
+  });
+  grand.comp=grand.rolls>0?(grand.rolls-grand.fails)/grand.rolls*100:0;
+
+  /* KPI scope follows the floor selection */
+  var scoped = floorFilter ? MARKERS.filter(function(m){return m.floor===floorFilter}) : MARKERS;
+  var tot={markers:0,rolls:0,fails:0,used:0,waste:0};
+  scoped.forEach(function(m){
+    tot.markers++; tot.rolls+=m.rolls; tot.fails+=m.fails; tot.used+=m.used; tot.waste+=m.waste;
+  });
+  tot.comp=tot.rolls>0?(tot.rolls-tot.fails)/tot.rolls*100:0;
+
+  var fabrics=fabricAgg(scoped);
+
+  var floorsShown=floorsAll.filter(function(f){return f.markers>0});
+  floorsShown.sort(function(a,b){
+    if(fSortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*fSortDir;
+    var va=a[fSortKey],vb=b[fSortKey];
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*fSortDir;
+    return (va-vb)*fSortDir;
+  });
+
+  var mkShown=MARKERS.filter(function(m){
+    if(floorFilter&&m.floor!==floorFilter)return false;
+    if(fabricFilter&&m.fabric!==fabricFilter)return false;
+    if(!compPass(m.rate,compFilter))return false;
+    if(query){
+      var q=query.toLowerCase();
+      if(String(m.cutNo).toLowerCase().indexOf(q)<0
+         && String(m.fabric).toLowerCase().indexOf(q)<0
+         && String(m.table).toLowerCase().indexOf(q)<0
+         && String(m.markerSL).indexOf(q)<0)return false;
+    }
+    return true;
+  });
+  mkShown.sort(function(a,b){
+    if(sortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*sortDir;
+    var va=a[sortKey],vb=b[sortKey];
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
+    return (va-vb)*sortDir;
+  });
+
+  return {floorsAll:floorsAll,floorsShown:floorsShown,fabrics:fabrics,mkShown:mkShown,tot:tot,grand:grand};
+}
+
+/* ---------- render ---------- */
+function render(){
+  document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
+  var S=currentSets(), tot=S.tot;
+  var scopeLabel=floorFilter?('Floor '+floorFilter):'All Floors';
+  var scopeNote=floorFilter?('floor '+floorFilter):'all floors';
+  document.body.classList.toggle('single-floor', !!floorFilter);
+
+  var h='<div class="wrap">';
+
+  /* print-only header */
+  h+='<div class="printhead">'
+    +'<img src="../logo.jpg" alt="SNOWTEX">'
+    +'<div class="phbody">'
+      +'<h1>SOSL Cutting Section &mdash; Fabric Roll Compliance Report</h1>'
+      +'<div class="meta">'
+        +'<span>Date <b>'+prettyDate(DAY)+'</b></span>'
+        +'<span>Scope <b>'+esc(scopeLabel)+'</b></span>'
+        +'<span>Fabric <b>'+esc(fabricFilter||'All')+'</b></span>'
+        +'<span>Filter <b>'+esc(compLabel(compFilter))+'</b></span>'
+        +'<span>Markers <b>'+tot.markers+'</b></span>'
+        +'<span>Rolls <b>'+tot.rolls+'</b></span>'
+        +'<span>Failed <b>'+tot.fails+'</b></span>'
+        +'<span>Generated <b>'+esc(STAMP)+'</b></span>'
+      +'</div></div></div>';
+
+  /* KPI row */
+  h+='<div class="kpis">'
+    +'<div class="kpi"><div class="k">Total Markers</div><div class="v">'+tot.markers+'</div>'
+      +'<div class="s">markers laid, '+scopeNote+'</div></div>'
+    +'<div class="kpi k2"><div class="k">Total Rolls</div><div class="v">'+tot.rolls+'</div>'
+      +'<div class="s">'+fmt(tot.used,0)+' yds consumed</div></div>'
+    +'<div class="kpi k3"><div class="k">Roll Compliance %</div><div class="v '+pctClass(tot.comp)+'">'+fmt(tot.comp,1)+'%</div>'
+      +'<div class="s">passed rolls &divide; total rolls</div></div>'
+    +'<div class="kpi k4"><div class="k">Failed Rolls</div><div class="v '+(tot.fails>0?'red':'')+'">'+tot.fails+'</div>'
+      +'<div class="s">'+fmt(tot.rolls?tot.fails/tot.rolls*100:0,1)+'% of rolls, width over '+fmt(TOLERANCE,2)+'&Prime;</div></div>'
+    +'<div class="kpi k5"><div class="k">Wasted Fabric</div><div class="v '+(tot.waste>0?'amber':'')+'">'+fmt(tot.waste,1)+'</div>'
+      +'<div class="s">yds, '+fmt(tot.used?tot.waste/tot.used*100:0,2)+'% of consumption</div></div>'
+    +'</div>';
+
+  /* Floor table + fabric bars */
+  h+='<div class="toprow">';
+
+  h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor wise Roll Compliance</h3>'
+    +'<span class="hint">click a floor row to filter</span></div>';
+  h+='<div class="scroll"><table id="flrtable"><thead><tr>'
+    +fth('Floor','floor')+fth('Markers','markers')+fth('Rolls','rolls')
+    +fth('Failed Rolls','fails')+fth('Compliance%','comp')+fth('Wasted Yds','waste')
+    +'</tr></thead><tbody>';
+  if(!S.floorsShown.length)h+='<tr><td colspan="6" class="empty">No floor has data for this date.</td></tr>';
+  S.floorsShown.forEach(function(f){
+    h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
+      +'<td><b>'+f.floor+'</b></td><td>'+f.markers+'</td><td>'+f.rolls+'</td>'
+      +'<td class="'+(f.fails?'bad':'')+'">'+f.fails+'</td>'
+      +'<td class="pct '+pctClass(f.comp)+'">'+fmt(f.comp,1)+'%</td>'
+      +'<td class="'+(f.waste?'waste':'')+'">'+fmt(f.waste,1)+'</td></tr>';
+  });
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.markers+'</td>'
+    +'<td>'+S.grand.rolls+'</td><td>'+S.grand.fails+'</td>'
+    +'<td class="pct">'+fmt(S.grand.comp,1)+'%</td><td>'+fmt(S.grand.waste,1)+'</td></tr>';
+  h+='</tbody></table></div><div class="foot">Floor Compliance% is read from the Summary tab. '
+    +'Red below 80% &bull; Green 80% to under 100% &bull; Blue 100%</div></div>';
+
+  h+='<div class="card" id="fabcard"><div class="hd"><h3>Compliance by Fabric Type</h3>'
+    +'<span class="hint">click to filter</span></div><div class="fabbody">';
+  if(!S.fabrics.length){
+    h+='<div class="empty" style="padding:18px">No fabric data.</div>';
+  }else{
+    S.fabrics.forEach(function(o){
+      var cls=pctClass(o.comp);
+      h+='<div class="fabrow'+(fabricFilter===o.fabric?' on':'')+'" onclick="toggleFabric(\''+esc(o.fabric).replace(/'/g,"\\'")+'\')">'
+        +'<div class="fabname" title="'+esc(o.fabric)+'">'+esc(o.fabric)+'</div>'
+        +'<div class="bartrack"><div class="barfill '+cls+'" style="width:'+Math.max(0,Math.min(100,o.comp))+'%"></div></div>'
+        +'<div class="fabpct '+cls+'">'+fmt(o.comp,0)+'%</div>'
+        +'<div class="fabsub">'+o.rolls+' rolls &bull; '+o.fails+' failed &bull; '+fmt(o.waste,1)+' yds wasted</div>'
+        +'</div>';
+    });
+  }
+  h+='</div></div>';
+  h+='</div>';
+
+  /* Marker table */
+  h+='<div class="card" id="mkcard"><div class="hd"><h3>Marker wise Roll Compliance</h3>'
+    +'<span class="hint">click a marker to see its rolls</span>';
+  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
+  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
+  h+='</div><div class="push"></div>'
+    +'<select class="fsel" onchange="compFilter=this.value;expandKey=\'\';render()">'
+    +opt('all','All Compliance%',compFilter)+opt('lt100','Below 100%',compFilter)
+    +opt('lt80','Below 80%',compFilter)+opt('eq100','100% only',compFilter)+'</select>'
+    +'<input class="search" id="q" placeholder="Search cut no / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+='<div class="scroll"><table id="mktable"><thead><tr>'
+    +mth('Floor','floor')+mth('Marker SL','markerSL','SL')+mth('Cut No','cutNo')
+    +mth('Fabric','fabric')+mth('ML (Yds)','ml','ML','hs')+mth('MW (Inch)','mw','MW')
+    +mth('Table','table','Tbl','hs')+mth('Rolls','rolls')+mth('Failed','fails')
+    +mth('Compliance%','rate','Comp%')+mth('Wasted Yds','waste','Waste')
+    +'</tr></thead><tbody>';
+  if(!S.mkShown.length)h+='<tr><td colspan="11" class="empty">No marker matches this filter.</td></tr>';
+  S.mkShown.forEach(function(m){
+    var k=m.floor+'|'+m.markerSL+'|'+m.cutNo;
+    var isOpen=(expandKey===k);
+    h+='<tr class="mkrow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+m.floor+'\',\''+m.markerSL+'\',\''+esc(m.cutNo).replace(/'/g,"\\'")+'\',event)">'
+      +'<td><span class="caret"></span>'+m.floor+'</td>'
+      +'<td>'+m.markerSL+'</td>'
+      +'<td class="l">'+esc(m.cutNo)+'</td>'
+      +'<td class="l">'+esc(m.fabric)+'</td>'
+      +'<td class="hs">'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
+      +'<td class="hs">'+esc(m.table)+'</td>'
+      +'<td>'+m.rolls+'</td>'
+      +'<td class="'+(m.fails?'bad':'')+'">'+m.fails+'</td>'
+      +'<td class="pct '+pctClass(m.rate)+'">'+fmt(m.rate,0)+'%</td>'
+      +'<td class="'+(m.waste?'waste':'')+'">'+fmt(m.waste,1)+'</td></tr>';
+    if(isOpen) h+=detailBlock(m,11);
+  });
+  h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
+    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than '+fmt(TOLERANCE,2)+'&Prime; &bull; '
+    +'Wasted Yds = Used Yds &times; (Excess &minus; '+fmt(TOLERANCE,2)+') &divide; Roll Width, failed rolls only</div></div>';
+
+  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
+  h+='</div>';
+
+  document.getElementById('content').innerHTML=h;
+  syncStickyOffsets();
+  prefetchVisibleFloors(floorFilter?[floorFilter]:S.floorsShown.map(function(f){return f.floor}));
+}
+
+function opt(v,label,cur){
+  return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>';
+}
+function mth(label,key,shortLabel,cls){
+  var arr=sortKey===key?(sortDir>0?'\u25B2':'\u25BC'):'';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
+}
+function fth(label,key,shortLabel){
+  var arr=fSortKey===key?(fSortDir>0?'\u25B2':'\u25BC'):'';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th onclick="setFSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
+}
+function setSort(k){ if(sortKey===k)sortDir=-sortDir; else{sortKey=k;sortDir=(k==='floor'||k==='cutNo'||k==='fabric'||k==='table')?1:-1} render() }
+function setFSort(k){ if(fSortKey===k)fSortDir=-fSortDir; else{fSortKey=k;fSortDir=(k==='floor')?1:-1} render() }
+
+/* ---------- roll detail block ---------- */
+function detailBlock(m,colspan){
+  var h='<tr class="detrow"><td colspan="'+colspan+'"><div class="detbox">';
+  var rows=detailRowsFor(m.floor,m.markerSL,m.cutNo);
+
+  if(rows===null){
+    h+='<div class="detloading">Loading roll details for Cut No '+esc(m.cutNo)+'&hellip;</div>';
+    h+='</div></td></tr>';
+    return h;
+  }
+  if(!rows.length){
+    h+='<div class="detloading">No roll rows found for this marker.</div>';
+    h+='</div></td></tr>';
+    return h;
+  }
+
+  h+='<div class="detscroll"><table class="dettable"><thead><tr>'
+    +'<th>Roll SL</th><th>Roll QR</th><th>Color</th><th>Roll No</th><th>Consignment</th>'
+    +'<th>Shade No</th><th>Shrinkage</th><th>Roll Qty (Yds)</th><th>Roll Width (Inch)</th>'
+    +'<th>MW (Inch)</th><th>Excess (Inch)</th><th>Layer</th><th>Total Lay</th>'
+    +'<th>Used Qty (Yds)</th><th>Cut Pc Yds</th><th>Short Yds</th>'
+    +'<th>Width Compliance</th><th>Wasted Yds</th>'
+    +'</tr></thead><tbody>';
+  rows.forEach(function(r){
+    var pass=(String(r[18]).toLowerCase()==='yes');
+    h+='<tr class="'+(pass?'':'fail')+'">'
+      +'<td>'+esc(r[4])+'</td>'
+      +'<td>'+esc(r[5])+'</td>'
+      +'<td class="l">'+esc(r[6])+'</td>'
+      +'<td class="l">'+esc(r[7])+'</td>'
+      +'<td class="l">'+esc(r[8])+'</td>'
+      +'<td>'+esc(r[9])+'</td>'
+      +'<td>'+fmt(r[10],2)+'</td>'
+      +'<td>'+fmt(r[11],2)+'</td>'
+      +'<td>'+fmt(r[12],2)+'</td>'
+      +'<td>'+fmt(r[3],2)+'</td>'
+      +'<td class="'+(r[19]>TOLERANCE?'bad':'')+'">'+fmt(r[19],2)+'</td>'
+      +'<td>'+fmt(r[13],0)+'</td>'
+      +'<td>'+fmt(r[14],0)+'</td>'
+      +'<td>'+fmt(r[15],2)+'</td>'
+      +'<td>'+fmt(r[16],2)+'</td>'
+      +'<td>'+fmt(r[17],2)+'</td>'
+      +'<td><span class="tag '+(pass?'yes':'no')+'">'+esc(r[18])+'</span></td>'
+      +'<td class="'+(r[20]?'waste':'')+'">'+fmt(r[20],2)+'</td></tr>';
+  });
+  h+='</tbody></table></div></div></td></tr>';
+  return h;
+}
+
+function toggleFloor(f){
+  floorFilter=(floorFilter===f)?'':f;
+  expandKey='';
+  if(floorFilter) prefetchDetail(floorFilter);
+  render();
+}
+function toggleFabric(f){
+  fabricFilter=(fabricFilter===f)?'':f;
+  expandKey='';
+  render();
+}
+function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
+
+/* ---------- print ---------- */
+function doPrint(){ window.focus(); window.print(); }
+
+/* ---------- Excel export ---------- */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function exportExcel(){
+  var S=currentSets(), tot=S.tot;
+  var scope=floorFilter?('Floor '+floorFilter):'All Floors';
+
+  var t='';
+  t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Fabric Roll Compliance Report</td></tr>';
+  t+='<tr><td colspan="11">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
+  t+='<tr><td colspan="11">Fail rule: Roll Width &minus; MW &gt; '+fmt(TOLERANCE,2)+' inch'
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; '+fmt(TOLERANCE,2)+') / Roll Width, failed rolls only</td></tr>';
+  t+='<tr><td></td></tr></table>';
+
+  /* KPI block */
+  t+='<table border="1"><tr>'
+    +th2('Total Markers (nos)')+th2('Total Rolls (nos)')+th2('Roll Compliance %')
+    +th2('Failed Rolls (nos)')+th2('Wasted Fabric (yds)')+'</tr>'
+    +'<tr><td>'+tot.markers+'</td><td>'+tot.rolls+'</td>'+pctTd(tot.comp,1)
+    +'<td>'+tot.fails+'</td><td>'+fmt(tot.waste,2)+'</td></tr></table>';
+  t+='<table><tr><td></td></tr></table>';
+
+  /* Floor table */
+  t+='<table border="1"><tr><td colspan="6" style="font-weight:bold;color:#333D6D">Floor wise Roll Compliance</td></tr><tr>'
+    +th2('Floor')+th2('Markers (nos)')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')
+    +th2('Compliance %')+th2('Wasted Yds')+'</tr>';
+  S.floorsShown.forEach(function(f){
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.markers+'</td><td>'+f.rolls+'</td><td>'+f.fails+'</td>'
+      +pctTd(f.comp,1)+'<td>'+fmt(f.waste,2)+'</td></tr>';
+  });
+  t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+S.grand.markers
+    +'</td><td style="font-weight:bold">'+S.grand.rolls+'</td><td style="font-weight:bold">'+S.grand.fails
+    +'</td>'+pctTd(S.grand.comp,1,'font-weight:bold')+'<td style="font-weight:bold">'+fmt(S.grand.waste,2)+'</td></tr>';
+  t+='</table><table><tr><td></td></tr></table>';
+
+  /* Fabric table */
+  t+='<table border="1"><tr><td colspan="6" style="font-weight:bold;color:#333D6D">Compliance by Fabric Type</td></tr><tr>'
+    +th2('Fabric Type')+th2('Markers (nos)')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')
+    +th2('Compliance %')+th2('Wasted Yds')+'</tr>';
+  S.fabrics.forEach(function(o){
+    t+='<tr><td>'+esc(o.fabric)+'</td><td>'+o.markers+'</td><td>'+o.rolls+'</td><td>'+o.fails+'</td>'
+      +pctTd(o.comp,1)+'<td>'+fmt(o.waste,2)+'</td></tr>';
+  });
+  t+='</table><table><tr><td></td></tr></table>';
+
+  /* Marker table */
+  t+='<table border="1"><tr><td colspan="11" style="font-weight:bold;color:#333D6D">Marker wise Roll Compliance</td></tr><tr>'
+    +th2('Floor')+th2('Marker SL')+th2('Cut No')+th2('Fabric Type')+th2('ML (Yds)')+th2('MW (Inch)')
+    +th2('Table')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')+th2('Compliance %')+th2('Wasted Yds')+'</tr>';
+  S.mkShown.forEach(function(m){
+    t+='<tr><td>'+esc(m.floor)+'</td><td>'+m.markerSL+'</td>'
+      +'<td style="mso-number-format:\'\\@\'">'+esc(m.cutNo)+'</td>'
+      +'<td>'+esc(m.fabric)+'</td><td>'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
+      +'<td>'+esc(m.table)+'</td><td>'+m.rolls+'</td><td>'+m.fails+'</td>'
+      +pctTd(m.rate,2)+'<td>'+fmt(m.waste,2)+'</td></tr>';
+  });
+  t+='</table>';
+  t+='<table><tr><td></td></tr><tr><td colspan="11">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
+    +'<x:Name>Fabric Roll Compliance</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
+
+  var name='SOSL_Fabric_Roll_Compliance_'+DAY+'_'+(floorFilter||'AllFloors')+'.xls';
+  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
+}
+function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
+
+/* Real Excel percentage: value stored as a fraction, displayed with a % sign,
+   so the column still sorts and averages correctly instead of being plain text. */
+function pctTd(v,dec,extra){
+  if(v==null||isNaN(v)) return '<td>-</td>';
+  var f='0'+(dec>0?'.'+Array(dec+1).join('0'):'')+'%';
+  var st="mso-number-format:'"+f+"';"+(extra||'');
+  return '<td style="'+st+'">'+(v/100)+'</td>';
+}
+
+/* ---------- sticky offsets ---------- */
+function boxH(sel){
+  var el=document.querySelector(sel);
+  return el ? el.getBoundingClientRect().height : 0;
+}
+function syncStickyOffsets(){
+  var r=document.documentElement;
+  var s=document.querySelector('.strip');
+  if(s) r.style.setProperty('--stripH', s.offsetHeight+'px');
+  r.style.setProperty('--flrHdH', boxH('#floorcard>.hd')+'px');
+  r.style.setProperty('--mkHdH',  boxH('#mkcard>.hd')+'px');
+}
+window.addEventListener('resize', syncStickyOffsets);
+window.addEventListener('load', syncStickyOffsets);
+
+boot();
+syncStickyOffsets();
+</script>
+</body>
+</html>
