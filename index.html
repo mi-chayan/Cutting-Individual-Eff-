@@ -22,15 +22,18 @@
        font-size:13px;display:flex;flex-direction:column;overflow:hidden;
        -webkit-text-size-adjust:100%}
 
-  .hdr{background:var(--navy);color:#fff;padding:6px 20px;display:flex;align-items:center;gap:11px;
+  /* Side blocks are absolute, so the title is the only in-flow child and sits
+     dead centre. Padding is symmetric and wide enough to clear both blocks,
+     which keeps the centring true instead of nudging the title off-axis. */
+  .hdr{background:var(--navy);color:#fff;padding:6px 235px;display:flex;align-items:center;
        justify-content:center;position:relative;min-height:44px;flex:0 0 auto}
-  .hdr img.logo{height:24px;display:block;border-radius:3px}
-  .hdr h1{font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.2px}
-  .hdr .sub{font-size:9.5px;color:#BFC4E0;margin-top:1px}
+  .hdr img.logo{height:24px;display:block;border-radius:3px;flex:0 0 auto}
+  .hdr h1{font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.2px;text-align:center}
   .hdrright{position:absolute;right:18px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:11px}
 
-  /* ---- pages menu (3 bar) ---- */
-  .hdrleft{position:absolute;left:14px;top:50%;transform:translateY(-50%)}
+  /* ---- 3 bar menu + logo ---- */
+  .hdrleft{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+           display:flex;align-items:center;gap:10px}
   .burger{background:transparent;border:1px solid rgba(255,255,255,.28);border-radius:8px;
           width:34px;height:30px;cursor:pointer;display:flex;flex-direction:column;
           align-items:center;justify-content:center;gap:4px;padding:0}
@@ -83,9 +86,9 @@
 
   /* ---------------- Tablet ---------------- */
   @media(max-width:900px){
-    .hdr{padding:6px 12px 6px 56px;gap:10px;min-height:42px}
+    /* stamp is hidden here, so the right block shrinks and the padding with it */
+    .hdr{padding:6px 140px;min-height:42px}
     .hdr h1{font-size:13px}
-    .hdr .sub{font-size:9px}
     .hdr img.logo{height:22px}
     .stamp{display:none}
     .hdrright{right:10px}
@@ -97,12 +100,11 @@
   @media(max-width:560px){
     /* Burger sits left and Refresh sits right, both absolute, so the centre
        block is padded clear of them and allowed to shrink instead of colliding. */
-    .hdr{gap:8px;padding:6px 52px;min-height:42px;justify-content:center}
-    .hdr img.logo{height:20px;flex:0 0 auto}
-    .hdr h1{font-size:11.5px;line-height:1.2}
-    .hdr .sub{display:none}
+    .hdr{padding:6px 104px;min-height:42px}
+    .hdr img.logo{height:18px}
+    .hdr h1{font-size:11px;line-height:1.2}
     .hdrright{right:8px}
-    .hdrleft{left:8px}
+    .hdrleft{left:8px;gap:8px}
     .burger{width:34px;height:30px}              /* keep a real tap target */
     .menu{min-width:min(78vw,250px)}
     .menu .mi{font-size:12px;padding:10px 11px}  /* thumb friendly rows */
@@ -115,10 +117,10 @@
 
   /* ---------------- Small phone ---------------- */
   @media(max-width:400px){
-    .hdr{padding:6px 46px;gap:6px}
+    .hdr{padding:6px 96px}
     .hdr img.logo{height:18px}
-    .hdr h1{font-size:10.5px}
-    .hdrleft{left:6px}
+    .hdr h1{font-size:10px}
+    .hdrleft{left:6px;gap:7px}
     .hdrright{right:6px}
     .burger{width:31px;height:28px}
     .ftr{font-size:9px}
@@ -132,6 +134,7 @@
     <button class="burger" id="burger" onclick="toggleMenu(event)" title="Reports" aria-label="Reports" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
+    <img src="logo.jpg" alt="SNOWTEX" class="logo">
     <!-- add future report pages here, they will appear in this menu automatically -->
     <div class="menu" id="menu">
       <div class="menuhd">Reports</div>
@@ -139,11 +142,7 @@
       <button class="mi" id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
     </div>
   </div>
-  <img src="logo.jpg" alt="SNOWTEX" class="logo">
-  <div>
-    <h1>SOSL Cutting Section Dashboard</h1>
-    <div class="sub">Snowtex Outerwear Ltd &bull; Snowtex Sportswear Ltd &bull; 11 Production Floors</div>
-  </div>
+  <h1>SOSL Cutting Section Dashboard</h1>
   <div class="hdrright">
     <div class="stamp" id="stamp"><span class="lbl">Last updated</span><b>&ndash;</b></div>
     <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
