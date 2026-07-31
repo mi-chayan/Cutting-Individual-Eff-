@@ -2,252 +2,1043 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SNOWTEX | SOSL Cutting Section Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Individual Eff% Report</title>
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#333D6D">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
-    --bg:#F4F5F9; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    /* Efficiency bands: 90% is the practical ceiling, not 100%.
+       red below 65, green 65 to 90, blue above 90. */
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --stripH:40px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  /* Mobile browsers shrink the visible area when the address bar shows. With
-     plain 100% the footer ends up under it. dvh tracks the real viewport. */
-  @supports (height:100dvh){ html,body{height:100dvh} }
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
-       font-size:13px;display:flex;flex-direction:column;overflow:hidden;
-       -webkit-text-size-adjust:100%}
+       font-size:13px;-webkit-text-size-adjust:100%}
 
-  /* Side blocks are absolute, so the title is the only in-flow child and sits
-     dead centre. Padding is symmetric and wide enough to clear both blocks,
-     which keeps the centring true instead of nudging the title off-axis. */
-  .hdr{background:var(--navy);color:#fff;padding:6px 235px;display:flex;align-items:center;
-       justify-content:center;position:relative;min-height:44px;flex:0 0 auto}
-  .hdr img.logo{height:24px;display:block;border-radius:3px;flex:0 0 auto}
-  .hdr h1{font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.2px;text-align:center}
-  .hdrright{position:absolute;right:18px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:11px}
+  /* ---- compact control strip ---- */
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
+         display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .strip .rsub{font-size:10px;color:var(--mut);white-space:nowrap}
+  .sep{width:1px;height:22px;background:var(--line)}
+  .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+  .strip input[type=date]{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:12px;background:#fff;color:var(--txt)}
+  .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
+        padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .mini:hover{background:var(--cream);border-color:var(--peach)}
+  .mini svg{width:12px;height:12px;fill:var(--violet)}
+  .showing{font-size:11px;color:var(--mut);white-space:nowrap}
+  .acts{display:flex;gap:7px;flex-wrap:wrap}
 
-  /* ---- 3 bar menu + logo ---- */
-  .hdrleft{position:absolute;left:14px;top:50%;transform:translateY(-50%);
-           display:flex;align-items:center;gap:10px}
-  .burger{background:transparent;border:1px solid rgba(255,255,255,.28);border-radius:8px;
-          width:34px;height:30px;cursor:pointer;display:flex;flex-direction:column;
-          align-items:center;justify-content:center;gap:4px;padding:0}
-  .burger:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.5)}
-  .burger span{display:block;width:16px;height:2px;background:#fff;border-radius:2px;transition:.18s}
-  .burger.on span:nth-child(1){transform:translateY(6px) rotate(45deg)}
-  .burger.on span:nth-child(2){opacity:0}
-  .burger.on span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
-  /* Dark panel on purpose. A white menu sat on the white report page with no
-     visible edge, so the two blended together. */
-  .menu{position:absolute;left:0;top:calc(100% + 7px);background:#2B3358;
-        border:1px solid rgba(255,255,255,.18);
-        border-radius:10px;box-shadow:0 16px 38px -8px rgba(10,14,35,.6);padding:6px;
-        min-width:250px;display:none;z-index:60}
-  .menu.open{display:block}
-  .menu .menuhd{font-size:9px;font-weight:800;color:#9AA2C8;text-transform:uppercase;
-                letter-spacing:.7px;padding:6px 9px 5px}
-  .menu .mi{display:block;width:100%;text-align:left;background:transparent;border:0;
-            font-family:inherit;font-size:12px;font-weight:700;color:#E7EAF6;
-            padding:8px 10px;border-radius:7px;cursor:pointer}
-  .menu .mi:hover{background:rgba(255,255,255,.12);color:#fff}
-  .menu .mi.on{background:var(--violet);color:#fff}
-  /* No chip or border, just readable text. The old colour was too dim, so the
-     label is lightened and the timestamp itself is solid white. */
-  .stamp{font-size:10px;text-align:right;line-height:1.35;white-space:nowrap}
-  .stamp .lbl{display:block;color:#C9CFE8;font-size:8.5px;font-weight:700;
-              text-transform:uppercase;letter-spacing:.5px}
-  .stamp b{color:#fff;font-size:11px;font-weight:800}
-  .refresh{background:var(--violet);color:#fff;border:0;border-radius:8px;padding:7px 14px;
-    font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
-  .refresh:hover{filter:brightness(1.1)}
-  .refresh:disabled{opacity:.75;cursor:default}
-  .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none;flex:0 0 auto}
-  .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
+  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
+
+  /* Floor Wise Report on the left, the 3 KPI cards stacked on the right - uses the width better */
+  /* align-items:stretch (the default) so the card column and the floor table
+     share one row height and their bottom edges line up */
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-bottom:15px}
+  .toprow #floorcard{margin-bottom:0}
+  .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
+  /* Compact so three cards plus the donut finish level with the floor table */
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;position:relative;overflow:hidden;
+       box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
+  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .v{font-size:22px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
+
+  /* ---- efficiency band donut ---- */
+  .chartcard{padding:9px 12px;display:flex;flex-direction:column}
+  .chartcard:before{background:var(--blue)}
+  .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .donutwrap{position:relative;width:104px;height:104px;flex:0 0 auto}
+  .donut{width:104px;height:104px;display:block}
+  .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
+  /* Dimming is driven from JS, not :hover, so the legend rows can trigger the
+     exact same highlight as the slices themselves. */
+  .donut circle.seg{cursor:pointer;transition:opacity .13s}
+  .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.15}
+  /* kept compact: the thicker ring leaves a smaller hole to write into */
+  .dcen b{font-size:15px;font-weight:800;line-height:1}
+  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);margin-top:1px;white-space:nowrap}
+  .dcen span.pc{font-size:9px;color:var(--txt);margin-top:0}
+  .legend{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-width:0}
+  .lgrow{display:flex;align-items:center;gap:7px;font-size:11px;cursor:pointer;
+         padding:2px 5px;margin:-2px -5px;border-radius:6px;transition:background .12s}
+  .lgrow:hover{background:#F2F4FA}
+  .lgrow .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .lgrow .lgl{color:var(--txt);font-weight:700;white-space:nowrap}
+
+  /* overflow:clip, not hidden. Both clip the rounded corners identically, but
+     'hidden' creates a scroll container which breaks position:sticky headers. */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:clip;
+        box-shadow:0 1px 2px rgba(37,42,69,.05);transition:box-shadow .15s}
+  .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
+  .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
+
+  /* Floor Wise Report: raised "pop" card, visually distinct from Individual Report below it */
+  #floorcard{border:1px solid var(--peach);border-radius:14px;
+        box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
+        background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
+  #floorcard .hd{background:linear-gradient(90deg,var(--navy),#4A56A0)}
+  #floorcard .hd h3{color:#fff}
+  #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
+  #floorcard th{background:#404B8C}
+  #floorcard th:hover{background:#4A56A0}
+  /* Sits on the navy Floor Wise header bar, so muted grey was unreadable.
+     Peach on translucent white reads clearly against that background. */
+  .hint{font-size:10px;font-weight:700;color:var(--peach);letter-spacing:.2px;
+        background:rgba(255,255,255,.13);border:1px solid rgba(255,207,149,.5);
+        border-radius:20px;padding:3px 10px;white-space:nowrap}
+  /* Individual card header is cream, not navy, so peach would disappear there */
+  #indcard .hint{color:var(--violet);background:#F3EEFC;border-color:#D6C8F0}
+  .fsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:11px;background:#fff;color:var(--txt);font-weight:700;max-width:100%}
+  .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:200px}
+  .push{margin-left:auto}
+
+  /* overflow stays visible at every width. A scrolling wrapper would become the
+     anchor for the sticky headers below and stop them pinning to the screen, so
+     instead the two tables are made to fit narrow screens (see phone rules). */
+  .scroll{overflow:visible}
+  table{width:100%;border-collapse:collapse;min-width:700px}
+  th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{background:#3D4880}
+  th .arr{font-size:8px;opacity:.85;margin-left:2px}
+
+  /* Sticky headers, all screen sizes including mobile.
+     Two layers stack: the card title bar (.hd) sits directly under the control
+     strip, and the table's column header row sits directly under that. Both
+     stick only while their own card is on screen, then scroll away with it.
+     Detail drill-down table is deliberately excluded. */
+  /* Desktop: all four cards share the leftover height rather than one card
+     growing and holding a big empty middle. The chart takes a larger share
+     because the donut needs the room. */
+  @media(min-width:901px){
+    .toprow .kpis>.kpi{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+    .toprow .kpis>.chartcard{flex:1.7 1 auto}
+  }
+
+  #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
+  /* Direct child combinator (>) between table and thead is the important
+     part: #indtable's tbody holds the drill-down's own <table class="dettable">,
+     which also has its own thead>th. A plain descendant selector would catch
+     that nested header too and stick it right under the real one. This only
+     matches a thead that is a direct child of #flrtable/#indtable itself. */
+  #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
+  #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
+  /* border-collapse drops cell borders when sticky, so redraw them */
+  #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+
+  /* Third layer: the drill-down's own header, once an operator row is expanded.
+     Sits directly under the Individual Report column header, so it stays fixed
+     only while that operator's cut list is scrolling by.
+
+     .detscroll must stay overflow:visible for this to work. A scroll container
+     ancestor makes the browser measure --detTop from that box instead of the
+     page, and because sticky also pushes an element DOWN when it sits above the
+     threshold, the header got parked ~99px into the cut list permanently.
+     Its overflow is therefore declared in a max-width rule further down rather
+     than as a base rule, since a later same-specificity declaration would
+     otherwise override this block regardless of the media query.
+     Gated at 1200px because the table is 1080px wide and below that the card is
+     too narrow, so .detscroll has to stay a real horizontal scroller. */
+  @media(min-width:1200px){
+    /* border-collapse:separate avoids Chrome's sticky-offset miscalculation on
+       collapsed-border tables. Visually identical, the cells draw their own
+       bottom border already. */
+    table.dettable{border-collapse:separate;border-spacing:0}
+    table.dettable>thead th{position:sticky;top:var(--detTop,0px);
+      z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+  }
+  td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+  td.l{text-align:left}
+  tbody tr:nth-child(even){background:#FAFBFE}
+  tbody tr{transition:background .1s}
+  tbody tr:hover{background:var(--cream)}
+  tr.clickable{cursor:pointer}
+  tr.active-floor{background:#EFE7FB !important;box-shadow:inset 3px 0 0 var(--violet)}
+  tr.totalrow{background:var(--navy) !important;color:#fff;font-weight:800}
+  tr.totalrow td{border-bottom:0}
+  tr.totalrow .pct{color:#fff !important}
+
+  .pct{font-weight:800}
+  .pct.red{color:var(--red)} .pct.green{color:var(--green)} .pct.blue{color:var(--blue)}
+  .idshort{display:none}
+  .lblp{display:none}   /* short header label, print only */
+
+  /* ---- operator drill-down ---- */
+  tr.oprow{cursor:pointer}
+  /* The opened row is now the detail block's heading, so it carries the weight
+     and closes the top of the bordered group. */
+  tr.oprow.open{background:#EFE7FB !important;font-weight:800;color:#3A2470}
+  tr.oprow.open>td{border-top:2px solid var(--violet);border-bottom:0}
+  tr.oprow.open>td:first-child{border-left:2px solid var(--violet)}
+  tr.oprow.open>td:last-child{border-right:2px solid var(--violet)}
+  .caret{display:inline-block;width:0;height:0;border-left:4px solid var(--mut);
+         border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;
+         margin-right:5px;transition:transform .15s;vertical-align:middle}
+  tr.oprow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
+  /* Violet-tinted throughout so the nested cut-by-cut table never reads as
+     part of the white parent table above it. */
+  tr.detrow>td{padding:0;background:#EFE9FA;
+               border:2px solid var(--violet);border-top:0}
+  .detbox{padding:11px 13px}
+  /* No overflow here on purpose, so it stays 'visible' and the sticky header
+     below can anchor to the page. Horizontal scrolling is added back only on
+     narrow screens, in the max-width rule further down. */
+  .detscroll{border:1px solid #D6C8F0;border-radius:8px;background:#FBF9FE}
+  @media(max-width:1199px){
+    .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  }
+  table.dettable{min-width:1080px;margin:0}
+  table.dettable td:first-child{color:#8A7CB0;font-weight:700}
+  /* violet header, against the parent table's navy, so the two never blur together */
+  table.dettable th{background:#6A46B5;font-size:8.5px;padding:6px 7px;cursor:default}
+  table.dettable th:hover{background:#6A46B5}
+  table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #E7DFF7}
+  table.dettable tbody tr{background:#FBF9FE}
+  table.dettable tbody tr:nth-child(even){background:#F4EFFC}
+  table.dettable tbody tr:hover{background:#E8DEFA}
+  .detloading{padding:20px;text-align:center;color:#6B5B92;font-size:11.5px;font-weight:700}
+
+  .chips{display:flex;gap:4px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE}
+  .loading{padding:60px;text-align:center;color:var(--mut);font-weight:700}
+  .spin{display:inline-block;width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:10px}
   @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:40px;text-align:center;color:var(--mut);line-height:1.7}
 
-  #frame{flex:1 1 auto;width:100%;border:0;display:block;background:var(--bg)}
-  @keyframes slideFromRight{from{opacity:0;transform:translateX(45px)}to{opacity:1;transform:translateX(0)}}
-  @keyframes slideFromLeft {from{opacity:0;transform:translateX(-45px)}to{opacity:1;transform:translateX(0)}}
-  #frame.from-right{animation:slideFromRight .34s cubic-bezier(.22,.61,.36,1)}
-  #frame.from-left {animation:slideFromLeft  .34s cubic-bezier(.22,.61,.36,1)}
-  @media(prefers-reduced-motion:reduce){#frame.from-right,#frame.from-left{animation:none}}
-
-  .ftr{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);text-align:center;
-       font-size:10.5px;color:var(--mut);padding:7px 14px;display:flex;align-items:center;
-       justify-content:center;gap:7px;flex-wrap:wrap;
-       padding-bottom:calc(7px + env(safe-area-inset-bottom))}
-  .ftr .help{display:inline-flex;align-items:center;gap:5px;color:var(--navy);font-weight:700}
-  .ftr svg{width:12px;height:12px;fill:var(--violet)}
+  /* ---- print-only header ---- */
+  .printhead{display:none}
 
   /* ---------------- Tablet ---------------- */
   @media(max-width:900px){
-    /* stamp is hidden here, so the right block shrinks and the padding with it */
-    .hdr{padding:6px 140px;min-height:42px}
-    .hdr h1{font-size:13px}
-    .hdr img.logo{height:22px}
-    .stamp{display:none}
-    .hdrright{right:10px}
-    .hdrleft{left:10px}
-    .refresh{padding:6px 11px;font-size:11px}
+    .strip{padding:6px 11px;gap:9px}
+    .strip h2{font-size:11.5px}
+    .strip .rsub,.sep{display:none}
+    .wrap{padding:11px 11px 22px}
+    .search{width:170px}
+    .toprow{grid-template-columns:1fr;gap:11px}
+    .toprow #floorcard{margin-bottom:0}
+    .kpis{flex-direction:row;flex-wrap:wrap;height:auto}
+    .kpis .kpi{flex:1 1 180px}
+    .toprow .chartcard{flex:1 1 260px}
+
+    /* Both tables must fit the screen from here down, otherwise they would need
+       a scrolling wrapper and the sticky headers above would stop pinning.
+       Input Min and Output Min drop out, and text wraps instead of forcing
+       width. Both columns still appear in the Excel export and the PDF. */
+    .hp{display:none}
+    #flrtable,#indtable{min-width:0}
+    #flrtable th,#indtable th{white-space:normal;line-height:1.2}
+    #indtable td.l{white-space:normal}
   }
 
   /* ---------------- Phone ---------------- */
   @media(max-width:560px){
-    /* Burger sits left and Refresh sits right, both absolute, so the centre
-       block is padded clear of them and allowed to shrink instead of colliding. */
-    .hdr{padding:6px 104px;min-height:42px}
-    .hdr img.logo{height:18px}
-    .hdr h1{font-size:11px;line-height:1.2}
-    .hdrright{right:8px}
-    .hdrleft{left:8px;gap:8px}
-    .burger{width:34px;height:30px}              /* keep a real tap target */
-    .menu{min-width:min(78vw,250px)}
-    .menu .mi{font-size:12px;padding:10px 11px}  /* thumb friendly rows */
-    .refresh{padding:8px 10px;font-size:10.5px;gap:5px}
-    .refresh #rtxt{display:none}
-    .refresh:after{content:'\21BB';font-size:15px;line-height:1}
-    .refresh.busy:after{content:''}
-    .ftr{font-size:9.5px;padding:6px 10px;gap:5px}
+    /* Strip is sticky, so every extra wrapped row costs permanent screen
+       height. Left-aligned and compact keeps it to two rows at most. */
+    .strip{padding:6px 9px;gap:6px 8px;justify-content:flex-start}
+    .strip h2{font-size:11px}
+    .strip label{display:none}
+    .strip input[type=date]{font-size:11.5px;padding:6px;flex:0 1 auto;min-width:0;max-width:150px}
+    .mini{padding:7px 11px;font-size:11px}      /* ~34px tall, thumb friendly */
+    .showing{font-size:10px;order:5;width:100%}
+    .acts{margin-left:auto}
+    .wrap{padding:10px 9px 20px}
+
+    .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .kpi{padding:9px 11px}
+    .kpi:first-child{grid-column:span 2}
+    .chartcard{grid-column:span 2}
+    .kpi .v{font-size:21px}
+    .kpi .k{font-size:8.5px}
+    .kpi .s{font-size:9px}
+
+    .card .hd{padding:8px 10px;gap:6px}
+    .card .hd h3{font-size:11px;width:100%}
+    .hint{display:none}
+    .push{display:none}                          /* no room to push things apart */
+    .fsel{font-size:11px;padding:7px 8px;flex:1 1 100%;min-width:0}
+    .search{width:100%;padding:7px 9px;font-size:12px}
+
+    /* Floor chips: one swipeable row instead of 12 chips wrapping into four
+       rows and burying the table below the fold. */
+    .chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+           scrollbar-width:none;width:100%;padding-bottom:2px}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex:0 0 auto;padding:6px 12px;font-size:11px}
+
+    th{font-size:8.5px;padding:7px 6px}
+    td{padding:7px 6px;font-size:11.5px}
+    .hs{display:none}          /* hide lower-priority columns on phone */
+
+
+    .detbox{padding:8px 9px}
+    .foot{font-size:9px;padding:7px 10px}
   }
 
   /* ---------------- Small phone ---------------- */
   @media(max-width:400px){
-    .hdr{padding:6px 96px}
-    .hdr img.logo{height:18px}
-    .hdr h1{font-size:10px}
-    .hdrleft{left:6px;gap:7px}
-    .hdrright{right:6px}
-    .burger{width:31px;height:28px}
-    .ftr{font-size:9px}
+    .strip h2{font-size:10.5px}
+    .mini{padding:7px 9px;font-size:10.5px}
+    .kpi .v{font-size:19px}
+    .card .hd h3{font-size:10.5px}
   }
+
+  /* ---------------- Print: A4 portrait ---------------- */
+  @page{ size:A4 portrait; margin:11mm 9mm; }
+  @media print{
+    body{background:#fff;font-size:9pt}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
+    .wrap{padding:0;max-width:none}
+    .scroll{overflow:visible}
+    .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto;
+          box-shadow:none !important;background:#fff !important}
+    .card .hd{background:#fff !important;padding:4pt 0;border-bottom:1.2pt solid var(--navy);position:static !important}
+    .card .hd h3{font-size:10.5pt;color:var(--navy) !important}
+    .card .hd h3:before{content:'' !important;margin:0 !important}
+    #floorcard th{background:#333D6D !important}
+    .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:5mm;
+               border-bottom:1.5pt solid #333D6D;padding-bottom:3mm}
+    .printhead img{height:10mm;width:auto;flex:0 0 auto;display:block}
+    .printhead .phbody{flex:1 1 auto;min-width:0}
+    .printhead h1{font-size:11.5pt;font-weight:800;color:#333D6D;line-height:1.2;margin:0 0 2mm 0}
+    .printhead .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2mm 5mm;
+                     font-size:7.4pt;color:#666;line-height:1.35}
+    .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .printhead .meta b{color:#111;font-weight:700}
+    .toprow{display:block}
+    /* chart is screen-only, the PDF layout stays exactly as it was */
+    .chartcard{display:none !important}
+    .kpis{display:flex;gap:4mm;margin-bottom:6mm}
+    .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:3mm;page-break-inside:avoid}
+    .kpi .v{font-size:15pt}
+    .kpi .k{font-size:7pt}
+    .kpi .s{font-size:6.5pt}
+    /* Fixed layout is what stops the table ever overflowing the page again,
+       whatever content or columns change later. */
+    table{min-width:0 !important;width:100% !important;table-layout:fixed;font-size:7.4pt}
+    thead{display:table-header-group}
+    tr{page-break-inside:avoid}
+    th{background:#333D6D !important;color:#fff !important;padding:3.5pt 2pt;font-size:6.2pt;
+       white-space:normal;word-break:break-word;line-height:1.15;position:static !important;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    td{padding:2.8pt 2pt;border-bottom:.5pt solid #ddd;white-space:nowrap;
+       overflow:hidden;text-overflow:ellipsis}
+    td.l{white-space:normal;word-break:break-word}
+    .lbl{display:none} .lblp{display:inline}   /* swap to short headers */
+
+    /* Individual Report column widths, total 100%.
+       Column 5 is WH, hidden in print, so it takes no width. */
+    #indtable th:nth-child(1),#indtable td:nth-child(1){width:6%}
+    #indtable th:nth-child(2),#indtable td:nth-child(2){width:8%}
+    #indtable th:nth-child(3),#indtable td:nth-child(3){width:23%}
+    #indtable th:nth-child(4),#indtable td:nth-child(4){width:17%}
+    #indtable th:nth-child(5),#indtable td:nth-child(5){width:0}
+    #indtable th:nth-child(6),#indtable td:nth-child(6){width:9%}
+    #indtable th:nth-child(7),#indtable td:nth-child(7){width:9%}
+    #indtable th:nth-child(8),#indtable td:nth-child(8){width:9%}
+    #indtable th:nth-child(9),#indtable td:nth-child(9){width:9%}
+    #indtable th:nth-child(10),#indtable td:nth-child(10){width:10%}
+
+    /* Floor Wise Report column widths */
+    #flrtable th:nth-child(1),#flrtable td:nth-child(1){width:22%}
+    #flrtable th:nth-child(2),#flrtable td:nth-child(2){width:26%}
+    #flrtable th:nth-child(3),#flrtable td:nth-child(3){width:26%}
+    #flrtable th:nth-child(4),#flrtable td:nth-child(4){width:26%}
+    tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pct.red{color:#C0392B !important} .pct.green{color:#146C3A !important} .pct.blue{color:#14539E !important}
+    .hs{display:table-cell !important}
+    .hp{display:table-cell !important}            /* Input/Output Min return on paper */
+    .nop{display:none !important}                 /* WH column dropped so all others fit */
+    .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
+    /* drill-down never prints, paper output stays identical whatever is open */
+    tr.detrow{display:none !important}
+    tr.oprow.open{background:transparent !important;box-shadow:none !important}
+    .caret{display:none !important}
+    .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
+    /* a single floor is selected: the whole floor table is noise on paper */
+    body.single-floor #floorcard{display:none !important}
+    .printfoot{display:block !important;margin-top:5mm;font-size:7pt;color:#666;text-align:center;
+               border-top:.5pt solid #ccc;padding-top:2mm}
+  }
+  .printfoot{display:none}
 </style>
 </head>
 <body>
 
-<div class="hdr">
-  <div class="hdrleft" id="hdrleft">
-    <button class="burger" id="burger" onclick="toggleMenu(event)" title="Reports" aria-label="Reports" aria-expanded="false">
-      <span></span><span></span><span></span>
+<div class="strip">
+  <h2>Daily Individual Eff% Report</h2>
+  <div class="sep"></div>
+  <label>Report Date</label>
+  <input type="date" id="d1" onchange="pickDate()">
+  <button class="mini" onclick="goLatest()">Latest Day</button>
+  <span class="showing" id="showing"></span>
+  <div class="acts">
+    <button class="mini" onclick="exportExcel()" title="Export current view to Excel">
+      <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
-    <img src="logo.jpg" alt="SNOWTEX" class="logo">
-    <!-- add future report pages here, they will appear in this menu automatically -->
-    <div class="menu" id="menu">
-      <div class="menuhd">Reports</div>
-      <button class="mi on" id="t_daily" onclick="go('daily')">Daily Individual Eff% Report</button>
-      <button class="mi" id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
-    </div>
-  </div>
-  <h1>SOSL Cutting Section Dashboard</h1>
-  <div class="hdrright">
-    <div class="stamp" id="stamp"><span class="lbl">Last updated</span><b>&ndash;</b></div>
-    <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
+    <button class="mini" onclick="doPrint()" title="Print current view, A4 portrait">
+      <svg viewBox="0 0 24 24"><path d="M7 3h10v4H7V3zm12 6H5a2 2 0 00-2 2v6h4v4h10v-4h4v-6a2 2 0 00-2-2zm-4 10H9v-4h6v4z"/></svg> Print
+    </button>
   </div>
 </div>
 
-<iframe id="frame" src="daily.html"></iframe>
-
-<div class="ftr">
-  <span>&copy; 2026 SNOWTEX CI Team</span>
-  <span>|</span>
-  <span class="help">
-    <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/></svg>
-    Help 2803
-  </span>
-</div>
+<div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
 
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
-var SNAP_KEY = 'sosl_snapshot_v1';
+var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 
-var TABS=['daily','range'], curTab='daily';
+var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
+var floorFilter='', sortKey='eff', sortDir=1, query='';
+var fSortKey='floor', fSortDir=1;                 /* Floor Wise Report sorting */
+var effFloorFilter='all', effIndFilter='all';
+var DETAIL={};        /* key: date_floor  ->  array of cut rows */
+var DETLOADING={};    /* key: date_floor  ->  true while a background fetch runs */
+var expandKey='';     /* floor|opId of the currently open operator */
+var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
-/* ---------- pages menu ---------- */
-function openMenu(){
-  document.getElementById('menu').classList.add('open');
-  document.getElementById('burger').classList.add('on');
-  document.getElementById('burger').setAttribute('aria-expanded','true');
+function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
+/* Bands: red below 65, green 65 to 90, blue above 90. */
+function pctClass(p){return p<65?'red':(p<=90?'green':'blue')}
+function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
+function shortId(id){return padId(id).slice(-5)}
+/* Sort floors in factory order (SOL 1A-1E, 3A, then SSL 2A-2E), not alphabetically */
+function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
+function prettyDate(s){
+  if(!s)return '';
+  var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
 }
-function closeMenu(){
-  document.getElementById('menu').classList.remove('open');
-  document.getElementById('burger').classList.remove('on');
-  document.getElementById('burger').setAttribute('aria-expanded','false');
+function effPass(v,mode){
+  if(mode==='lt65')return v<65;
+  if(mode==='65to90')return v>=65&&v<=90;
+  if(mode==='gt90')return v>90;
+  return true;
 }
-function toggleMenu(ev){
-  if(ev) ev.stopPropagation();
-  if(document.getElementById('menu').classList.contains('open')) closeMenu(); else openMenu();
+function effLabel(mode){
+  return mode==='lt65'?'Below 65%':mode==='65to90'?'65% to 90%':mode==='gt90'?'Above 90%':'All';
 }
-
-/* No full-page overlay is used to catch outside clicks, because that overlay
-   also swallowed clicks meant for the report underneath. Instead: */
-/* 1. a click anywhere in this document outside the menu closes it */
-document.addEventListener('click',function(e){
-  var left=document.getElementById('hdrleft');
-  if(left && !left.contains(e.target)) closeMenu();
-});
-/* 2. a click inside the iframe cannot bubble up here, but it does move focus
-      away from this window, so blur covers the report area */
-window.addEventListener('blur',closeMenu);
-/* 3. keyboard escape */
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeMenu(); });
-
-function go(which){
-  closeMenu();
-  if(which===curTab) return;
-  var dir = TABS.indexOf(which) > TABS.indexOf(curTab) ? 'from-right' : 'from-left';
-  curTab = which;
-
-  document.getElementById('t_daily').classList.toggle('on', which==='daily');
-  document.getElementById('t_range').classList.toggle('on', which==='range');
-
-  var f=document.getElementById('frame');
-  f.classList.remove('from-right','from-left');
-  void f.offsetWidth;                       /* force reflow so the animation restarts */
-  f.src = (which==='daily') ? 'daily.html' : 'range.html';
-  f.classList.add(dir);
+function mapRows(arr){
+  return (arr||[]).map(function(r){
+    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],inMin:r[7],outMin:r[8],effPct:r[9]};
+  });
 }
+function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
+function cacheSet(k,o){ try{sessionStorage.setItem(k,JSON.stringify(o))}catch(e){} }
+function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*'); }
 
-function setBusy(on){
-  var b=document.getElementById('rbtn');
-  b.classList.toggle('busy',on);
-  b.disabled=on;
-  document.getElementById('rtxt').textContent = on ? 'Loading' : 'Refresh';
-}
-
-function setStamp(t){
-  document.getElementById('stamp').innerHTML=
-    '<span class="lbl">Last updated</span><b>'+(t||'&ndash;')+'</b>';
-}
-
-/* Rebuild server snapshot, cache it, tell the report page to redraw.
-   Nothing on screen is dimmed or cleared while this runs. */
-function doRefresh(){
-  setBusy(true);
-  fetch(API_URL+'?action=snapshot&fresh=1')
-    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
+/* ---------- boot: cache first, network only if empty ---------- */
+function boot(){
+  var snap=cacheGet(SNAP_KEY);
+  if(snap){ applySnapshot(snap); return; }
+  fetch(API_URL+'?action=snapshot')
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
-      if(res.error) throw new Error(res.error);
-      try{
-        sessionStorage.setItem(SNAP_KEY, JSON.stringify(res));
-        Object.keys(sessionStorage).forEach(function(k){
-          if(k.indexOf('sosl_day_')===0 || k.indexOf('sosl_det')===0) sessionStorage.removeItem(k);
-        });
-      }catch(e){}
-      setStamp(res.generatedAt);
-      var f=document.getElementById('frame');
-      if(f.contentWindow) f.contentWindow.postMessage({type:'snapshot-updated'},'*');
-      setBusy(false);
-    })
-    .catch(function(e){ setBusy(false); alert('Refresh failed: '+e.message); });
+      if(res.error)throw new Error(res.error);
+      cacheSet(SNAP_KEY,res); applySnapshot(res);
+    }).catch(showErr);
 }
 
-window.addEventListener('message', function(ev){
-  if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
+function applySnapshot(res){
+  DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST; STAMP=res.generatedAt||'';
+  DATA=mapRows(res.rows);
+  DETAIL={}; DETLOADING={};
+  document.getElementById('d1').value=LATEST;
+  tellParent(STAMP);
+  if(!DATA.length && !LATEST){
+    document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return;
+  }
+  resetFilters(); render();
+}
+
+window.addEventListener('message',function(ev){
+  if(ev.data && ev.data.type==='snapshot-updated'){
+    var snap=cacheGet(SNAP_KEY);
+    if(snap) applySnapshot(snap);
+  }
 });
+
+function goLatest(){
+  if(!LATEST){boot();return}
+  document.getElementById('d1').value=LATEST;
+  pickDate();
+}
+
+function pickDate(){
+  var d=document.getElementById('d1').value;
+  if(!d)return;
+  DAY=d;
+  if(d===LATEST){
+    var snap=cacheGet(SNAP_KEY);
+    if(snap){ DATA=mapRows(snap.rows); STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+  }
+  var cached=cacheGet(DAYPFX+d);
+  if(cached){ DATA=mapRows(cached.rows); STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+
+  document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+prettyDate(d)+'&hellip;</div>';
+  fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d))
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error)throw new Error(res.error);
+      cacheSet(DAYPFX+d,res);
+      DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
+      resetFilters(); render();
+    }).catch(showErr);
+}
+
+function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
+
+/* ---------- operator drill-down ---------- */
+function detKey(floor){ return DAY+'_'+floor }
+
+/* Warm the cut-level data for a floor quietly in the background.
+   No spinner, no layout change. By the time an operator row is clicked
+   the data is normally already sitting in memory. */
+function prefetchDetail(floor){
+  if(!floor||!DAY) return;
+  var k=detKey(floor);
+  if(DETAIL[k]||DETLOADING[k]) return;
+
+  var cached=cacheGet('sosl_det2_'+k);
+  if(cached){ DETAIL[k]=cached.rows||[]; return; }
+
+  DETLOADING[k]=true;
+  fetch(API_URL+'?action=detail&date='+encodeURIComponent(DAY)+'&floor='+encodeURIComponent(floor))
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      DETLOADING[k]=false;
+      if(res.error) return;
+      DETAIL[k]=res.rows||[];
+      cacheSet('sosl_det2_'+k,res);
+      /* only repaint if the user is already waiting on this floor */
+      if(expandKey && expandKey.split('|')[0]===floor) render();
+    })
+    .catch(function(){ DETLOADING[k]=false; });
+}
+
+/* Warm every floor currently on screen, one at a time so the ERP is not hammered */
+function prefetchVisibleFloors(list){
+  var queue=list.slice(), i=0;
+  (function next(){
+    if(i>=queue.length) return;
+    prefetchDetail(queue[i++]);
+    setTimeout(next,400);
+  })();
+}
+
+/* Combined height of whatever is pinned at the top right now, so a scrolled
+   row lands just below it instead of hiding underneath. Which layers are
+   actually sticky depends on the breakpoint, so mirror that here. */
+function stickyStackH(){
+  var h=boxH('.strip');
+  if(window.matchMedia('(min-width:901px)').matches){
+    h+=boxH('#indcard>.hd')+boxH('#indtable>thead>tr');
+  }
+  return h;
+}
+
+/* Glide the opened operator row up under the pinned headers so the eye can
+   follow where the page jumped to. */
+function scrollRowIntoView(){
+  var row=document.querySelector('tr.oprow.open');
+  if(!row) return;
+  var smooth=!window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var top=window.pageYOffset+row.getBoundingClientRect().top-stickyStackH()-10;
+  if(top<0) top=0;
+  window.scrollTo({top:top,behavior:smooth?'smooth':'auto'});
+}
+
+function toggleDetail(floor,opId,ev){
+  if(ev) ev.stopPropagation();
+  var k=floor+'|'+opId;
+  var opening = (expandKey!==k);
+  expandKey = opening ? k : '';
+  if(expandKey) prefetchDetail(floor);
+  render();
+  /* next frame, so the expanded block is laid out before we measure */
+  if(opening) requestAnimationFrame(scrollRowIntoView);
+}
+
+function detailRowsFor(floor,opId){
+  var rows=DETAIL[detKey(floor)];
+  if(!rows) return null;
+  var target=padId(opId);
+  return rows.filter(function(r){ return padId(r[0])===target; });
+}
+function showErr(e){
+  document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
+    +'<br><br>Check: 1) API_URL is the /exec link, 2) deployment access is "Anyone with the link", 3) a NEW VERSION was deployed after the last code change.</div>';
+}
+
+/* ---------- aggregation ---------- */
+function operatorAgg(){
+  var map={};
+  DATA.forEach(function(r){
+    var k=r.floor+'|'+r.opId;
+    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,eff:0,types:{}};
+    var o=map[k];
+    o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
+    /* Prefer the sheet's own Individual Eff% (column AD) verbatim. Only if the
+       API hasn't been redeployed yet and that field is absent do we fall back
+       to computing it, so the column never goes blank. */
+    if(typeof r.effPct==='number' && !isNaN(r.effPct)) o.eff=r.effPct;
+    String(r.types||'').split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
+    if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
+  });
+  return Object.keys(map).map(function(k){
+    var o=map[k];
+    o.avgWh=o.wh/o.n; o.avgEng=o.eng/o.n;
+    if(!o.eff) o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
+    o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
+    return o;
+  });
+}
+function floorAgg(ops){
+  var map={};
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0}});
+  ops.forEach(function(o){
+    var f=map[o.floor]; if(!f)return;
+    f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
+    if(o.eff<65)f.u65++;
+  });
+  return FLOOR_ORDER.map(function(k){
+    var f=map[k]; f.eff=f.inMin>0?(f.outMin/f.inMin*100):0; return f;
+  });
+}
+
+/* current visible sets, shared by render + export + print */
+function currentSets(){
+  var ops=operatorAgg();
+  var floorsAll=floorAgg(ops);
+
+  /* Grand total across all floors, used by the floor table's Total row */
+  var grand={man:0,inMin:0,outMin:0,u65:0};
+  floorsAll.forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
+  grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
+
+  /* KPI totals follow the floor selection */
+  var tot;
+  if(floorFilter){
+    var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
+            || {man:0,inMin:0,outMin:0,u65:0,eff:0};
+    tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff};
+  } else {
+    tot=grand;
+  }
+
+  /* Operator counts per efficiency band, in the same scope the KPI cards use,
+     so the chart follows the floor selection too. */
+  var bandOps = floorFilter ? ops.filter(function(o){return o.floor===floorFilter}) : ops;
+  var bands={lo:0,mid:0,hi:0,total:bandOps.length};
+  bandOps.forEach(function(o){
+    if(o.eff<65) bands.lo++; else if(o.eff<=90) bands.mid++; else bands.hi++;
+  });
+
+  /* Floor table always lists every floor. Selecting a row only highlights it
+     and filters the Individual Report below. */
+  var floorsShown=floorsAll.filter(function(f){
+    if(f.man===0)return false;
+    return effPass(f.eff,effFloorFilter);
+  });
+  floorsShown.sort(function(a,b){
+    if(fSortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*fSortDir;
+    var va=a[fSortKey],vb=b[fSortKey];
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*fSortDir;
+    return (va-vb)*fSortDir;
+  });
+
+  var indShown=ops.filter(function(o){
+    if(floorFilter&&o.floor!==floorFilter)return false;
+    if(!effPass(o.eff,effIndFilter))return false;
+    if(query){
+      var q=query.toLowerCase();
+      if(o.name.toLowerCase().indexOf(q)<0 && padId(o.opId).indexOf(q)<0 && o.desig.toLowerCase().indexOf(q)<0)return false;
+    }
+    return true;
+  });
+  indShown.sort(function(a,b){
+    if(sortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*sortDir;
+    var va=a[sortKey],vb=b[sortKey];
+    if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
+    return (va-vb)*sortDir;
+  });
+
+  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand,bands:bands};
+}
+
+/* ---------- render ---------- */
+function render(){
+  document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
+  var S=currentSets(), tot=S.tot;
+  var scopeLabel = floorFilter ? ('Floor '+floorFilter) : 'All Floors';
+  document.body.classList.toggle('single-floor', !!floorFilter);
+
+  var h='<div class="wrap">';
+
+  /* print-only header */
+  h+='<div class="printhead">'
+    +'<img src="logo.jpg" alt="SNOWTEX">'
+    +'<div class="phbody">'
+      +'<h1>SOSL Cutting Section &mdash; Daily Individual Eff% Report</h1>'
+      +'<div class="meta">'
+        +'<span>Date <b>'+prettyDate(DAY)+'</b></span>'
+        +'<span>Scope <b>'+scopeLabel+'</b></span>'
+        +'<span>Team Avg Eff% filter <b>'+effLabel(effFloorFilter)+'</b></span>'
+        +'<span>Individual Eff% filter <b>'+effLabel(effIndFilter)+'</b></span>'
+        +'<span>Last updated <b>'+(STAMP||'-')+'</b></span>'
+      +'</div>'
+    +'</div></div>';
+
+  var scopeNote = floorFilter ? ('Floor '+floorFilter) : 'all floors';
+  var kpisHtml='<div class="kpis">'
+    +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
+    +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
+    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
+    +bandChart(S.bands)
+    +'</div>';
+
+  h+='<div class="toprow">';
+  h+='<div class="card" id="floorcard"><div class="hd"><h3>Cutting Floor wise Team Efficiency%</h3>'
+    +'<span class="hint">click a floor row to filter</span><div class="push"></div>'
+    +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
+      +opt('all','Team Avg Eff%: All',effFloorFilter)+opt('lt65','Team Avg Eff%: Below 65%',effFloorFilter)
+      +opt('65to90','Team Avg Eff%: 65% to 90%',effFloorFilter)+opt('gt90','Team Avg Eff%: Above 90%',effFloorFilter)
+    +'</select></div>';
+  h+='<div class="scroll"><table id="flrtable"><thead><tr>'
+    +fTh('floor','Floor','Floor')+fTh('man','Man Count (nos)','Man Count')
+    +fTh('eff','Team Avg Eff% (%)','Team Avg Eff%')+fTh('u65','Eff% &lt; 65% (nos)','Eff% &lt; 65%')
+    +'</tr></thead><tbody>';
+  if(!S.floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this filter.</td></tr>';
+  S.floorsShown.forEach(function(f){
+    h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
+      +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
+      +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
+      +'<td>'+f.u65+'</td></tr>';
+  });
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.man+'</td>'
+    +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
+  h+='</tbody></table></div></div>';
+  h+=kpisHtml;
+  h+='</div>'; // close toprow
+
+  h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>'
+    +'<span class="hint">click to get details</span>';
+  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
+  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
+  h+='</div><div class="push"></div>'
+    +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
+      +opt('all','Individual Eff%: All',effIndFilter)+opt('lt65','Individual Eff%: Below 65%',effIndFilter)
+      +opt('65to90','Individual Eff%: 65% to 90%',effIndFilter)+opt('gt90','Individual Eff%: Above 90%',effIndFilter)
+    +'</select>'
+    +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+='<div class="scroll"><table id="indtable"><thead><tr>'
+    +thSort('floor','Floor','','Floor')
+    +thSort('opId','Op. ID','','Op. ID')
+    +thSort('name','Op. Name','','Name')
+    +thSort('desig','Designation','hs','Designation')
+    +thSort('avgWh','WH (hrs)','hs nop','WH')
+    +thSort('avgEng','Engagement% (%)','','Eng %')
+    +'<th class="hs"><span class="lbl">Type</span><span class="lblp">Type</span></th>'
+    +thSort('inMin','Input Min (min)','hp','In Min')
+    +thSort('outMin','Output Min (min)','hp','Out Min')
+    +thSort('eff','Individual Eff% (%)','','Eff %')
+    +'</tr></thead><tbody>';
+  if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
+  S.indShown.forEach(function(o){
+    var k=o.floor+'|'+o.opId, isOpen=(expandKey===k);
+    h+='<tr class="oprow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+o.floor+'\',\''+o.opId+'\',event)">'
+      +'<td><span class="caret"></span>'+o.floor+'</td>'
+      +'<td><span class="idfull">'+padId(o.opId)+'</span><span class="idshort">'+shortId(o.opId)+'</span></td>'
+      +'<td class="l">'+o.name+'</td>'
+      +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
+      +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
+      +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
+      +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
+    if(isOpen) h+=detailBlock(o,10);
+  });
+  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Green 65&ndash;90% &bull; Blue &gt; 90%</div></div>';
+
+  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
+  h+='</div>';
+
+  document.getElementById('content').innerHTML=h;
+  syncStickyOffsets();
+
+  /* Quietly warm cut-level data for whatever floors are on screen, so the
+     drill-down opens instantly when the user clicks. */
+  var floorsOnScreen={};
+  S.indShown.forEach(function(o){ floorsOnScreen[o.floor]=1; });
+  prefetchVisibleFloors(Object.keys(floorsOnScreen));
+}
+
+/* Donut of the three efficiency bands. Plain inline SVG, no chart library, so
+   the page stays a single self-contained file with nothing to load. */
+function bandChart(b){
+  var t=b.total||0;
+  if(!t) return '';
+  var segs=[
+    {n:b.lo, c:'var(--red)',   label:'&lt; 65%'},
+    {n:b.mid,c:'var(--green)', label:'65 &ndash; 90%'},
+    {n:b.hi, c:'var(--blue)',  label:'&gt; 90%'}
+  ];
+  /* Thick ring on a slightly smaller radius: widens the hover target a lot
+     while keeping the outer edge inside the 140 unit viewBox. */
+  var R=50, W=27, C=2*Math.PI*R, off=0, ring='';
+  segs.forEach(function(s){
+    if(!s.n) return;
+    var len=C*(s.n/t);
+    /* tiny gap between slices, but never wider than the slice itself */
+    var gap=Math.min(2,len/3);
+    ring+='<circle class="seg" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="'+W+'"'
+        + ' stroke-dasharray="'+(len-gap).toFixed(2)+' '+(C-len+gap).toFixed(2)+'"'
+        + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"'
+        + ' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+        + ' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)"></circle>';
+    off+=len;
+  });
+  /* Colour guide. Counts and shares stay off the label, they appear in the
+     middle of the donut on hover. Carries the same data attributes and
+     handlers as the slices, so hovering a legend row reads out identically. */
+  var legend='';
+  segs.forEach(function(s){
+    legend+='<div class="lgrow"'
+      +' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+      +' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)">'
+      +'<span class="dot" style="background:'+s.c+'"></span>'
+      +'<span class="lgl">'+s.label+'</span></div>';
+  });
+
+  /* Donut and legend sit side by side, not stacked, so the card stays short
+     enough for the three KPI cards plus this one to match the floor table. */
+  return '<div class="kpi chartcard">'
+    +'<div class="k">Operators by Eff% Band</div>'
+    +'<div class="chartrow">'
+      +'<div class="donutwrap">'
+        +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
+          +'<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#EDEFF7" stroke-width="'+W+'"></circle>'
+          +ring
+        +'</svg>'
+        /* filled on hover, empty otherwise, so the card stays clean and the
+           readout can never be clipped the way a floating tooltip would be */
+        +'<div class="dcen" id="dcen"></div>'
+      +'</div>'
+      +'<div class="legend">'+legend+'</div>'
+    +'</div>'
+  +'</div>';
+}
+
+/* Hovering a slice OR its legend row writes that band's count and share into
+   the middle of the donut and dims the other slices. Both carry the same data
+   attributes, so one pair of handlers serves both. Click is bound too, for
+   touch screens where there is no hover. */
+function segHover(el){
+  var d=document.getElementById('dcen');
+  if(!d) return;
+  var c=el.getAttribute('data-c');
+  d.innerHTML='<b style="color:'+c+'">'+el.getAttribute('data-n')+'</b>'
+    +'<span>'+esc(el.getAttribute('data-l'))+'</span>'
+    +'<span class="pc">'+el.getAttribute('data-p')+'%</span>';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++){
+    segs[i].style.opacity = (segs[i].getAttribute('data-c')===c) ? '1' : '.3';
+  }
+}
+function segOut(){
+  var d=document.getElementById('dcen');
+  if(d) d.innerHTML='';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++) segs[i].style.opacity='';
+}
+
+function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
+/* label = full text on screen, shortLabel = compact text used only in print */
+function thSort(key,label,cls,shortLabel){
+  var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
+}
+function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
+
+/* Floor Wise Report header sorting */
+function fTh(key,label,shortLabel){
+  var arr=fSortKey===key?(fSortDir===1?'&#9650;':'&#9660;'):'';
+  var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
+  return '<th onclick="setFSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
+}
+function setFSort(k){ if(fSortKey===k)fSortDir*=-1; else {fSortKey=k;fSortDir=(k==='floor')?1:-1;} render(); }
+
+/* Build the expanded cut-by-cut block under an operator */
+function detailBlock(o,colspan){
+  var rows=detailRowsFor(o.floor,o.opId);
+  var h='<tr class="detrow"><td colspan="'+colspan+'"><div class="detbox">';
+
+  if(rows===null){
+    h+='<div class="detloading">Loading cut details for '+esc(o.name)+'&hellip;</div>';
+    return h+'</div></td></tr>';
+  }
+  if(!rows.length){
+    h+='<div class="detloading">No cut rows found for this operator on '+prettyDate(DAY)+'.</div>';
+    return h+'</div></td></tr>';
+  }
+
+  h+='<div class="detscroll"><table class="dettable"><thead><tr>'
+    +'<th>Sl</th><th>Cut No</th><th>Process</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
+    +'<th>ML (Yds)</th><th>CL (Yds)</th><th>Lay Qty (Pcs)</th><th>Ratio (Pcs)</th>'
+    +'<th>Team Input Min (min)</th><th>Individual Process Time</th><th>Indv. Input Min (min)</th>'
+    +'<th>Team Output Min (min)</th><th>Indv. Output Min (min)</th><th>Effi% (%)</th>'
+    +'</tr></thead><tbody>';
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+(i+1)+'</td>'
+      +'<td class="l"><b>'+esc(r[1])+'</b></td>'
+      +'<td>'+esc(r[9])+'</td>'
+      +'<td class="l">'+esc(r[2])+'</td>'
+      +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
+      +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
+      +'<td>'+fmt(r[18],0)+'</td>'
+      +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td>'
+      +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
+      +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
+  });
+  h+='</tbody></table></div></div></td></tr>';
+  return h;
+}
+function toggleFloor(f){
+  floorFilter=(floorFilter===f)?'':f;
+  expandKey='';
+  if(floorFilter) prefetchDetail(floorFilter);   /* warm this floor immediately */
+  render();
+}
+function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
+
+/* ---------- print ---------- */
+function doPrint(){ window.focus(); window.print(); }
+
+/* ---------- Excel export ---------- */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function exportExcel(){
+  var S=currentSets(), tot=S.tot;
+  var scope = floorFilter ? ('Floor '+floorFilter) : 'All Floors';
+
+  var t='';
+  t+='<table><tr><td colspan="10" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Individual Eff% Report</td></tr>';
+  t+='<tr><td colspan="10">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Team Avg Eff% filter: '+esc(effLabel(effFloorFilter))
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Individual Eff% filter: '+esc(effLabel(effIndFilter))
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
+  t+='<tr><td></td></tr></table>';
+
+  /* KPI block */
+  t+='<table border="1"><tr>'
+    +th2('Total Man Count (nos)')+th2('Overall Avg Eff%')+th2('Operators Below 65% (nos)')+'</tr>'
+    +'<tr><td>'+tot.man+'</td>'+pctTd(tot.eff,1)+'<td>'+tot.u65+'</td></tr></table>';
+  t+='<table><tr><td></td></tr></table>';
+
+  /* Floor table */
+  t+='<table border="1"><tr><td colspan="4" style="font-weight:bold;color:#333D6D">Floor Wise Report</td></tr><tr>'
+    +th2('Floor')+th2('Man Count (nos)')+th2('Team Avg Eff%')+th2('Eff% < 65% (nos)')+'</tr>';
+  S.floorsShown.forEach(function(f){
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
+  });
+  t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
+    +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
+  t+='</table><table><tr><td></td></tr></table>';
+
+  /* Individual table */
+  t+='<table border="1"><tr><td colspan="10" style="font-weight:bold;color:#333D6D">Individual Report</td></tr><tr>'
+    +th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('WH (hrs)')
+    +th2('Engagement%')+th2('Type')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
+  S.indShown.forEach(function(o){
+    t+='<tr><td>'+esc(o.floor)+'</td>'
+      +'<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
+      +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
+      +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
+      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
+  });
+  t+='</table>';
+  t+='<table><tr><td></td></tr><tr><td colspan="10">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
+    +'<x:Name>Daily Eff Report</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
+
+  var name='SOSL_Daily_Eff_'+DAY+'_'+(floorFilter||'AllFloors')+'.xls';
+  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
+}
+function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
+
+/* Real Excel percentage: value stored as a fraction, displayed with a % sign,
+   so the column still sorts and averages correctly instead of being plain text. */
+function pctTd(v,dec,extra){
+  if(v==null||isNaN(v)) return '<td>-</td>';
+  var f='0'+(dec>0?'.'+Array(dec+1).join('0'):'')+'%';
+  var st="mso-number-format:'"+f+"';"+(extra||'');
+  return '<td style="'+st+'">'+(v/100)+'</td>';
+}
+
+/* Keeps the sticky headers resting right under the control strip,
+   whatever its actual rendered height is at the current screen width. */
+function syncStripH(){
+  var s=document.querySelector('.strip');
+  if(s) document.documentElement.style.setProperty('--stripH', s.offsetHeight+'px');
+}
+
+/* Each card's title bar sticks first, then its table's column header row sits
+   directly below it. The two title bars are different heights (the Individual
+   Report one carries the floor chips), so each offset is measured separately
+   after every render instead of being hard coded. */
+/* Heights are read with getBoundingClientRect, not offsetHeight. offsetHeight
+   on a <thead> is unreliable across engines (table sections are not ordinary
+   boxes), and a wrong reading here pushes a sticky header far down the page.
+   Reading the header <tr> instead gives the true rendered row height. */
+function boxH(sel){
+  var el=document.querySelector(sel);
+  return el ? el.getBoundingClientRect().height : 0;
+}
+function syncStickyOffsets(){
+  syncStripH();
+  var r=document.documentElement;
+  var strip=boxH('.strip');
+  var flrHd=boxH('#floorcard>.hd');
+  var indHd=boxH('#indcard>.hd');
+  var indCol=boxH('#indtable>thead>tr');
+
+  r.style.setProperty('--flrHdH',flrHd+'px');
+  r.style.setProperty('--indHdH',indHd+'px');
+
+  /* One resolved number for the drill-down header instead of a chain of three
+     CSS vars, so a single bad reading cannot silently offset it down the page.
+     Clamped because an absurd value is what strands the header mid-table. */
+  var detTop=strip+indHd+indCol;
+  if(!isFinite(detTop) || detTop<0 || detTop>400) detTop=strip+indHd+28;
+  r.style.setProperty('--detTop',detTop+'px');
+}
+window.addEventListener('resize', syncStickyOffsets);
+/* Web font swaps in after first paint and changes row heights, so re-measure
+   once everything has settled. */
+window.addEventListener('load', syncStickyOffsets);
+
+boot();
+syncStickyOffsets();
 </script>
 </body>
 </html>
