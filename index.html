@@ -137,9 +137,11 @@
     <img src="logo.jpg" alt="SNOWTEX" class="logo">
     <!-- add future report pages here, they will appear in this menu automatically -->
     <div class="menu" id="menu">
-      <div class="menuhd">Reports</div>
+      <div class="menuhd">Efficiency</div>
       <button class="mi on" id="t_daily" onclick="go('daily')">Daily Individual Eff% Report</button>
       <button class="mi" id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
+      <div class="menuhd">Compliance</div>
+      <button class="mi" id="t_fabric" onclick="go('fabric')">Fabric Roll Compliance Report</button>
     </div>
   </div>
   <h1>SOSL Cutting Section Dashboard</h1>
@@ -149,7 +151,7 @@
   </div>
 </div>
 
-<iframe id="frame" src="daily.html"></iframe>
+<iframe id="frame" src="efficiency/daily.html"></iframe>
 
 <div class="ftr">
   <span>&copy; 2026 SNOWTEX CI Team</span>
@@ -161,10 +163,31 @@
 </div>
 
 <script>
-var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
-var SNAP_KEY = 'sosl_snapshot_v1';
+/* Each report is fed by the Apps Script deployed on ITS OWN spreadsheet, so
+   there is no single API_URL any more. Refresh has to hit whichever endpoint
+   belongs to the tab currently on screen, otherwise pressing it on the Fabric
+   report would rebuild the Efficiency snapshot and appear to do nothing.
+     page  -> the html file
+     url   -> that sheet's /exec deployment
+     key   -> sessionStorage key its snapshot is parked under
+     drop  -> sessionStorage prefixes to clear so stale days/details go too */
+/* Two systems, two spreadsheets, two Apps Script deployments, two folders.
+     efficiency/  -> sheet "Cutting Individual Effi% _"   (EFF_API)
+     compliance/  -> sheet "Fabric Comlpliance"           (FAB_API)
+   Each system's Code.gs lives with its own downloader, not in this repo. */
+var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+var FAB_API = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
 
-var TABS=['daily','range'], curTab='daily';
+var REPORTS = {
+  daily:  { page:'efficiency/daily.html',  url:EFF_API,
+            key:'sosl_snapshot_v1',   drop:['sosl_day_','sosl_det'] },
+  range:  { page:'efficiency/range.html',  url:EFF_API,
+            key:'sosl_snapshot_v1',   drop:['sosl_day_','sosl_det'] },
+  fabric: { page:'compliance/fabric.html', url:FAB_API,
+            key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] }
+};
+
+var TABS=['daily','range','fabric'], curTab='daily';
 
 /* ---------- pages menu ---------- */
 function openMenu(){
@@ -201,13 +224,19 @@ function go(which){
   var dir = TABS.indexOf(which) > TABS.indexOf(curTab) ? 'from-right' : 'from-left';
   curTab = which;
 
-  document.getElementById('t_daily').classList.toggle('on', which==='daily');
-  document.getElementById('t_range').classList.toggle('on', which==='range');
+  TABS.forEach(function(t){
+    var b=document.getElementById('t_'+t);
+    if(b) b.classList.toggle('on', t===which);
+  });
+
+  /* The incoming report posts its own timestamp up as soon as it renders, but
+     the header would otherwise show the previous report's until then. */
+  setStamp('');
 
   var f=document.getElementById('frame');
   f.classList.remove('from-right','from-left');
   void f.offsetWidth;                       /* force reflow so the animation restarts */
-  f.src = (which==='daily') ? 'daily.html' : 'range.html';
+  f.src = REPORTS[which].page;
   f.classList.add(dir);
 }
 
@@ -226,15 +255,19 @@ function setStamp(t){
 /* Rebuild server snapshot, cache it, tell the report page to redraw.
    Nothing on screen is dimmed or cleared while this runs. */
 function doRefresh(){
+  var cfg = REPORTS[curTab];
+  if(!cfg){ alert('No API configured for this report.'); return; }
   setBusy(true);
-  fetch(API_URL+'?action=snapshot&fresh=1')
+  fetch(cfg.url+'?action=snapshot&fresh=1')
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error) throw new Error(res.error);
       try{
-        sessionStorage.setItem(SNAP_KEY, JSON.stringify(res));
+        sessionStorage.setItem(cfg.key, JSON.stringify(res));
         Object.keys(sessionStorage).forEach(function(k){
-          if(k.indexOf('sosl_day_')===0 || k.indexOf('sosl_det')===0) sessionStorage.removeItem(k);
+          for(var i=0;i<cfg.drop.length;i++){
+            if(k.indexOf(cfg.drop[i])===0){ sessionStorage.removeItem(k); return; }
+          }
         });
       }catch(e){}
       setStamp(res.generatedAt);
