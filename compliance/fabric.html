@@ -11,7 +11,7 @@
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
     /* Compliance bands. 100% is the target, not 65%, so the ladder is tighter
-       than the efficiency report: red below 80, green 80 to under 100, blue at 100. */
+       than the efficiency report: red below 90, green 90 to 98, blue above 98. */
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700; --stripH:40px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -382,8 +382,8 @@ function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
 var TOLERANCE=1.00;
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
-/* Compliance bands: red below 80, green 80 to under 100, blue at 100. */
-function pctClass(p){return p<80?'red':(p<100?'green':'blue')}
+/* Compliance bands: red below 90, green 90 to 98, blue above 98. */
+function pctClass(p){return p<90?'red':(p<=98?'green':'blue')}
 function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
 /* House date format, used everywhere on screen, in print and in exports:
    "1 Aug, 2026" */
@@ -402,13 +402,13 @@ function prettyStamp(d){
   return d.getDate()+' '+m[d.getMonth()]+', '+d.getFullYear()+', '+hh+':'+mm+' '+ap;
 }
 function compPass(v,mode){
-  if(mode==='lt80')return v<80;
-  if(mode==='lt100')return v<100;
-  if(mode==='eq100')return v>=100;
+  if(mode==='lt90')return v<90;
+  if(mode==='90to98')return v>=90&&v<=98;
+  if(mode==='gt98')return v>98;
   return true;
 }
 function compLabel(mode){
-  return mode==='lt80'?'Below 80%':mode==='lt100'?'Below 100%':mode==='eq100'?'100% only':'All';
+  return mode==='lt90'?'Below 90%':mode==='90to98'?'90% to 98%':mode==='gt98'?'Above 98%':'All';
 }
 function mapMarkers(arr){
   return (arr||[]).map(function(r){
@@ -719,7 +719,7 @@ function render(){
     +'<td>'+S.grand.rolls+'</td><td>'+S.grand.fails+'</td>'
     +'<td class="pct">'+fmt(S.grand.comp,1)+'%</td><td>'+fmt(S.grand.waste,1)+'</td></tr>';
   h+='</tbody></table></div><div class="foot">Floor Compliance% is read from the Summary tab. '
-    +'Red below 80% &bull; Green 80% to under 100% &bull; Blue 100%</div></div>';
+    +'Red below 90% &bull; Green 90% to 98% &bull; Blue above 98%</div></div>';
 
   h+='<div class="card" id="fabcard"><div class="hd"><h3>Compliance by Fabric Type</h3>'
     +'<span class="hint">click to filter</span></div><div class="fabbody">';
@@ -750,8 +750,8 @@ function render(){
   scopeFloors().forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
     +'<select class="fsel" onchange="compFilter=this.value;expandKey=\'\';render()">'
-    +opt('all','All Compliance%',compFilter)+opt('lt100','Below 100%',compFilter)
-    +opt('lt80','Below 80%',compFilter)+opt('eq100','100% only',compFilter)+'</select>'
+    +opt('all','All Compliance%',compFilter)+opt('lt90','Below 90%',compFilter)
+    +opt('90to98','90% to 98%',compFilter)+opt('gt98','Above 98%',compFilter)+'</select>'
     +'<input class="search" id="q" placeholder="Search cut no / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
   h+='<div class="scroll"><table id="mktable"><thead><tr>'
     +mth('Floor','floor')+mth('Marker SL','markerSL','SL')+mth('Cut No','cutNo')
