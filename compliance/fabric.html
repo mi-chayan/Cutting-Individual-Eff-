@@ -166,6 +166,10 @@
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
   .chip:hover{border-color:var(--violet);color:var(--violet)}
   .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+  /* Factory chips read as a separate tier from the floor chips beside them */
+  .chip.fact{color:var(--navy);border-color:#C3C9E4;background:#F1F3FA;letter-spacing:.3px}
+  .chip.fact:hover{border-color:var(--navy);color:var(--navy);background:#E7EAF6}
+  .chip.fact.on{background:var(--navy);border-color:var(--navy);color:#fff}
 
   .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE;line-height:1.5}
   .loading{padding:60px;text-align:center;color:var(--mut);font-weight:700}
@@ -337,16 +341,32 @@ var fSortKey='floor', fSortDir=1;
 var DETAIL={}, DETLOADING={};
 var expandKey='';
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
+/* Building filter: '' = both factories, otherwise 'SOL' or 'SSL' */
+var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']};
+var factFilter='';
+function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
+function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
 var TOLERANCE=1.00;
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
 /* Compliance bands: red below 80, green 80 to under 100, blue at 100. */
 function pctClass(p){return p<80?'red':(p<100?'green':'blue')}
 function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
+/* House date format, used everywhere on screen, in print and in exports:
+   "1 Aug, 2026" */
 function prettyDate(s){
   if(!s)return '';
   var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
+  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+', '+p[0];
+}
+/* Same format for a Date object, plus the clock, for "Generated" stamps */
+function prettyStamp(d){
+  d=d||new Date();
+  var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var hh=d.getHours(), ap=hh>=12?'PM':'AM';
+  hh=hh%12; if(!hh) hh=12;
+  var mm=('0'+d.getMinutes()).slice(-2);
+  return d.getDate()+' '+m[d.getMonth()]+', '+d.getFullYear()+', '+hh+':'+mm+' '+ap;
 }
 function compPass(v,mode){
   if(mode==='lt80')return v<80;
@@ -429,7 +449,7 @@ function pickDate(){
     }).catch(showErr);
 }
 
-function resetFilters(){floorFilter='';fabricFilter='';query='';compFilter='all';expandKey=''}
+function resetFilters(){floorFilter='';factFilter='';fabricFilter='';query='';compFilter='all';expandKey=''}
 
 /* ---------- roll drill-down ---------- */
 function detKey(floor){ return DAY+'_'+floor }
@@ -541,14 +561,17 @@ function fabricAgg(list){
 function currentSets(){
   var floorsAll=floorAgg(MARKERS);
 
+  /* Total row covers the selected factory only, or both when none is picked */
   var grand={markers:0,rolls:0,fails:0,used:0,waste:0};
-  MARKERS.forEach(function(m){
+  MARKERS.filter(function(m){return inScope(m.floor)}).forEach(function(m){
     grand.markers++; grand.rolls+=m.rolls; grand.fails+=m.fails; grand.used+=m.used; grand.waste+=m.waste;
   });
   grand.comp=grand.rolls>0?(grand.rolls-grand.fails)/grand.rolls*100:0;
 
-  /* KPI scope follows the floor selection */
-  var scoped = floorFilter ? MARKERS.filter(function(m){return m.floor===floorFilter}) : MARKERS;
+  /* KPI scope follows the floor selection, else the factory scope */
+  var scoped = MARKERS.filter(function(m){
+    return floorFilter ? m.floor===floorFilter : inScope(m.floor);
+  });
   var tot={markers:0,rolls:0,fails:0,used:0,waste:0};
   scoped.forEach(function(m){
     tot.markers++; tot.rolls+=m.rolls; tot.fails+=m.fails; tot.used+=m.used; tot.waste+=m.waste;
@@ -557,7 +580,7 @@ function currentSets(){
 
   var fabrics=fabricAgg(scoped);
 
-  var floorsShown=floorsAll.filter(function(f){return f.markers>0});
+  var floorsShown=floorsAll.filter(function(f){return f.markers>0 && inScope(f.floor)});
   floorsShown.sort(function(a,b){
     if(fSortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*fSortDir;
     var va=a[fSortKey],vb=b[fSortKey];
@@ -566,6 +589,7 @@ function currentSets(){
   });
 
   var mkShown=MARKERS.filter(function(m){
+    if(!inScope(m.floor))return false;
     if(floorFilter&&m.floor!==floorFilter)return false;
     if(fabricFilter&&m.fabric!==fabricFilter)return false;
     if(!compPass(m.rate,compFilter))return false;
@@ -592,8 +616,8 @@ function currentSets(){
 function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   var S=currentSets(), tot=S.tot;
-  var scopeLabel=floorFilter?('Floor '+floorFilter):'All Floors';
-  var scopeNote=floorFilter?('floor '+floorFilter):'all floors';
+  var scopeLabel=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
+  var scopeNote=floorFilter?('floor '+floorFilter):(factFilter?factFilter:'all floors');
   document.body.classList.toggle('single-floor', !!floorFilter);
 
   var h='<div class="wrap">';
@@ -672,8 +696,12 @@ function render(){
   /* Marker table */
   h+='<div class="card" id="mkcard"><div class="hd"><h3>Marker wise Roll Compliance</h3>'
     +'<span class="hint">click a marker to see its rolls</span>';
-  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
-  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
+  /* All Floors | SOL | SSL | then only the floors of the chosen factory */
+  h+='<div class="chips">'
+    +'<span class="chip'+(floorFilter===''&&factFilter===''?' on':'')+'" onclick="toggleFact(\'\')">All Floors</span>'
+    +'<span class="chip fact'+(factFilter==='SOL'?' on':'')+'" onclick="toggleFact(\'SOL\')">SOL</span>'
+    +'<span class="chip fact'+(factFilter==='SSL'?' on':'')+'" onclick="toggleFact(\'SSL\')">SSL</span>';
+  scopeFloors().forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
     +'<select class="fsel" onchange="compFilter=this.value;expandKey=\'\';render()">'
     +opt('all','All Compliance%',compFilter)+opt('lt100','Below 100%',compFilter)
@@ -706,7 +734,7 @@ function render(){
     +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than '+fmt(TOLERANCE,2)+'&Prime; &bull; '
     +'Wasted Yds = Used Yds &times; (Excess &minus; '+fmt(TOLERANCE,2)+') &divide; Roll Width, failed rolls only</div></div>';
 
-  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
+  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
   h+='</div>';
 
   document.getElementById('content').innerHTML=h;
@@ -779,6 +807,14 @@ function detailBlock(m,colspan){
   return h;
 }
 
+/* Switching factory clears any floor pick, since that floor may not belong to
+   the newly selected building. Clicking the active factory again clears it. */
+function toggleFact(f){
+  factFilter=(factFilter===f)?'':f;
+  floorFilter='';
+  expandKey='';
+  render();
+}
 function toggleFloor(f){
   floorFilter=(floorFilter===f)?'':f;
   expandKey='';
@@ -799,7 +835,7 @@ function doPrint(){ window.focus(); window.print(); }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function exportExcel(){
   var S=currentSets(), tot=S.tot;
-  var scope=floorFilter?('Floor '+floorFilter):'All Floors';
+  var scope=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
 
   var t='';
   t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Fabric Roll Compliance Report</td></tr>';
@@ -862,7 +898,7 @@ function exportExcel(){
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
     +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
 
-  var name='SOSL_Fabric_Roll_Compliance_'+DAY+'_'+(floorFilter||'AllFloors')+'.xls';
+  var name='SOSL_Fabric_Roll_Compliance_'+DAY+'_'+(floorFilter||factFilter||'AllFloors')+'.xls';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=name;
