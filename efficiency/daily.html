@@ -25,7 +25,17 @@
   .strip .rsub{font-size:10px;color:var(--mut);white-space:nowrap}
   .sep{width:1px;height:22px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
-  .strip input[type=date]{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:12px;background:#fff;color:var(--txt)}
+  /* A native date input always renders in the browser's own locale format
+     (mm/dd/yyyy here) and that cannot be restyled. So the real input is laid
+     transparently over a label we format ourselves, keeping the native
+     calendar popup while showing "1 Aug, 2026". */
+  .dpick{position:relative;display:inline-flex;align-items:center;gap:7px;
+         border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:#fff;
+         font-size:12px;font-weight:700;color:var(--txt);white-space:nowrap;cursor:pointer}
+  .dpick:hover{border-color:var(--violet)}
+  .dpick svg{width:13px;height:13px;fill:var(--violet);flex:0 0 auto}
+  .dpick input[type=date]{position:absolute;inset:0;width:100%;height:100%;
+         opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
         padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
@@ -255,7 +265,8 @@
     .strip{padding:6px 9px;gap:6px 8px;justify-content:flex-start}
     .strip h2{font-size:11px}
     .strip label{display:none}
-    .strip input[type=date]{font-size:11.5px;padding:6px;flex:0 1 auto;min-width:0;max-width:150px}
+    /* size the visible wrapper, not the transparent input inside it */
+    .dpick{font-size:11.5px;padding:6px 8px;gap:5px;flex:0 1 auto;min-width:0}
     .mini{padding:7px 11px;font-size:11px}      /* ~34px tall, thumb friendly */
     .showing{font-size:10px;order:5;width:100%}
     .acts{margin-left:auto}
@@ -387,7 +398,11 @@
   <h2>Daily Individual Eff% Report</h2>
   <div class="sep"></div>
   <label>Report Date</label>
-  <input type="date" id="d1" onchange="pickDate()">
+  <span class="dpick">
+    <span id="d1label">&ndash;</span>
+    <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+    <input type="date" id="d1" onchange="pickDate()" onclick="openPicker(this)" aria-label="Report date">
+  </span>
   <button class="mini" onclick="goLatest()">Latest Day</button>
   <span class="showing" id="showing"></span>
   <div class="acts">
@@ -622,7 +637,12 @@ function operatorAgg(){
   });
   return Object.keys(map).map(function(k){
     var o=map[k];
-    o.avgWh=o.wh/o.n; o.avgEng=o.eng/o.n;
+    o.avgWh=o.wh/o.n;
+    /* Engagement% is capped at 100. An operator cannot be more than fully
+       engaged, so anything above that is a data artefact, not a real figure.
+       Capped here at the source so the table, sorting, print and the Excel
+       export all agree. No other column is touched. */
+    o.avgEng=Math.min(o.eng/o.n,100);
     if(!o.eff) o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
     o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
     return o;
@@ -706,9 +726,22 @@ function currentSets(){
   return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand,bands:bands};
 }
 
+/* The native calendar only opens from the small icon by default, so a click
+   anywhere on the field opens it. showPicker is Chrome/Edge; elsewhere the
+   field still works normally. */
+function openPicker(el){
+  try{ if(el.showPicker) el.showPicker(); }catch(e){}
+}
+/* Keeps the visible label in our own format, in step with the real input */
+function syncDateLabel(){
+  var l=document.getElementById('d1label');
+  if(l) l.textContent=prettyDate(document.getElementById('d1').value)||'-';
+}
+
 /* ---------- render ---------- */
 function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
+  syncDateLabel();
   var S=currentSets(), tot=S.tot;
   var scopeLabel = floorFilter ? ('Floor '+floorFilter)
                  : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
