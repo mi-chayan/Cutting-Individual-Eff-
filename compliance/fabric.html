@@ -47,8 +47,24 @@
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
 
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;margin-bottom:15px}
+  /* grid-auto-rows floor stops the row collapsing when the floor table is
+     filtered down to one or two rows */
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;margin-bottom:15px;
+          grid-auto-rows:minmax(260px,auto)}
   .toprow>.card{margin-bottom:0}
+
+  /* The fabric list is long and was stretching the row, which left the empty
+     band under the floor table. height:0 makes this card contribute nothing to
+     the row height, so the row is sized by the floor table alone, then
+     min-height:100% pulls the card back up to that exact height. The list
+     inside then scrolls on its own. */
+  .toprow>#fabcard{height:0;min-height:100%;display:flex;flex-direction:column}
+  .toprow>#fabcard>.hd{flex:0 0 auto}
+  .toprow>#fabcard>.fabbody{flex:1 1 auto;min-height:0;overflow-y:auto;
+        scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .toprow>#fabcard>.fabbody::-webkit-scrollbar{width:8px}
+  .toprow>#fabcard>.fabbody::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
+  .toprow>#fabcard>.fabbody::-webkit-scrollbar-track{background:transparent}
 
   /* overflow:clip, not hidden. Both clip the rounded corners identically, but
      'hidden' creates a scroll container which breaks position:sticky headers. */
@@ -167,7 +183,11 @@
     .wrap{padding:11px 11px 22px}
     .search{width:170px}
     .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .toprow{grid-template-columns:1fr;gap:11px}
+    /* stacked here, so the card sizes to its content and the list is not
+       trapped in a short scroll box */
+    .toprow{grid-template-columns:1fr;gap:11px;grid-auto-rows:auto}
+    .toprow>#fabcard{height:auto;min-height:0;display:block}
+    .toprow>#fabcard>.fabbody{overflow:visible;min-height:auto}
     .hp{display:none}
     #flrtable,#mktable{min-width:0}
     #flrtable th,#mktable th{white-space:normal;line-height:1.2}
@@ -235,8 +255,12 @@
                      font-size:7.4pt;color:#666;line-height:1.35}
     .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .printhead .meta b{color:#111;font-weight:700}
-    .toprow{display:block}
+    .toprow{display:block;grid-auto-rows:auto}
     #fabcard{page-break-inside:avoid}
+    /* paper has no scrollbar, so the whole fabric list must print, not just
+       the part that happens to be scrolled into view on screen */
+    .toprow>#fabcard{height:auto !important;min-height:0 !important;display:block !important}
+    .toprow>#fabcard>.fabbody{overflow:visible !important;min-height:auto !important;max-height:none !important}
     .kpis{display:flex;gap:3mm;margin-bottom:5mm;grid-template-columns:none}
     .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:2.5mm;page-break-inside:avoid}
     .kpi .v{font-size:13pt}
