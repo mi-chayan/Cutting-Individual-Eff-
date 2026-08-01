@@ -211,6 +211,10 @@
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
   .chip:hover{border-color:var(--violet);color:var(--violet)}
   .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+  /* Factory chips read as a separate tier from the floor chips beside them */
+  .chip.fact{color:var(--navy);border-color:#C3C9E4;background:#F1F3FA;letter-spacing:.3px}
+  .chip.fact:hover{border-color:var(--navy);color:var(--navy);background:#E7EAF6}
+  .chip.fact.on{background:var(--navy);border-color:var(--navy);color:#fff}
 
   .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE}
   .loading{padding:60px;text-align:center;color:var(--mut);font-weight:700}
@@ -410,6 +414,12 @@ var DETAIL={};        /* key: date_floor  ->  array of cut rows */
 var DETLOADING={};    /* key: date_floor  ->  true while a background fetch runs */
 var expandKey='';     /* floor|opId of the currently open operator */
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
+/* Building filter: '' = both factories, otherwise 'SOL' or 'SSL' */
+var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']};
+var factFilter='';
+/* Floors in scope right now: the selected factory's floors, or all of them */
+function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
+function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
 /* Bands: red below 65, green 65 to 90, blue above 90. */
@@ -418,10 +428,21 @@ function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
 function shortId(id){return padId(id).slice(-5)}
 /* Sort floors in factory order (SOL 1A-1E, 3A, then SSL 2A-2E), not alphabetically */
 function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
+/* House date format, used everywhere on screen, in print and in exports:
+   "1 Aug, 2026" */
 function prettyDate(s){
   if(!s)return '';
   var p=s.split('-'),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+' '+p[0];
+  return parseInt(p[2],10)+' '+m[parseInt(p[1],10)-1]+', '+p[0];
+}
+/* Same format for a Date object, plus the clock, for "Generated" stamps */
+function prettyStamp(d){
+  d=d||new Date();
+  var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var hh=d.getHours(), ap=hh>=12?'PM':'AM';
+  hh=hh%12; if(!hh) hh=12;
+  var mm=('0'+d.getMinutes()).slice(-2);
+  return d.getDate()+' '+m[d.getMonth()]+', '+d.getFullYear()+', '+hh+':'+mm+' '+ap;
 }
 function effPass(v,mode){
   if(mode==='lt65')return v<65;
@@ -500,7 +521,7 @@ function pickDate(){
     }).catch(showErr);
 }
 
-function resetFilters(){floorFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
+function resetFilters(){floorFilter='';factFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
 
 /* ---------- operator drill-down ---------- */
 function detKey(floor){ return DAY+'_'+floor }
@@ -625,12 +646,13 @@ function currentSets(){
   var ops=operatorAgg();
   var floorsAll=floorAgg(ops);
 
-  /* Grand total across all floors, used by the floor table's Total row */
+  /* Total row covers the selected factory only, or both when none is picked */
   var grand={man:0,inMin:0,outMin:0,u65:0};
-  floorsAll.forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
+  floorsAll.filter(function(f){return inScope(f.floor)})
+    .forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
   grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
 
-  /* KPI totals follow the floor selection */
+  /* KPI totals follow the floor selection, else the factory scope */
   var tot;
   if(floorFilter){
     var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
@@ -641,17 +663,20 @@ function currentSets(){
   }
 
   /* Operator counts per efficiency band, in the same scope the KPI cards use,
-     so the chart follows the floor selection too. */
-  var bandOps = floorFilter ? ops.filter(function(o){return o.floor===floorFilter}) : ops;
+     so the chart follows both the factory and the floor selection. */
+  var bandOps = ops.filter(function(o){
+    return floorFilter ? o.floor===floorFilter : inScope(o.floor);
+  });
   var bands={lo:0,mid:0,hi:0,total:bandOps.length};
   bandOps.forEach(function(o){
     if(o.eff<65) bands.lo++; else if(o.eff<=90) bands.mid++; else bands.hi++;
   });
 
-  /* Floor table always lists every floor. Selecting a row only highlights it
-     and filters the Individual Report below. */
+  /* Floor table lists every floor of the selected factory. Clicking a single
+     floor row only highlights it, it does not shorten this list. */
   var floorsShown=floorsAll.filter(function(f){
     if(f.man===0)return false;
+    if(!inScope(f.floor))return false;
     return effPass(f.eff,effFloorFilter);
   });
   floorsShown.sort(function(a,b){
@@ -662,6 +687,7 @@ function currentSets(){
   });
 
   var indShown=ops.filter(function(o){
+    if(!inScope(o.floor))return false;
     if(floorFilter&&o.floor!==floorFilter)return false;
     if(!effPass(o.eff,effIndFilter))return false;
     if(query){
@@ -684,7 +710,8 @@ function currentSets(){
 function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   var S=currentSets(), tot=S.tot;
-  var scopeLabel = floorFilter ? ('Floor '+floorFilter) : 'All Floors';
+  var scopeLabel = floorFilter ? ('Floor '+floorFilter)
+                 : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
   document.body.classList.toggle('single-floor', !!floorFilter);
 
   var h='<div class="wrap">';
@@ -703,7 +730,8 @@ function render(){
       +'</div>'
     +'</div></div>';
 
-  var scopeNote = floorFilter ? ('Floor '+floorFilter) : 'all floors';
+  var scopeNote = floorFilter ? ('Floor '+floorFilter)
+                : (factFilter ? factFilter : 'all floors');
   var kpisHtml='<div class="kpis">'
     +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
     +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
@@ -737,8 +765,12 @@ function render(){
 
   h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>'
     +'<span class="hint">click to get details</span>';
-  h+='<div class="chips"><span class="chip'+(floorFilter===''?' on':'')+'" onclick="toggleFloor(\'\')">All Floors</span>';
-  FLOOR_ORDER.forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
+  /* All Floors | SOL | SSL | then only the floors of the chosen factory */
+  h+='<div class="chips">'
+    +'<span class="chip'+(floorFilter===''&&factFilter===''?' on':'')+'" onclick="toggleFact(\'\')">All Floors</span>'
+    +'<span class="chip fact'+(factFilter==='SOL'?' on':'')+'" onclick="toggleFact(\'SOL\')">SOL</span>'
+    +'<span class="chip fact'+(factFilter==='SSL'?' on':'')+'" onclick="toggleFact(\'SSL\')">SSL</span>';
+  scopeFloors().forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
     +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
       +opt('all','Individual Eff%: All',effIndFilter)+opt('lt65','Individual Eff%: Below 65%',effIndFilter)
@@ -772,7 +804,7 @@ function render(){
   });
   h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Green 65&ndash;90% &bull; Blue &gt; 90%</div></div>';
 
-  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+new Date().toLocaleString()+'</div>';
+  h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
   h+='</div>';
 
   document.getElementById('content').innerHTML=h;
@@ -916,6 +948,14 @@ function detailBlock(o,colspan){
   h+='</tbody></table></div></div></td></tr>';
   return h;
 }
+/* Switching factory clears any floor pick, since that floor may not belong to
+   the newly selected building. Clicking the active factory again clears it. */
+function toggleFact(f){
+  factFilter=(factFilter===f)?'':f;
+  floorFilter='';
+  expandKey='';
+  render();
+}
 function toggleFloor(f){
   floorFilter=(floorFilter===f)?'':f;
   expandKey='';
@@ -931,7 +971,8 @@ function doPrint(){ window.focus(); window.print(); }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function exportExcel(){
   var S=currentSets(), tot=S.tot;
-  var scope = floorFilter ? ('Floor '+floorFilter) : 'All Floors';
+  var scope = floorFilter ? ('Floor '+floorFilter)
+            : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
 
   var t='';
   t+='<table><tr><td colspan="10" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Individual Eff% Report</td></tr>';
@@ -977,7 +1018,7 @@ function exportExcel(){
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
     +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
 
-  var name='SOSL_Daily_Eff_'+DAY+'_'+(floorFilter||'AllFloors')+'.xls';
+  var name='SOSL_Daily_Eff_'+DAY+'_'+(floorFilter||factFilter||'AllFloors')+'.xls';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=name;
