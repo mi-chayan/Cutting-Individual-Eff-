@@ -128,6 +128,13 @@
            padding:3px 11px;font-family:inherit;font-size:10.5px;font-weight:800;
            color:var(--mut);cursor:pointer}
   .afclear:hover{border-color:var(--red);color:var(--red)}
+  /* Clear button on the fabric card header itself */
+  .fabclear{background:var(--red);color:#fff;border:0;border-radius:20px;
+            padding:4px 11px;font-family:inherit;font-size:10px;font-weight:800;
+            letter-spacing:.2px;cursor:pointer;white-space:nowrap}
+  .fabclear:hover{filter:brightness(1.08)}
+  .emptyacts{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:11px}
+  .emptyacts .afclear{margin-left:0;background:#fff}
   .fabsub{font-size:9px;color:var(--mut);grid-column:2 / span 2;margin-top:-2px}
 
   .scroll{overflow:visible}
@@ -287,7 +294,8 @@
   @media print{
     body{background:#fff;font-size:9pt}
     /* activebar hidden: the print header already lists every active filter */
-    .strip,.chips,.search,.fsel,.hint,.push,.acts,.activebar,.kpi:before{display:none !important}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.activebar,.fabclear,.emptyacts,
+    .kpi:before{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
     .card{border:1px solid #bbb;border-radius:0;margin-bottom:6mm;break-inside:auto;
@@ -739,7 +747,13 @@ function render(){
     +'Red below 90% &bull; Green 90% to 98% &bull; Blue above 98%</div></div>';
 
   h+='<div class="card" id="fabcard"><div class="hd"><h3>Compliance by Fabric Type</h3>'
-    +'<span class="hint">click to filter</span></div><div class="fabbody">';
+    /* Red clear button, right where the filter was switched on, so it is never
+       hidden by the panel's own scrolling. */
+    +(fabricFilter
+       ? '<button class="fabclear" onclick="clearFilter(\'fabric\')" '
+         +'title="Show all fabrics again">&times; Remove fabric filter</button>'
+       : '<span class="hint">click to filter</span>')
+    +'</div><div class="fabbody">';
   if(!S.fabrics.length){
     h+='<div class="empty" style="padding:18px">No fabric data.</div>';
   }else{
@@ -777,7 +791,7 @@ function render(){
     +mth('Table','table','Tbl','hs')+mth('Rolls','rolls')+mth('Failed','fails')
     +mth('Compliance%','rate','Comp%')+mth('Wasted Yds','waste','Waste')
     +'</tr></thead><tbody>';
-  if(!S.mkShown.length)h+='<tr><td colspan="11" class="empty">No marker matches this filter.</td></tr>';
+  if(!S.mkShown.length)h+='<tr><td colspan="11" class="empty">'+emptyMarkerMsg()+'</td></tr>';
   S.mkShown.forEach(function(m){
     var k=m.floor+'|'+m.markerSL+'|'+m.cutNo;
     var isOpen=(expandKey===k);
@@ -913,6 +927,34 @@ function clearFilter(which){
   expandKey='';
   render();
 }
+/* Says exactly which combination came back empty, and offers the one-click way
+   out. A bare "no marker matches" leaves the user guessing which of five
+   filters is responsible. */
+function emptyMarkerMsg(){
+  var scope = floorFilter ? ('floor '+floorFilter)
+            : (factFilter ? factFilter : 'any floor');
+  var h='';
+
+  if(fabricFilter && floorFilter){
+    h='<b>'+esc(fabricFilter)+'</b> was not used on <b>floor '+floorFilter+'</b> on '+prettyDate(DAY)+'.';
+  }else if(fabricFilter){
+    h='No <b>'+esc(fabricFilter)+'</b> marker on '+scope+' on '+prettyDate(DAY)+'.';
+  }else if(floorFilter){
+    h='No marker on <b>floor '+floorFilter+'</b> on '+prettyDate(DAY)+'.';
+  }else{
+    h='No marker matches the current filters.';
+  }
+
+  if(compFilter!=='all') h+='<br>Compliance filter <b>'+esc(compLabel(compFilter))+'</b> is also on.';
+  if(query) h+='<br>Search <b>'+esc(query)+'</b> is also on.';
+
+  h+='<div class="emptyacts">';
+  if(fabricFilter) h+='<button class="afclear" onclick="clearFilter(\'fabric\')">Remove fabric filter</button>';
+  if(floorFilter)  h+='<button class="afclear" onclick="clearFilter(\'floor\')">Show all floors</button>';
+  h+='<button class="afclear" onclick="clearAllFilters()">Clear all filters</button></div>';
+  return h;
+}
+
 function activeFilterBar(){
   var items=[];
   if(factFilter)  items.push(['fact','Factory',factFilter]);
