@@ -112,6 +112,22 @@
   .barfill.red{background:var(--red)} .barfill.green{background:var(--green)} .barfill.blue{background:var(--blue)}
   .fabpct{font-size:10.5px;font-weight:800;text-align:right}
   .fabpct.red{color:var(--red)} .fabpct.green{color:var(--green)} .fabpct.blue{color:var(--blue)}
+
+  /* ---- active filter bar ---- */
+  .activebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+             padding:7px 13px;background:#F6F4FD;border-bottom:1px solid #E4DDF6}
+  .ablabel{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .afchip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+          color:var(--navy);background:#fff;border:1px solid #D6C8F0;border-radius:20px;padding:3px 5px 3px 10px}
+  .afchip b{color:var(--violet)}
+  .afchip i{font-style:normal;cursor:pointer;width:15px;height:15px;border-radius:50%;
+            display:inline-flex;align-items:center;justify-content:center;
+            background:#EFE7FB;color:var(--violet);font-size:12px;line-height:1}
+  .afchip i:hover{background:var(--violet);color:#fff}
+  .afclear{margin-left:auto;background:transparent;border:1px solid var(--line);border-radius:20px;
+           padding:3px 11px;font-family:inherit;font-size:10.5px;font-weight:800;
+           color:var(--mut);cursor:pointer}
+  .afclear:hover{border-color:var(--red);color:var(--red)}
   .fabsub{font-size:9px;color:var(--mut);grid-column:2 / span 2;margin-top:-2px}
 
   .scroll{overflow:visible}
@@ -270,7 +286,8 @@
   @page{ size:A4 landscape; margin:9mm 8mm; }
   @media print{
     body{background:#fff;font-size:9pt}
-    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
+    /* activebar hidden: the print header already lists every active filter */
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.activebar,.kpi:before{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
     .card{border:1px solid #bbb;border-radius:0;margin-bottom:6mm;break-inside:auto;
@@ -753,6 +770,7 @@ function render(){
     +opt('all','All Compliance%',compFilter)+opt('lt90','Below 90%',compFilter)
     +opt('90to98','90% to 98%',compFilter)+opt('gt98','Above 98%',compFilter)+'</select>'
     +'<input class="search" id="q" placeholder="Search cut no / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+=activeFilterBar();
   h+='<div class="scroll"><table id="mktable"><thead><tr>'
     +mth('Floor','floor')+mth('Marker SL','markerSL','SL')+mth('Cut No','cutNo')
     +mth('Fabric','fabric')+mth('ML (Yds)','ml','ML','hs')+mth('MW (Inch)','mw','MW')
@@ -853,11 +871,13 @@ function detailBlock(m,colspan){
   return h;
 }
 
-/* Switching factory clears any floor pick, since that floor may not belong to
-   the newly selected building. Clicking the active factory again clears it. */
+/* Switching factory clears the floor and fabric picks too. Both are scoped to
+   the old factory: that floor may not exist in the new one, and that fabric
+   may not be used there, which would silently empty the marker table. */
 function toggleFact(f){
   factFilter=(factFilter===f)?'':f;
   floorFilter='';
+  fabricFilter='';
   expandKey='';
   render();
 }
@@ -871,6 +891,44 @@ function toggleFabric(f){
   fabricFilter=(fabricFilter===f)?'':f;
   expandKey='';
   render();
+}
+
+/* ---------- active filter bar ---------- */
+/* Every filter except the fabric one already shows its own state: the chips
+   highlight, the dropdown displays its choice, the search box holds its text.
+   The fabric pick only highlighted a row inside a panel that now scrolls, so
+   it could sit active and completely out of sight. This bar states every
+   active filter in one place and lets any of them be cleared in one click. */
+function clearAllFilters(){
+  factFilter=''; floorFilter=''; fabricFilter='';
+  compFilter='all'; query=''; expandKey='';
+  render();
+}
+function clearFilter(which){
+  if(which==='fact'){ factFilter=''; floorFilter=''; fabricFilter=''; }
+  else if(which==='floor') floorFilter='';
+  else if(which==='fabric') fabricFilter='';
+  else if(which==='comp') compFilter='all';
+  else if(which==='query') query='';
+  expandKey='';
+  render();
+}
+function activeFilterBar(){
+  var items=[];
+  if(factFilter)  items.push(['fact','Factory',factFilter]);
+  if(floorFilter) items.push(['floor','Floor',floorFilter]);
+  if(fabricFilter)items.push(['fabric','Fabric',fabricFilter]);
+  if(compFilter!=='all') items.push(['comp','Compliance',compLabel(compFilter)]);
+  if(query) items.push(['query','Search',query]);
+  if(!items.length) return '';
+
+  var h='<div class="activebar"><span class="ablabel">Filtered by</span>';
+  items.forEach(function(it){
+    h+='<span class="afchip">'+it[1]+': <b>'+esc(it[2])+'</b>'
+      +'<i onclick="clearFilter(\''+it[0]+'\')" title="Remove this filter">&times;</i></span>';
+  });
+  if(items.length>1) h+='<button class="afclear" onclick="clearAllFilters()">Clear all</button>';
+  return h+'</div>';
 }
 function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
 
