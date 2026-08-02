@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fabric Roll Compliance Report</title>
+<title>Daily Individual Eff% Report</title>
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    /* Compliance bands. 100% is the target, not 65%, so the ladder is tighter
-       than the efficiency report: red below 90, green 90 to 98, blue above 98. */
-    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700; --stripH:40px;
+    /* Efficiency bands: 90% is the practical ceiling, not 100%.
+       red below 65, green 65 to 90, blue above 90. */
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --stripH:40px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
@@ -22,6 +22,7 @@
   .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
          display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
   .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .strip .rsub{font-size:10px;color:var(--mut);white-space:nowrap}
   .sep{width:1px;height:22px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
   /* A native date input always renders in the browser's own locale format
@@ -45,45 +46,53 @@
 
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
-  /* ---- KPI row ---- */
-  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;position:relative;overflow:hidden;
+  /* Floor Wise Report on the left, the 3 KPI cards stacked on the right - uses the width better */
+  /* align-items:stretch (the default) so the card column and the floor table
+     share one row height and their bottom edges line up */
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-bottom:15px}
+  .toprow #floorcard{margin-bottom:0}
+  .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
+  /* Compact so three cards plus the donut finish level with the floor table */
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;position:relative;overflow:hidden;
        box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
-  .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
+  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
   .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
-  .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .v{font-size:22px;font-weight:800;margin-top:1px;line-height:1.05}
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
-  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
 
-  /* grid-auto-rows floor stops the row collapsing when the floor table is
-     filtered down to one or two rows */
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;margin-bottom:15px;
-          grid-auto-rows:minmax(260px,auto)}
-  .toprow>.card{margin-bottom:0}
-
-  /* The fabric list is long and was stretching the row, which left the empty
-     band under the floor table. height:0 makes this card contribute nothing to
-     the row height, so the row is sized by the floor table alone, then
-     min-height:100% pulls the card back up to that exact height. The list
-     inside then scrolls on its own. */
-  .toprow>#fabcard{height:0;min-height:100%;display:flex;flex-direction:column}
-  .toprow>#fabcard>.hd{flex:0 0 auto}
-  .toprow>#fabcard>.fabbody{flex:1 1 auto;min-height:0;overflow-y:auto;
-        scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
-  .toprow>#fabcard>.fabbody::-webkit-scrollbar{width:8px}
-  .toprow>#fabcard>.fabbody::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
-  .toprow>#fabcard>.fabbody::-webkit-scrollbar-track{background:transparent}
+  /* ---- efficiency band donut ---- */
+  .chartcard{padding:9px 12px;display:flex;flex-direction:column}
+  .chartcard:before{background:var(--blue)}
+  .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .donutwrap{position:relative;width:104px;height:104px;flex:0 0 auto}
+  .donut{width:104px;height:104px;display:block}
+  .donut circle{transition:stroke-dasharray .5s cubic-bezier(.22,.61,.36,1)}
+  /* Dimming is driven from JS, not :hover, so the legend rows can trigger the
+     exact same highlight as the slices themselves. */
+  .donut circle.seg{cursor:pointer;transition:opacity .13s}
+  .dcen{position:absolute;inset:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;pointer-events:none;text-align:center;line-height:1.15}
+  /* kept compact: the thicker ring leaves a smaller hole to write into */
+  .dcen b{font-size:15px;font-weight:800;line-height:1}
+  .dcen span{font-size:7.5px;font-weight:700;color:var(--mut);margin-top:1px;white-space:nowrap}
+  .dcen span.pc{font-size:9px;color:var(--txt);margin-top:0}
+  .legend{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-width:0}
+  .lgrow{display:flex;align-items:center;gap:7px;font-size:11px;cursor:pointer;
+         padding:2px 5px;margin:-2px -5px;border-radius:6px;transition:background .12s}
+  .lgrow:hover{background:#F2F4FA}
+  .lgrow .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .lgrow .lgl{color:var(--txt);font-weight:700;white-space:nowrap}
 
   /* overflow:clip, not hidden. Both clip the rounded corners identically, but
      'hidden' creates a scroll container which breaks position:sticky headers. */
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;overflow:clip;
-        box-shadow:0 1px 2px rgba(37,42,69,.05)}
+        box-shadow:0 1px 2px rgba(37,42,69,.05);transition:box-shadow .15s}
   .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
   .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
 
-  /* Floor card gets the raised treatment, same language as the daily report */
+  /* Floor Wise Report: raised "pop" card, visually distinct from Individual Report below it */
   #floorcard{border:1px solid var(--peach);border-radius:14px;
         box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
         background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
@@ -92,57 +101,71 @@
   #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
   #floorcard th{background:#404B8C}
   #floorcard th:hover{background:#4A56A0}
+  /* Sits on the navy Floor Wise header bar, so muted grey was unreadable.
+     Peach on translucent white reads clearly against that background. */
   .hint{font-size:10px;font-weight:700;color:var(--peach);letter-spacing:.2px;
         background:rgba(255,255,255,.13);border:1px solid rgba(255,207,149,.5);
         border-radius:20px;padding:3px 10px;white-space:nowrap}
-  #mkcard .hint,#fabcard .hint{color:var(--violet);background:#F3EEFC;border-color:#D6C8F0}
+  /* Individual card header is cream, not navy, so peach would disappear there */
+  #indcard .hint{color:var(--violet);background:#F3EEFC;border-color:#D6C8F0}
   .fsel{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-family:inherit;font-size:11px;background:#fff;color:var(--txt);font-weight:700;max-width:100%}
-  .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:210px}
+  .search{border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-family:inherit;font-size:11.5px;width:200px}
   .push{margin-left:auto}
 
-  /* ---- fabric type bar list ---- */
-  .fabbody{padding:9px 12px 11px}
-  .fabrow{display:grid;grid-template-columns:82px 1fr 46px;align-items:center;gap:8px;
-          padding:4px 5px;margin:0 -5px;border-radius:6px;cursor:pointer;transition:background .12s}
-  .fabrow:hover{background:#F2F4FA}
-  .fabrow.on{background:#EFE7FB;box-shadow:inset 2px 0 0 var(--violet)}
-  .fabname{font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bartrack{height:11px;background:#EDEFF6;border-radius:3px;overflow:hidden;position:relative}
-  .barfill{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
-  .barfill.red{background:var(--red)} .barfill.green{background:var(--green)} .barfill.blue{background:var(--blue)}
-  .fabpct{font-size:10.5px;font-weight:800;text-align:right}
-  .fabpct.red{color:var(--red)} .fabpct.green{color:var(--green)} .fabpct.blue{color:var(--blue)}
-
-  /* ---- active filter bar ---- */
-  .activebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-             padding:7px 13px;background:#F6F4FD;border-bottom:1px solid #E4DDF6}
-  .ablabel{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .afchip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
-          color:var(--navy);background:#fff;border:1px solid #D6C8F0;border-radius:20px;padding:3px 5px 3px 10px}
-  .afchip b{color:var(--violet)}
-  .afchip i{font-style:normal;cursor:pointer;width:15px;height:15px;border-radius:50%;
-            display:inline-flex;align-items:center;justify-content:center;
-            background:#EFE7FB;color:var(--violet);font-size:12px;line-height:1}
-  .afchip i:hover{background:var(--violet);color:#fff}
-  .afclear{margin-left:auto;background:transparent;border:1px solid var(--line);border-radius:20px;
-           padding:3px 11px;font-family:inherit;font-size:10.5px;font-weight:800;
-           color:var(--mut);cursor:pointer}
-  .afclear:hover{border-color:var(--red);color:var(--red)}
-  .fabsub{font-size:9px;color:var(--mut);grid-column:2 / span 2;margin-top:-2px}
-
+  /* overflow stays visible at every width. A scrolling wrapper would become the
+     anchor for the sticky headers below and stop them pinning to the screen, so
+     instead the two tables are made to fit narrow screens (see phone rules). */
   .scroll{overflow:visible}
   table{width:100%;border-collapse:collapse;min-width:700px}
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:center;cursor:pointer;user-select:none;white-space:nowrap}
   th:hover{background:#3D4880}
   th .arr{font-size:8px;opacity:.85;margin-left:2px}
 
+  /* Sticky headers, all screen sizes including mobile.
+     Two layers stack: the card title bar (.hd) sits directly under the control
+     strip, and the table's column header row sits directly under that. Both
+     stick only while their own card is on screen, then scroll away with it.
+     Detail drill-down table is deliberately excluded. */
+  /* Desktop: all four cards share the leftover height rather than one card
+     growing and holding a big empty middle. The chart takes a larger share
+     because the donut needs the room. */
   @media(min-width:901px){
-    #floorcard>.hd,#mkcard>.hd{position:sticky;top:var(--stripH);z-index:16}
-    #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
-    #mktable>thead th{position:sticky;top:calc(var(--stripH) + var(--mkHdH,0px));z-index:15}
-    #flrtable>thead th,#mktable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+    .toprow .kpis>.kpi{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+    .toprow .kpis>.chartcard{flex:1.7 1 auto}
   }
 
+  #floorcard>.hd,#indcard>.hd{position:sticky;top:var(--stripH);z-index:16}
+  /* Direct child combinator (>) between table and thead is the important
+     part: #indtable's tbody holds the drill-down's own <table class="dettable">,
+     which also has its own thead>th. A plain descendant selector would catch
+     that nested header too and stick it right under the real one. This only
+     matches a thead that is a direct child of #flrtable/#indtable itself. */
+  #flrtable>thead th{position:sticky;top:calc(var(--stripH) + var(--flrHdH,0px));z-index:15}
+  #indtable>thead th{position:sticky;top:calc(var(--stripH) + var(--indHdH,0px));z-index:15}
+  /* border-collapse drops cell borders when sticky, so redraw them */
+  #flrtable>thead th,#indtable>thead th{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+
+  /* Third layer: the drill-down's own header, once an operator row is expanded.
+     Sits directly under the Individual Report column header, so it stays fixed
+     only while that operator's cut list is scrolling by.
+
+     .detscroll must stay overflow:visible for this to work. A scroll container
+     ancestor makes the browser measure --detTop from that box instead of the
+     page, and because sticky also pushes an element DOWN when it sits above the
+     threshold, the header got parked ~99px into the cut list permanently.
+     Its overflow is therefore declared in a max-width rule further down rather
+     than as a base rule, since a later same-specificity declaration would
+     otherwise override this block regardless of the media query.
+     Gated at 1200px because the table is 1080px wide and below that the card is
+     too narrow, so .detscroll has to stay a real horizontal scroller. */
+  @media(min-width:1200px){
+    /* border-collapse:separate avoids Chrome's sticky-offset miscalculation on
+       collapsed-border tables. Visually identical, the cells draw their own
+       bottom border already. */
+    table.dettable{border-collapse:separate;border-spacing:0}
+    table.dettable>thead th{position:sticky;top:var(--detTop,0px);
+      z-index:14;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+  }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
   tbody tr:nth-child(even){background:#FAFBFE}
@@ -156,55 +179,45 @@
 
   .pct{font-weight:800}
   .pct.red{color:var(--red)} .pct.green{color:var(--green)} .pct.blue{color:var(--blue)}
-  .bad{color:var(--red);font-weight:800}
-  .waste{color:var(--amber);font-weight:800}
+  .idshort{display:none}
   .lblp{display:none}   /* short header label, print only */
 
-  /* ---- marker drill-down ---- */
-  tr.mkrow{cursor:pointer}
-  tr.mkrow.open{background:#EFE7FB !important;font-weight:800;color:#3A2470}
-  tr.mkrow.open>td{border-top:2px solid var(--violet);border-bottom:0}
-  tr.mkrow.open>td:first-child{border-left:2px solid var(--violet)}
-  tr.mkrow.open>td:last-child{border-right:2px solid var(--violet)}
+  /* ---- operator drill-down ---- */
+  tr.oprow{cursor:pointer}
+  /* The opened row is now the detail block's heading, so it carries the weight
+     and closes the top of the bordered group. */
+  tr.oprow.open{background:#EFE7FB !important;font-weight:800;color:#3A2470}
+  tr.oprow.open>td{border-top:2px solid var(--violet);border-bottom:0}
+  tr.oprow.open>td:first-child{border-left:2px solid var(--violet)}
+  tr.oprow.open>td:last-child{border-right:2px solid var(--violet)}
   .caret{display:inline-block;width:0;height:0;border-left:4px solid var(--mut);
          border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;
          margin-right:5px;transition:transform .15s;vertical-align:middle}
-  tr.mkrow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
-  tr.detrow>td{padding:0;background:#EFE9FA;border:2px solid var(--violet);border-top:0}
+  tr.oprow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
+  /* Violet-tinted throughout so the nested cut-by-cut table never reads as
+     part of the white parent table above it. */
+  tr.detrow>td{padding:0;background:#EFE9FA;
+               border:2px solid var(--violet);border-top:0}
   .detbox{padding:11px 13px}
-  /* No overflow declared here on purpose, so it stays 'visible'. A scroll
-     container would become the anchor for the sticky header below and stop it
-     pinning to the page. Horizontal scrolling is added back only on narrower
-     screens, in the max-width rule right underneath. */
+  /* No overflow here on purpose, so it stays 'visible' and the sticky header
+     below can anchor to the page. Horizontal scrolling is added back only on
+     narrow screens, in the max-width rule further down. */
   .detscroll{border:1px solid #D6C8F0;border-radius:8px;background:#FBF9FE}
-
-  /* The roll table is 1360px wide. Allowing for wrap padding, card border and
-     detbox padding it needs roughly 1430px of viewport before it fits without
-     scrolling, which is where the sticky header can take over. */
-  @media(max-width:1429px){
+  @media(max-width:1199px){
     .detscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   }
-  @media(min-width:1430px){
-    /* border-collapse:separate avoids Chrome miscalculating a sticky th offset
-       on a collapsed-border table. Identical visually, the cells already draw
-       their own bottom border. */
-    table.dettable{border-collapse:separate;border-spacing:0}
-    table.dettable>thead th{position:sticky;top:var(--detTop,0px);z-index:14;
-      box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
-  }
-  table.dettable{min-width:1360px;margin:0}
-  table.dettable th{background:#6A46B5;font-size:8.5px;padding:6px 7px;cursor:default}
+  table.dettable{min-width:1080px;margin:0}
+  table.dettable td:first-child{color:#8A7CB0;font-weight:700}
+  /* violet header, against the parent table's navy, so the two never blur together */
+  /* wrap onto two lines so the extra MP column does not widen the table */
+  table.dettable th{background:#6A46B5;font-size:8.5px;padding:6px 6px;cursor:default;
+                    white-space:normal;line-height:1.2}
   table.dettable th:hover{background:#6A46B5}
   table.dettable td{padding:5px 7px;font-size:11px;border-bottom:1px solid #E7DFF7}
   table.dettable tbody tr{background:#FBF9FE}
   table.dettable tbody tr:nth-child(even){background:#F4EFFC}
   table.dettable tbody tr:hover{background:#E8DEFA}
-  table.dettable tbody tr.fail{background:#FDECEC}
-  table.dettable tbody tr.fail:hover{background:#FADCDC}
   .detloading{padding:20px;text-align:center;color:#6B5B92;font-size:11.5px;font-weight:700}
-  .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:9.5px;font-weight:800}
-  .tag.yes{background:#E4F4EA;color:var(--green)}
-  .tag.no{background:#FBE3E5;color:var(--red)}
 
   .chips{display:flex;gap:4px;flex-wrap:wrap}
   .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 10px;font-size:10px;font-weight:800;cursor:pointer;color:var(--mut)}
@@ -215,64 +228,84 @@
   .chip.fact:hover{border-color:var(--navy);color:var(--navy);background:#E7EAF6}
   .chip.fact.on{background:var(--navy);border-color:var(--navy);color:#fff}
 
-  .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE;line-height:1.5}
+  .foot{font-size:10px;color:var(--mut);padding:8px 13px;background:#FAFBFE}
   .loading{padding:60px;text-align:center;color:var(--mut);font-weight:700}
   .spin{display:inline-block;width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:sp .9s linear infinite;margin-bottom:10px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:40px;text-align:center;color:var(--mut);line-height:1.7}
 
+  /* ---- print-only header ---- */
   .printhead{display:none}
 
   /* ---------------- Tablet ---------------- */
   @media(max-width:900px){
     .strip{padding:6px 11px;gap:9px}
     .strip h2{font-size:11.5px}
-    .sep{display:none}
+    .strip .rsub,.sep{display:none}
     .wrap{padding:11px 11px 22px}
     .search{width:170px}
-    .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
-    /* stacked here, so the card sizes to its content and the list is not
-       trapped in a short scroll box */
-    .toprow{grid-template-columns:1fr;gap:11px;grid-auto-rows:auto}
-    .toprow>#fabcard{height:auto;min-height:0;display:block}
-    .toprow>#fabcard>.fabbody{overflow:visible;min-height:auto}
+    .toprow{grid-template-columns:1fr;gap:11px}
+    .toprow #floorcard{margin-bottom:0}
+    .kpis{flex-direction:row;flex-wrap:wrap;height:auto}
+    .kpis .kpi{flex:1 1 180px}
+    .toprow .chartcard{flex:1 1 260px}
+
+    /* Both tables must fit the screen from here down, otherwise they would need
+       a scrolling wrapper and the sticky headers above would stop pinning.
+       Input Min and Output Min drop out, and text wraps instead of forcing
+       width. Both columns still appear in the Excel export and the PDF. */
     .hp{display:none}
-    #flrtable,#mktable{min-width:0}
-    #flrtable th,#mktable th{white-space:normal;line-height:1.2}
-    #mktable td.l{white-space:normal}
+    #flrtable,#indtable{min-width:0}
+    #flrtable th,#indtable th{white-space:normal;line-height:1.2}
+    #indtable td.l{white-space:normal}
   }
 
   /* ---------------- Phone ---------------- */
   @media(max-width:560px){
+    /* Strip is sticky, so every extra wrapped row costs permanent screen
+       height. Left-aligned and compact keeps it to two rows at most. */
     .strip{padding:6px 9px;gap:6px 8px;justify-content:flex-start}
     .strip h2{font-size:11px}
     .strip label{display:none}
     /* size the visible wrapper, not the transparent input inside it */
     .dpick{font-size:11.5px;padding:6px 8px;gap:5px;flex:0 1 auto;min-width:0}
-    .mini{padding:7px 11px;font-size:11px}
+    .mini{padding:7px 11px;font-size:11px}      /* ~34px tall, thumb friendly */
     .showing{font-size:10px;order:5;width:100%}
     .acts{margin-left:auto}
     .wrap{padding:10px 9px 20px}
-    .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+    .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .kpi{padding:9px 11px}
     .kpi:first-child{grid-column:span 2}
+    .chartcard{grid-column:span 2}
     .kpi .v{font-size:21px}
+    .kpi .k{font-size:8.5px}
+    .kpi .s{font-size:9px}
+
     .card .hd{padding:8px 10px;gap:6px}
     .card .hd h3{font-size:11px;width:100%}
     .hint{display:none}
-    .push{display:none}
+    .push{display:none}                          /* no room to push things apart */
     .fsel{font-size:11px;padding:7px 8px;flex:1 1 100%;min-width:0}
     .search{width:100%;padding:7px 9px;font-size:12px}
+
+    /* Floor chips: one swipeable row instead of 12 chips wrapping into four
+       rows and burying the table below the fold. */
     .chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
            scrollbar-width:none;width:100%;padding-bottom:2px}
     .chips::-webkit-scrollbar{display:none}
     .chip{flex:0 0 auto;padding:6px 12px;font-size:11px}
+
     th{font-size:8.5px;padding:7px 6px}
     td{padding:7px 6px;font-size:11.5px}
-    .hs{display:none}
+    .hs{display:none}          /* hide lower-priority columns on phone */
+
+
     .detbox{padding:8px 9px}
     .foot{font-size:9px;padding:7px 10px}
   }
 
+  /* ---------------- Small phone ---------------- */
   @media(max-width:400px){
     .strip h2{font-size:10.5px}
     .mini{padding:7px 9px;font-size:10.5px}
@@ -280,42 +313,38 @@
     .card .hd h3{font-size:10.5px}
   }
 
-  /* ---------------- Print: A4 landscape ---------------- */
-  /* Landscape, not portrait: the marker table carries 11 columns and would be
-     squeezed unreadable on a portrait page. */
-  @page{ size:A4 landscape; margin:9mm 8mm; }
+  /* ---------------- Print: A4 portrait ---------------- */
+  @page{ size:A4 portrait; margin:11mm 9mm; }
   @media print{
     body{background:#fff;font-size:9pt}
-    /* activebar hidden: the print header already lists every active filter */
-    .strip,.chips,.search,.fsel,.hint,.push,.acts,.activebar,.kpi:before{display:none !important}
+    .strip,.chips,.search,.fsel,.hint,.push,.acts,.kpi:before{display:none !important}
     .wrap{padding:0;max-width:none}
     .scroll{overflow:visible}
-    .card{border:1px solid #bbb;border-radius:0;margin-bottom:6mm;break-inside:auto;
+    .card{border:1px solid #bbb;border-radius:0;margin-bottom:8mm;break-inside:auto;
           box-shadow:none !important;background:#fff !important}
     .card .hd{background:#fff !important;padding:4pt 0;border-bottom:1.2pt solid var(--navy);position:static !important}
     .card .hd h3{font-size:10.5pt;color:var(--navy) !important}
     .card .hd h3:before{content:'' !important;margin:0 !important}
     #floorcard th{background:#333D6D !important}
-    .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:4mm;
+    .printhead{display:flex;align-items:center;gap:6mm;margin-bottom:5mm;
                border-bottom:1.5pt solid #333D6D;padding-bottom:3mm}
-    .printhead img{height:9mm;width:auto;flex:0 0 auto;display:block}
+    .printhead img{height:10mm;width:auto;flex:0 0 auto;display:block}
     .printhead .phbody{flex:1 1 auto;min-width:0}
     .printhead h1{font-size:11.5pt;font-weight:800;color:#333D6D;line-height:1.2;margin:0 0 2mm 0}
-    .printhead .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2mm 5mm;
+    .printhead .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2mm 5mm;
                      font-size:7.4pt;color:#666;line-height:1.35}
     .printhead .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .printhead .meta b{color:#111;font-weight:700}
-    .toprow{display:block;grid-auto-rows:auto}
-    #fabcard{page-break-inside:avoid}
-    /* paper has no scrollbar, so the whole fabric list must print, not just
-       the part that happens to be scrolled into view on screen */
-    .toprow>#fabcard{height:auto !important;min-height:0 !important;display:block !important}
-    .toprow>#fabcard>.fabbody{overflow:visible !important;min-height:auto !important;max-height:none !important}
-    .kpis{display:flex;gap:3mm;margin-bottom:5mm;grid-template-columns:none}
-    .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:2.5mm;page-break-inside:avoid}
-    .kpi .v{font-size:13pt}
-    .kpi .k{font-size:6.6pt}
-    .kpi .s{font-size:6.2pt}
+    .toprow{display:block}
+    /* chart is screen-only, the PDF layout stays exactly as it was */
+    .chartcard{display:none !important}
+    .kpis{display:flex;gap:4mm;margin-bottom:6mm}
+    .kpi{flex:1;border:1px solid #bbb;border-radius:0;padding:3mm;page-break-inside:avoid}
+    .kpi .v{font-size:15pt}
+    .kpi .k{font-size:7pt}
+    .kpi .s{font-size:6.5pt}
+    /* Fixed layout is what stops the table ever overflowing the page again,
+       whatever content or columns change later. */
     table{min-width:0 !important;width:100% !important;table-layout:fixed;font-size:7.4pt}
     thead{display:table-header-group}
     tr{page-break-inside:avoid}
@@ -325,19 +354,41 @@
     td{padding:2.8pt 2pt;border-bottom:.5pt solid #ddd;white-space:nowrap;
        overflow:hidden;text-overflow:ellipsis}
     td.l{white-space:normal;word-break:break-word}
-    .lbl{display:none} .lblp{display:inline}
+    .lbl{display:none} .lblp{display:inline}   /* swap to short headers */
+
+    /* Individual Report column widths, total 100%.
+       Column 5 is WH, hidden in print, so it takes no width. */
+    #indtable th:nth-child(1),#indtable td:nth-child(1){width:6%}
+    #indtable th:nth-child(2),#indtable td:nth-child(2){width:8%}
+    #indtable th:nth-child(3),#indtable td:nth-child(3){width:23%}
+    #indtable th:nth-child(4),#indtable td:nth-child(4){width:17%}
+    #indtable th:nth-child(5),#indtable td:nth-child(5){width:0}
+    #indtable th:nth-child(6),#indtable td:nth-child(6){width:9%}
+    #indtable th:nth-child(7),#indtable td:nth-child(7){width:9%}
+    #indtable th:nth-child(8),#indtable td:nth-child(8){width:9%}
+    #indtable th:nth-child(9),#indtable td:nth-child(9){width:9%}
+    #indtable th:nth-child(10),#indtable td:nth-child(10){width:10%}
+
+    /* Floor Wise Report column widths */
+    #flrtable th:nth-child(1),#flrtable td:nth-child(1){width:22%}
+    #flrtable th:nth-child(2),#flrtable td:nth-child(2){width:26%}
+    #flrtable th:nth-child(3),#flrtable td:nth-child(3){width:26%}
+    #flrtable th:nth-child(4),#flrtable td:nth-child(4){width:26%}
     tbody tr:nth-child(even){background:#F6F7FB !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tr.totalrow{background:#333D6D !important;color:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .pct.red{color:#C0392B !important} .pct.green{color:#146C3A !important} .pct.blue{color:#14539E !important}
     .hs{display:table-cell !important}
-    .hp{display:table-cell !important}
+    .hp{display:table-cell !important}            /* Input/Output Min return on paper */
+    .nop{display:none !important}                 /* WH column dropped so all others fit */
+    .idfull{display:none} .idshort{display:inline}/* last 5 digits of Op. ID only */
     /* drill-down never prints, paper output stays identical whatever is open */
     tr.detrow{display:none !important}
-    tr.mkrow.open{background:transparent !important;box-shadow:none !important}
+    tr.oprow.open{background:transparent !important;box-shadow:none !important}
     .caret{display:none !important}
     .foot{background:#fff;font-size:7pt;padding:3pt 0;border-top:.5pt solid #ddd}
+    /* a single floor is selected: the whole floor table is noise on paper */
     body.single-floor #floorcard{display:none !important}
-    .printfoot{display:block !important;margin-top:4mm;font-size:7pt;color:#666;text-align:center;
+    .printfoot{display:block !important;margin-top:5mm;font-size:7pt;color:#666;text-align:center;
                border-top:.5pt solid #ccc;padding-top:2mm}
   }
   .printfoot{display:none}
@@ -346,7 +397,7 @@
 <body>
 
 <div class="strip">
-  <h2>Fabric Roll Compliance Report</h2>
+  <h2>Daily Individual Eff% Report</h2>
   <div class="sep"></div>
   <label>Report Date</label>
   <span class="dpick">
@@ -360,7 +411,7 @@
     <button class="mini" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
-    <button class="mini" onclick="doPrint()" title="Print current view, A4 landscape">
+    <button class="mini" onclick="doPrint()" title="Print current view, A4 portrait">
       <svg viewBox="0 0 24 24"><path d="M7 3h10v4H7V3zm12 6H5a2 2 0 00-2 2v6h4v4h10v-4h4v-6a2 2 0 00-2-2zm-4 10H9v-4h6v4z"/></svg> Print
     </button>
   </div>
@@ -369,38 +420,30 @@
 <div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
 
 <script>
-/* =====================================================================
-   Fabric Roll Compliance Report
-   ---------------------------------------------------------------------
-   Read straight from the Google Sheet, never recomputed here:
-     marker compliance %  -> column G
-     roll pass / fail     -> column V
-     floor compliance %   -> Summary tab
-   Calculated in Code.gs because the sheet does not hold it:
-     Excess    = Roll Width - MW
-     Waste Yds = Used Yds x (Excess - 1.00) / Roll Width, failed rolls only
-   ===================================================================== */
+var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 
-var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
-var SNAP_KEY='fabric_snapshot_v1', DAYPFX='fabric_day_', DETPFX='fabric_det_';
-
-var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
-var floorFilter='', fabricFilter='', query='', compFilter='all';
-var sortKey='waste', sortDir=-1;
-var fSortKey='floor', fSortDir=1;
-var DETAIL={}, DETLOADING={};
-var expandKey='';
+var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
+var floorFilter='', sortKey='eff', sortDir=1, query='';
+var fSortKey='floor', fSortDir=1;                 /* Floor Wise Report sorting */
+var effFloorFilter='all', effIndFilter='all';
+var DETAIL={};        /* key: date_floor  ->  array of cut rows */
+var DETLOADING={};    /* key: date_floor  ->  true while a background fetch runs */
+var expandKey='';     /* floor|opId of the currently open operator */
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 /* Building filter: '' = both factories, otherwise 'SOL' or 'SSL' */
 var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']};
 var factFilter='';
+/* Floors in scope right now: the selected factory's floors, or all of them */
 function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
 function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
-var TOLERANCE=1.00;
 
-function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
-/* Compliance bands: red below 90, green 90 to 98, blue above 98. */
-function pctClass(p){return p<90?'red':(p<=98?'green':'blue')}
+function fmt(n,d){return (n==null||isNaN(n))?'-':n.toFixed(d==null?0:d)}
+/* Bands: red below 65, green 65 to 90, blue above 90. */
+function pctClass(p){return p<65?'red':(p<=90?'green':'blue')}
+function padId(id){id=String(id||'').trim();return id.charAt(0)==='0'?id:'0'+id}
+function shortId(id){return padId(id).slice(-5)}
+/* Sort floors in factory order (SOL 1A-1E, 3A, then SSL 2A-2E), not alphabetically */
 function floorRank(f){var i=FLOOR_ORDER.indexOf(f);return i<0?999:i}
 /* House date format, used everywhere on screen, in print and in exports:
    "1 Aug, 2026" */
@@ -418,19 +461,18 @@ function prettyStamp(d){
   var mm=('0'+d.getMinutes()).slice(-2);
   return d.getDate()+' '+m[d.getMonth()]+', '+d.getFullYear()+', '+hh+':'+mm+' '+ap;
 }
-function compPass(v,mode){
-  if(mode==='lt90')return v<90;
-  if(mode==='90to98')return v>=90&&v<=98;
-  if(mode==='gt98')return v>98;
+function effPass(v,mode){
+  if(mode==='lt65')return v<65;
+  if(mode==='65to90')return v>=65&&v<=90;
+  if(mode==='gt90')return v>90;
   return true;
 }
-function compLabel(mode){
-  return mode==='lt90'?'Below 90%':mode==='90to98'?'90% to 98%':mode==='gt98'?'Above 98%':'All';
+function effLabel(mode){
+  return mode==='lt65'?'Below 65%':mode==='65to90'?'65% to 90%':mode==='gt90'?'Above 90%':'All';
 }
-function mapMarkers(arr){
+function mapRows(arr){
   return (arr||[]).map(function(r){
-    return {floor:r[0],date:r[1],markerSL:r[2],cutNo:r[3],fabric:r[4],ml:r[5],mw:r[6],
-            table:r[7],rolls:r[8],fails:r[9],rate:r[10],used:r[11],waste:r[12]};
+    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],inMin:r[7],outMin:r[8],effPct:r[9]};
   });
 }
 function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
@@ -451,11 +493,11 @@ function boot(){
 
 function applySnapshot(res){
   DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST; STAMP=res.generatedAt||'';
-  MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
+  DATA=mapRows(res.rows);
   DETAIL={}; DETLOADING={};
   document.getElementById('d1').value=LATEST;
   tellParent(STAMP);
-  if(!MARKERS.length && !LATEST){
+  if(!DATA.length && !LATEST){
     document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return;
   }
   resetFilters(); render();
@@ -480,12 +522,10 @@ function pickDate(){
   DAY=d;
   if(d===LATEST){
     var snap=cacheGet(SNAP_KEY);
-    if(snap){ MARKERS=mapMarkers(snap.markers); FLOORRATES=snap.floorRates||{};
-              STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+    if(snap){ DATA=mapRows(snap.rows); STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
   }
   var cached=cacheGet(DAYPFX+d);
-  if(cached){ MARKERS=mapMarkers(cached.markers); FLOORRATES=cached.floorRates||{};
-              STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+  if(cached){ DATA=mapRows(cached.rows); STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
 
   document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+prettyDate(d)+'&hellip;</div>';
   fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d))
@@ -493,25 +533,25 @@ function pickDate(){
     .then(function(res){
       if(res.error)throw new Error(res.error);
       cacheSet(DAYPFX+d,res);
-      MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
-      STAMP=res.generatedAt; tellParent(STAMP);
+      DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
       resetFilters(); render();
     }).catch(showErr);
 }
 
-function resetFilters(){floorFilter='';factFilter='';fabricFilter='';query='';compFilter='all';expandKey=''}
+function resetFilters(){floorFilter='';factFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
 
-/* ---------- roll drill-down ---------- */
+/* ---------- operator drill-down ---------- */
 function detKey(floor){ return DAY+'_'+floor }
 
-/* Warm the roll-level data for a floor quietly in the background, so the
-   first marker click normally finds it already in memory. */
+/* Warm the cut-level data for a floor quietly in the background.
+   No spinner, no layout change. By the time an operator row is clicked
+   the data is normally already sitting in memory. */
 function prefetchDetail(floor){
   if(!floor||!DAY) return;
   var k=detKey(floor);
   if(DETAIL[k]||DETLOADING[k]) return;
 
-  var cached=cacheGet(DETPFX+k);
+  var cached=cacheGet('sosl_det2_'+k);
   if(cached){ DETAIL[k]=cached.rows||[]; return; }
 
   DETLOADING[k]=true;
@@ -521,12 +561,14 @@ function prefetchDetail(floor){
       DETLOADING[k]=false;
       if(res.error) return;
       DETAIL[k]=res.rows||[];
-      cacheSet(DETPFX+k,res);
+      cacheSet('sosl_det2_'+k,res);
+      /* only repaint if the user is already waiting on this floor */
       if(expandKey && expandKey.split('|')[0]===floor) render();
     })
     .catch(function(){ DETLOADING[k]=false; });
 }
 
+/* Warm every floor currently on screen, one at a time so the ERP is not hammered */
 function prefetchVisibleFloors(list){
   var queue=list.slice(), i=0;
   (function next(){
@@ -536,15 +578,21 @@ function prefetchVisibleFloors(list){
   })();
 }
 
+/* Combined height of whatever is pinned at the top right now, so a scrolled
+   row lands just below it instead of hiding underneath. Which layers are
+   actually sticky depends on the breakpoint, so mirror that here. */
 function stickyStackH(){
   var h=boxH('.strip');
   if(window.matchMedia('(min-width:901px)').matches){
-    h+=boxH('#mkcard>.hd')+boxH('#mktable>thead>tr');
+    h+=boxH('#indcard>.hd')+boxH('#indtable>thead>tr');
   }
   return h;
 }
+
+/* Glide the opened operator row up under the pinned headers so the eye can
+   follow where the page jumped to. */
 function scrollRowIntoView(){
-  var row=document.querySelector('tr.mkrow.open');
+  var row=document.querySelector('tr.oprow.open');
   if(!row) return;
   var smooth=!window.matchMedia('(prefers-reduced-motion:reduce)').matches;
   var top=window.pageYOffset+row.getBoundingClientRect().top-stickyStackH()-10;
@@ -552,85 +600,107 @@ function scrollRowIntoView(){
   window.scrollTo({top:top,behavior:smooth?'smooth':'auto'});
 }
 
-function toggleDetail(floor,markerSL,cutNo,ev){
+function toggleDetail(floor,opId,ev){
   if(ev) ev.stopPropagation();
-  var k=floor+'|'+markerSL+'|'+cutNo;
-  var opening=(expandKey!==k);
-  expandKey=opening?k:'';
+  var k=floor+'|'+opId;
+  var opening = (expandKey!==k);
+  expandKey = opening ? k : '';
   if(expandKey) prefetchDetail(floor);
   render();
+  /* next frame, so the expanded block is laid out before we measure */
   if(opening) requestAnimationFrame(scrollRowIntoView);
 }
 
-function detailRowsFor(floor,markerSL,cutNo){
+function detailRowsFor(floor,opId){
   var rows=DETAIL[detKey(floor)];
   if(!rows) return null;
-  return rows.filter(function(r){
-    return String(r[0])===String(markerSL) && String(r[1])===String(cutNo);
-  });
+  var target=padId(opId);
+  return rows.filter(function(r){ return padId(r[0])===target; });
 }
 function showErr(e){
   document.getElementById('content').innerHTML='<div class="empty">Error: '+e.message
-    +'<br><br>Check: 1) API_URL is the /exec link of the Fabric Compliance sheet, 2) deployment access is "Anyone", 3) a NEW VERSION was deployed after the last code change.</div>';
+    +'<br><br>Check: 1) API_URL is the /exec link, 2) deployment access is "Anyone with the link", 3) a NEW VERSION was deployed after the last code change.</div>';
 }
 
 /* ---------- aggregation ---------- */
-function floorAgg(list){
+function operatorAgg(){
   var map={};
-  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,markers:0,rolls:0,fails:0,used:0,waste:0}});
-  list.forEach(function(m){
-    var f=map[m.floor]; if(!f)return;
-    f.markers++; f.rolls+=m.rolls; f.fails+=m.fails; f.used+=m.used; f.waste+=m.waste;
+  DATA.forEach(function(r){
+    var k=r.floor+'|'+r.opId;
+    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,eff:0,types:{}};
+    var o=map[k];
+    o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
+    /* Prefer the sheet's own Individual Eff% (column AD) verbatim. Only if the
+       API hasn't been redeployed yet and that field is absent do we fall back
+       to computing it, so the column never goes blank. */
+    if(typeof r.effPct==='number' && !isNaN(r.effPct)) o.eff=r.effPct;
+    String(r.types||'').split(',').forEach(function(t){t=t.trim();if(t)o.types[t]=1});
+    if(r.name)o.name=r.name; if(r.desig)o.desig=r.desig;
+  });
+  return Object.keys(map).map(function(k){
+    var o=map[k];
+    o.avgWh=o.wh/o.n;
+    /* Engagement% is capped at 100. An operator cannot be more than fully
+       engaged, so anything above that is a data artefact, not a real figure.
+       Capped here at the source so the table, sorting, print and the Excel
+       export all agree. No other column is touched. */
+    o.avgEng=Math.min(o.eng/o.n,100);
+    if(!o.eff) o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
+    o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
+    return o;
+  });
+}
+function floorAgg(ops){
+  var map={};
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0}});
+  ops.forEach(function(o){
+    var f=map[o.floor]; if(!f)return;
+    f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
+    if(o.eff<65)f.u65++;
   });
   return FLOOR_ORDER.map(function(k){
-    var f=map[k];
-    /* Summary tab value wins. Roll counts are only the fallback if that floor
-       has no Summary row for this date. */
-    var sheetRate=FLOORRATES[k];
-    f.comp=(typeof sheetRate==='number' && !isNaN(sheetRate))
-             ? sheetRate
-             : (f.rolls>0 ? (f.rolls-f.fails)/f.rolls*100 : 0);
-    return f;
+    var f=map[k]; f.eff=f.inMin>0?(f.outMin/f.inMin*100):0; return f;
   });
-}
-function fabricAgg(list){
-  var map={},order=[];
-  list.forEach(function(m){
-    var key=m.fabric||'(blank)';
-    if(!map[key]){map[key]={fabric:key,markers:0,rolls:0,fails:0,used:0,waste:0};order.push(key)}
-    var o=map[key];
-    o.markers++; o.rolls+=m.rolls; o.fails+=m.fails; o.used+=m.used; o.waste+=m.waste;
-  });
-  return order.map(function(k){
-    var o=map[k];
-    o.comp=o.rolls>0?(o.rolls-o.fails)/o.rolls*100:0;
-    return o;
-  }).sort(function(a,b){ return a.comp-b.comp || b.rolls-a.rolls });
 }
 
+/* current visible sets, shared by render + export + print */
 function currentSets(){
-  var floorsAll=floorAgg(MARKERS);
+  var ops=operatorAgg();
+  var floorsAll=floorAgg(ops);
 
   /* Total row covers the selected factory only, or both when none is picked */
-  var grand={markers:0,rolls:0,fails:0,used:0,waste:0};
-  MARKERS.filter(function(m){return inScope(m.floor)}).forEach(function(m){
-    grand.markers++; grand.rolls+=m.rolls; grand.fails+=m.fails; grand.used+=m.used; grand.waste+=m.waste;
-  });
-  grand.comp=grand.rolls>0?(grand.rolls-grand.fails)/grand.rolls*100:0;
+  var grand={man:0,inMin:0,outMin:0,u65:0};
+  floorsAll.filter(function(f){return inScope(f.floor)})
+    .forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
+  grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
 
-  /* KPI scope follows the floor selection, else the factory scope */
-  var scoped = MARKERS.filter(function(m){
-    return floorFilter ? m.floor===floorFilter : inScope(m.floor);
-  });
-  var tot={markers:0,rolls:0,fails:0,used:0,waste:0};
-  scoped.forEach(function(m){
-    tot.markers++; tot.rolls+=m.rolls; tot.fails+=m.fails; tot.used+=m.used; tot.waste+=m.waste;
-  });
-  tot.comp=tot.rolls>0?(tot.rolls-tot.fails)/tot.rolls*100:0;
+  /* KPI totals follow the floor selection, else the factory scope */
+  var tot;
+  if(floorFilter){
+    var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
+            || {man:0,inMin:0,outMin:0,u65:0,eff:0};
+    tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff};
+  } else {
+    tot=grand;
+  }
 
-  var fabrics=fabricAgg(scoped);
+  /* Operator counts per efficiency band, in the same scope the KPI cards use,
+     so the chart follows both the factory and the floor selection. */
+  var bandOps = ops.filter(function(o){
+    return floorFilter ? o.floor===floorFilter : inScope(o.floor);
+  });
+  var bands={lo:0,mid:0,hi:0,total:bandOps.length};
+  bandOps.forEach(function(o){
+    if(o.eff<65) bands.lo++; else if(o.eff<=90) bands.mid++; else bands.hi++;
+  });
 
-  var floorsShown=floorsAll.filter(function(f){return f.markers>0 && inScope(f.floor)});
+  /* Floor table lists every floor of the selected factory. Clicking a single
+     floor row only highlights it, it does not shorten this list. */
+  var floorsShown=floorsAll.filter(function(f){
+    if(f.man===0)return false;
+    if(!inScope(f.floor))return false;
+    return effPass(f.eff,effFloorFilter);
+  });
   floorsShown.sort(function(a,b){
     if(fSortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*fSortDir;
     var va=a[fSortKey],vb=b[fSortKey];
@@ -638,28 +708,24 @@ function currentSets(){
     return (va-vb)*fSortDir;
   });
 
-  var mkShown=MARKERS.filter(function(m){
-    if(!inScope(m.floor))return false;
-    if(floorFilter&&m.floor!==floorFilter)return false;
-    if(fabricFilter&&m.fabric!==fabricFilter)return false;
-    if(!compPass(m.rate,compFilter))return false;
+  var indShown=ops.filter(function(o){
+    if(!inScope(o.floor))return false;
+    if(floorFilter&&o.floor!==floorFilter)return false;
+    if(!effPass(o.eff,effIndFilter))return false;
     if(query){
       var q=query.toLowerCase();
-      if(String(m.cutNo).toLowerCase().indexOf(q)<0
-         && String(m.fabric).toLowerCase().indexOf(q)<0
-         && String(m.table).toLowerCase().indexOf(q)<0
-         && String(m.markerSL).indexOf(q)<0)return false;
+      if(o.name.toLowerCase().indexOf(q)<0 && padId(o.opId).indexOf(q)<0 && o.desig.toLowerCase().indexOf(q)<0)return false;
     }
     return true;
   });
-  mkShown.sort(function(a,b){
+  indShown.sort(function(a,b){
     if(sortKey==='floor') return (floorRank(a.floor)-floorRank(b.floor))*sortDir;
     var va=a[sortKey],vb=b[sortKey];
     if(typeof va==='string')return String(va).localeCompare(String(vb))*sortDir;
     return (va-vb)*sortDir;
   });
 
-  return {floorsAll:floorsAll,floorsShown:floorsShown,fabrics:fabrics,mkShown:mkShown,tot:tot,grand:grand};
+  return {ops:ops,floorsAll:floorsAll,floorsShown:floorsShown,indShown:indShown,tot:tot,grand:grand,bands:bands};
 }
 
 /* The native calendar only opens from the small icon by default, so a click
@@ -679,8 +745,8 @@ function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   syncDateLabel();
   var S=currentSets(), tot=S.tot;
-  var scopeLabel=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
-  var scopeNote=floorFilter?('floor '+floorFilter):(factFilter?factFilter:'all floors');
+  var scopeLabel = floorFilter ? ('Floor '+floorFilter)
+                 : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
   document.body.classList.toggle('single-floor', !!floorFilter);
 
   var h='<div class="wrap">';
@@ -689,76 +755,51 @@ function render(){
   h+='<div class="printhead">'
     +'<img src="../logo.jpg" alt="SNOWTEX">'
     +'<div class="phbody">'
-      +'<h1>SOSL Cutting Section &mdash; Fabric Roll Compliance Report</h1>'
+      +'<h1>SOSL Cutting Section &mdash; Daily Individual Eff% Report</h1>'
       +'<div class="meta">'
         +'<span>Date <b>'+prettyDate(DAY)+'</b></span>'
-        +'<span>Scope <b>'+esc(scopeLabel)+'</b></span>'
-        +'<span>Fabric <b>'+esc(fabricFilter||'All')+'</b></span>'
-        +'<span>Filter <b>'+esc(compLabel(compFilter))+'</b></span>'
-        +'<span>Markers <b>'+tot.markers+'</b></span>'
-        +'<span>Rolls <b>'+tot.rolls+'</b></span>'
-        +'<span>Failed <b>'+tot.fails+'</b></span>'
-        +'<span>Generated <b>'+esc(STAMP)+'</b></span>'
-      +'</div></div></div>';
+        +'<span>Scope <b>'+scopeLabel+'</b></span>'
+        +'<span>Team Avg Eff% filter <b>'+effLabel(effFloorFilter)+'</b></span>'
+        +'<span>Individual Eff% filter <b>'+effLabel(effIndFilter)+'</b></span>'
+        +'<span>Last updated <b>'+(STAMP||'-')+'</b></span>'
+      +'</div>'
+    +'</div></div>';
 
-  /* KPI row */
-  h+='<div class="kpis">'
-    +'<div class="kpi"><div class="k">Total Markers</div><div class="v">'+tot.markers+'</div>'
-      +'<div class="s">markers laid, '+scopeNote+'</div></div>'
-    +'<div class="kpi k2"><div class="k">Total Rolls</div><div class="v">'+tot.rolls+'</div>'
-      +'<div class="s">'+fmt(tot.used,0)+' yds consumed</div></div>'
-    +'<div class="kpi k3"><div class="k">Roll Compliance %</div><div class="v '+pctClass(tot.comp)+'">'+fmt(tot.comp,1)+'%</div>'
-      +'<div class="s">passed rolls &divide; total rolls</div></div>'
-    +'<div class="kpi k4"><div class="k">Failed Rolls</div><div class="v '+(tot.fails>0?'red':'')+'">'+tot.fails+'</div>'
-      +'<div class="s">'+fmt(tot.rolls?tot.fails/tot.rolls*100:0,1)+'% of rolls, width over '+fmt(TOLERANCE,2)+'&Prime;</div></div>'
-    +'<div class="kpi k5"><div class="k">Wasted Fabric</div><div class="v '+(tot.waste>0?'amber':'')+'">'+fmt(tot.waste,1)+'</div>'
-      +'<div class="s">yds, '+fmt(tot.used?tot.waste/tot.used*100:0,2)+'% of consumption</div></div>'
+  var scopeNote = floorFilter ? ('Floor '+floorFilter)
+                : (factFilter ? factFilter : 'all floors');
+  var kpisHtml='<div class="kpis">'
+    +'<div class="kpi"><div class="k">Total Man Count</div><div class="v">'+tot.man+'</div><div class="s">operators with data, '+scopeNote+'</div></div>'
+    +'<div class="kpi k2"><div class="k">Overall Avg Eff% (%)</div><div class="v '+pctClass(tot.eff)+'">'+fmt(tot.eff,1)+'%</div><div class="s">&Sigma; Output Min &divide; &Sigma; Input Min, '+scopeNote+'</div></div>'
+    +'<div class="kpi k3"><div class="k">Operators Below 65%</div><div class="v '+(tot.u65>0?'red':'')+'">'+tot.u65+'</div><div class="s">'+fmt(tot.man?tot.u65/tot.man*100:0,1)+'% of '+scopeNote+' man count</div></div>'
+    +bandChart(S.bands)
     +'</div>';
 
-  /* Floor table + fabric bars */
   h+='<div class="toprow">';
-
-  h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor wise Roll Compliance</h3>'
-    +'<span class="hint">click a floor row to filter</span></div>';
+  h+='<div class="card" id="floorcard"><div class="hd"><h3>Cutting Floor wise Team Efficiency%</h3>'
+    +'<span class="hint">click a floor row to filter</span><div class="push"></div>'
+    +'<select class="fsel" onchange="effFloorFilter=this.value;render()">'
+      +opt('all','Team Avg Eff%: All',effFloorFilter)+opt('lt65','Team Avg Eff%: Below 65%',effFloorFilter)
+      +opt('65to90','Team Avg Eff%: 65% to 90%',effFloorFilter)+opt('gt90','Team Avg Eff%: Above 90%',effFloorFilter)
+    +'</select></div>';
   h+='<div class="scroll"><table id="flrtable"><thead><tr>'
-    +fth('Floor','floor')+fth('Markers','markers')+fth('Rolls','rolls')
-    +fth('Failed Rolls','fails')+fth('Compliance%','comp')+fth('Wasted Yds','waste')
+    +fTh('floor','Floor','Floor')+fTh('man','Man Count (nos)','Man Count')
+    +fTh('eff','Team Avg Eff% (%)','Team Avg Eff%')+fTh('u65','Eff% &lt; 65% (nos)','Eff% &lt; 65%')
     +'</tr></thead><tbody>';
-  if(!S.floorsShown.length)h+='<tr><td colspan="6" class="empty">No floor has data for this date.</td></tr>';
+  if(!S.floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this filter.</td></tr>';
   S.floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
-      +'<td><b>'+f.floor+'</b></td><td>'+f.markers+'</td><td>'+f.rolls+'</td>'
-      +'<td class="'+(f.fails?'bad':'')+'">'+f.fails+'</td>'
-      +'<td class="pct '+pctClass(f.comp)+'">'+fmt(f.comp,1)+'%</td>'
-      +'<td class="'+(f.waste?'waste':'')+'">'+fmt(f.waste,1)+'</td></tr>';
+      +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
+      +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
+      +'<td>'+f.u65+'</td></tr>';
   });
-  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.markers+'</td>'
-    +'<td>'+S.grand.rolls+'</td><td>'+S.grand.fails+'</td>'
-    +'<td class="pct">'+fmt(S.grand.comp,1)+'%</td><td>'+fmt(S.grand.waste,1)+'</td></tr>';
-  h+='</tbody></table></div><div class="foot">Floor Compliance% is read from the Summary tab. '
-    +'Red below 90% &bull; Green 90% to 98% &bull; Blue above 98%</div></div>';
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.man+'</td>'
+    +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
+  h+='</tbody></table></div></div>';
+  h+=kpisHtml;
+  h+='</div>'; // close toprow
 
-  h+='<div class="card" id="fabcard"><div class="hd"><h3>Compliance by Fabric Type</h3>'
-    +'<span class="hint">click to filter</span></div><div class="fabbody">';
-  if(!S.fabrics.length){
-    h+='<div class="empty" style="padding:18px">No fabric data.</div>';
-  }else{
-    S.fabrics.forEach(function(o){
-      var cls=pctClass(o.comp);
-      h+='<div class="fabrow'+(fabricFilter===o.fabric?' on':'')+'" onclick="toggleFabric(\''+esc(o.fabric).replace(/'/g,"\\'")+'\')">'
-        +'<div class="fabname" title="'+esc(o.fabric)+'">'+esc(o.fabric)+'</div>'
-        +'<div class="bartrack"><div class="barfill '+cls+'" style="width:'+Math.max(0,Math.min(100,o.comp))+'%"></div></div>'
-        +'<div class="fabpct '+cls+'">'+fmt(o.comp,0)+'%</div>'
-        +'<div class="fabsub">'+o.rolls+' rolls &bull; '+o.fails+' failed &bull; '+fmt(o.waste,1)+' yds wasted</div>'
-        +'</div>';
-    });
-  }
-  h+='</div></div>';
-  h+='</div>';
-
-  /* Marker table */
-  h+='<div class="card" id="mkcard"><div class="hd"><h3>Marker wise Roll Compliance</h3>'
-    +'<span class="hint">click a marker to see its rolls</span>';
+  h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>'
+    +'<span class="hint">click to get details</span>';
   /* All Floors | SOL | SSL | then only the floors of the chosen factory */
   h+='<div class="chips">'
     +'<span class="chip'+(floorFilter===''&&factFilter===''?' on':'')+'" onclick="toggleFact(\'\')">All Floors</span>'
@@ -766,169 +807,200 @@ function render(){
     +'<span class="chip fact'+(factFilter==='SSL'?' on':'')+'" onclick="toggleFact(\'SSL\')">SSL</span>';
   scopeFloors().forEach(function(f){h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="toggleFloor(\''+f+'\')">'+f+'</span>'});
   h+='</div><div class="push"></div>'
-    +'<select class="fsel" onchange="compFilter=this.value;expandKey=\'\';render()">'
-    +opt('all','All Compliance%',compFilter)+opt('lt90','Below 90%',compFilter)
-    +opt('90to98','90% to 98%',compFilter)+opt('gt98','Above 98%',compFilter)+'</select>'
-    +'<input class="search" id="q" placeholder="Search cut no / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
-  h+=activeFilterBar();
-  h+='<div class="scroll"><table id="mktable"><thead><tr>'
-    +mth('Floor','floor')+mth('Marker SL','markerSL','SL')+mth('Cut No','cutNo')
-    +mth('Fabric','fabric')+mth('ML (Yds)','ml','ML','hs')+mth('MW (Inch)','mw','MW')
-    +mth('Table','table','Tbl','hs')+mth('Rolls','rolls')+mth('Failed','fails')
-    +mth('Compliance%','rate','Comp%')+mth('Wasted Yds','waste','Waste')
+    +'<select class="fsel" onchange="effIndFilter=this.value;render()">'
+      +opt('all','Individual Eff%: All',effIndFilter)+opt('lt65','Individual Eff%: Below 65%',effIndFilter)
+      +opt('65to90','Individual Eff%: 65% to 90%',effIndFilter)+opt('gt90','Individual Eff%: Above 90%',effIndFilter)
+    +'</select>'
+    +'<input class="search" id="q" placeholder="Search name / ID / designation" value="'+query+'" oninput="query=this.value;renderKeepFocus()"></div>';
+  h+='<div class="scroll"><table id="indtable"><thead><tr>'
+    +thSort('floor','Floor','','Floor')
+    +thSort('opId','Op. ID','','Op. ID')
+    +thSort('name','Op. Name','','Name')
+    +thSort('desig','Designation','hs','Designation')
+    +thSort('avgWh','WH (hrs)','hs nop','WH')
+    +thSort('avgEng','Engagement% (%)','','Eng %')
+    +'<th class="hs"><span class="lbl">Type</span><span class="lblp">Type</span></th>'
+    +thSort('inMin','Input Min (min)','hp','In Min')
+    +thSort('outMin','Output Min (min)','hp','Out Min')
+    +thSort('eff','Individual Eff% (%)','','Eff %')
     +'</tr></thead><tbody>';
-  if(!S.mkShown.length)h+='<tr><td colspan="11" class="empty">No marker matches this filter.</td></tr>';
-  S.mkShown.forEach(function(m){
-    var k=m.floor+'|'+m.markerSL+'|'+m.cutNo;
-    var isOpen=(expandKey===k);
-    h+='<tr class="mkrow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+m.floor+'\',\''+m.markerSL+'\',\''+esc(m.cutNo).replace(/'/g,"\\'")+'\',event)">'
-      +'<td><span class="caret"></span>'+m.floor+'</td>'
-      +'<td>'+m.markerSL+'</td>'
-      +'<td class="l">'+esc(m.cutNo)+'</td>'
-      +'<td class="l">'+esc(m.fabric)+'</td>'
-      +'<td class="hs">'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
-      +'<td class="hs">'+esc(m.table)+'</td>'
-      +'<td>'+m.rolls+'</td>'
-      +'<td class="'+(m.fails?'bad':'')+'">'+m.fails+'</td>'
-      +'<td class="pct '+pctClass(m.rate)+'">'+fmt(m.rate,0)+'%</td>'
-      +'<td class="'+(m.waste?'waste':'')+'">'+fmt(m.waste,1)+'</td></tr>';
-    if(isOpen) h+=detailBlock(m,11);
+  if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
+  S.indShown.forEach(function(o){
+    var k=o.floor+'|'+o.opId, isOpen=(expandKey===k);
+    h+='<tr class="oprow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+o.floor+'\',\''+o.opId+'\',event)">'
+      +'<td><span class="caret"></span>'+o.floor+'</td>'
+      +'<td><span class="idfull">'+padId(o.opId)+'</span><span class="idshort">'+shortId(o.opId)+'</span></td>'
+      +'<td class="l">'+o.name+'</td>'
+      +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
+      +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
+      +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
+      +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
+    if(isOpen) h+=detailBlock(o,10);
   });
-  h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
-    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than '+fmt(TOLERANCE,2)+'&Prime; &bull; '
-    +'Wasted Yds = Used Yds &times; (Excess &minus; '+fmt(TOLERANCE,2)+') &divide; Roll Width, failed rolls only</div></div>';
+  h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Green 65&ndash;90% &bull; Blue &gt; 90%</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
   h+='</div>';
 
   document.getElementById('content').innerHTML=h;
   syncStickyOffsets();
-  prefetchVisibleFloors(floorFilter?[floorFilter]:S.floorsShown.map(function(f){return f.floor}));
+
+  /* Quietly warm cut-level data for whatever floors are on screen, so the
+     drill-down opens instantly when the user clicks. */
+  var floorsOnScreen={};
+  S.indShown.forEach(function(o){ floorsOnScreen[o.floor]=1; });
+  prefetchVisibleFloors(Object.keys(floorsOnScreen));
 }
 
-function opt(v,label,cur){
-  return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>';
+/* Donut of the three efficiency bands. Plain inline SVG, no chart library, so
+   the page stays a single self-contained file with nothing to load. */
+function bandChart(b){
+  var t=b.total||0;
+  if(!t) return '';
+  var segs=[
+    {n:b.lo, c:'var(--red)',   label:'&lt; 65%'},
+    {n:b.mid,c:'var(--green)', label:'65 &ndash; 90%'},
+    {n:b.hi, c:'var(--blue)',  label:'&gt; 90%'}
+  ];
+  /* Thick ring on a slightly smaller radius: widens the hover target a lot
+     while keeping the outer edge inside the 140 unit viewBox. */
+  var R=50, W=27, C=2*Math.PI*R, off=0, ring='';
+  segs.forEach(function(s){
+    if(!s.n) return;
+    var len=C*(s.n/t);
+    /* tiny gap between slices, but never wider than the slice itself */
+    var gap=Math.min(2,len/3);
+    ring+='<circle class="seg" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+s.c+'" stroke-width="'+W+'"'
+        + ' stroke-dasharray="'+(len-gap).toFixed(2)+' '+(C-len+gap).toFixed(2)+'"'
+        + ' stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)"'
+        + ' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+        + ' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)"></circle>';
+    off+=len;
+  });
+  /* Colour guide. Counts and shares stay off the label, they appear in the
+     middle of the donut on hover. Carries the same data attributes and
+     handlers as the slices, so hovering a legend row reads out identically. */
+  var legend='';
+  segs.forEach(function(s){
+    legend+='<div class="lgrow"'
+      +' data-l="'+s.label+'" data-n="'+s.n+'" data-p="'+fmt(s.n/t*100,1)+'" data-c="'+s.c+'"'
+      +' onmouseenter="segHover(this)" onmouseleave="segOut()" onclick="segHover(this)">'
+      +'<span class="dot" style="background:'+s.c+'"></span>'
+      +'<span class="lgl">'+s.label+'</span></div>';
+  });
+
+  /* Donut and legend sit side by side, not stacked, so the card stays short
+     enough for the three KPI cards plus this one to match the floor table. */
+  return '<div class="kpi chartcard">'
+    +'<div class="k">Operators by Eff% Band</div>'
+    +'<div class="chartrow">'
+      +'<div class="donutwrap">'
+        +'<svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Operators by efficiency band">'
+          +'<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#EDEFF7" stroke-width="'+W+'"></circle>'
+          +ring
+        +'</svg>'
+        /* filled on hover, empty otherwise, so the card stays clean and the
+           readout can never be clipped the way a floating tooltip would be */
+        +'<div class="dcen" id="dcen"></div>'
+      +'</div>'
+      +'<div class="legend">'+legend+'</div>'
+    +'</div>'
+  +'</div>';
 }
-function mth(label,key,shortLabel,cls){
-  var arr=sortKey===key?(sortDir>0?'\u25B2':'\u25BC'):'';
+
+/* Hovering a slice OR its legend row writes that band's count and share into
+   the middle of the donut and dims the other slices. Both carry the same data
+   attributes, so one pair of handlers serves both. Click is bound too, for
+   touch screens where there is no hover. */
+function segHover(el){
+  var d=document.getElementById('dcen');
+  if(!d) return;
+  var c=el.getAttribute('data-c');
+  d.innerHTML='<b style="color:'+c+'">'+el.getAttribute('data-n')+'</b>'
+    +'<span>'+esc(el.getAttribute('data-l'))+'</span>'
+    +'<span class="pc">'+el.getAttribute('data-p')+'%</span>';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++){
+    segs[i].style.opacity = (segs[i].getAttribute('data-c')===c) ? '1' : '.3';
+  }
+}
+function segOut(){
+  var d=document.getElementById('dcen');
+  if(d) d.innerHTML='';
+  var segs=document.querySelectorAll('.donut circle.seg');
+  for(var i=0;i<segs.length;i++) segs[i].style.opacity='';
+}
+
+function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>'}
+/* label = full text on screen, shortLabel = compact text used only in print */
+function thSort(key,label,cls,shortLabel){
+  var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
   var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
   return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
 }
-function fth(label,key,shortLabel){
-  var arr=fSortKey===key?(fSortDir>0?'\u25B2':'\u25BC'):'';
+function setSort(k){ if(sortKey===k)sortDir*=-1; else {sortKey=k;sortDir=1;} render(); }
+
+/* Floor Wise Report header sorting */
+function fTh(key,label,shortLabel){
+  var arr=fSortKey===key?(fSortDir===1?'&#9650;':'&#9660;'):'';
   var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
   return '<th onclick="setFSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
 }
-function setSort(k){ if(sortKey===k)sortDir=-sortDir; else{sortKey=k;sortDir=(k==='floor'||k==='cutNo'||k==='fabric'||k==='table')?1:-1} render() }
-function setFSort(k){ if(fSortKey===k)fSortDir=-fSortDir; else{fSortKey=k;fSortDir=(k==='floor')?1:-1} render() }
+function setFSort(k){ if(fSortKey===k)fSortDir*=-1; else {fSortKey=k;fSortDir=(k==='floor')?1:-1;} render(); }
 
-/* ---------- roll detail block ---------- */
-function detailBlock(m,colspan){
+/* Build the expanded cut-by-cut block under an operator */
+function detailBlock(o,colspan){
+  var rows=detailRowsFor(o.floor,o.opId);
   var h='<tr class="detrow"><td colspan="'+colspan+'"><div class="detbox">';
-  var rows=detailRowsFor(m.floor,m.markerSL,m.cutNo);
 
   if(rows===null){
-    h+='<div class="detloading">Loading roll details for Cut No '+esc(m.cutNo)+'&hellip;</div>';
-    h+='</div></td></tr>';
-    return h;
+    h+='<div class="detloading">Loading cut details for '+esc(o.name)+'&hellip;</div>';
+    return h+'</div></td></tr>';
   }
   if(!rows.length){
-    h+='<div class="detloading">No roll rows found for this marker.</div>';
-    h+='</div></td></tr>';
-    return h;
+    h+='<div class="detloading">No cut rows found for this operator on '+prettyDate(DAY)+'.</div>';
+    return h+'</div></td></tr>';
   }
 
+  /* MP (manpower, column R in the sheet) sits between Ratio and Team Input
+     Min, matching the sheet's own column order. Headings wrap onto two lines
+     so the extra column does not widen the table. */
   h+='<div class="detscroll"><table class="dettable"><thead><tr>'
-    +'<th>Roll SL</th><th>Roll QR</th><th>Color</th><th>Roll No</th><th>Consignment</th>'
-    +'<th>Shade No</th><th>Shrinkage</th><th>Roll Qty (Yds)</th><th>Roll Width (Inch)</th>'
-    +'<th>MW (Inch)</th><th>Excess (Inch)</th><th>Layer</th><th>Total Lay</th>'
-    +'<th>Used Qty (Yds)</th><th>Cut Pc Yds</th><th>Short Yds</th>'
-    +'<th>Width Compliance</th><th>Wasted Yds</th>'
+    +'<th>Sl</th><th>Cut No</th><th>Process</th><th>Fabric</th><th>Buyer</th><th>Style</th>'
+    +'<th>ML (Yds)</th><th>CL (Yds)</th><th>Lay Qty (Pcs)</th><th>Ratio (Pcs)</th>'
+    +'<th>MP</th>'
+    +'<th>Team Input Min</th><th>Individual Process Time</th><th>Indv. Input Min</th>'
+    +'<th>Team Output Min</th><th>Indv. Output Min</th><th>Effi% (%)</th>'
     +'</tr></thead><tbody>';
-  rows.forEach(function(r){
-    var pass=(String(r[18]).toLowerCase()==='yes');
-    h+='<tr class="'+(pass?'':'fail')+'">'
-      +'<td>'+esc(r[4])+'</td>'
-      +'<td>'+esc(r[5])+'</td>'
-      +'<td class="l">'+esc(r[6])+'</td>'
-      +'<td class="l">'+esc(r[7])+'</td>'
-      +'<td class="l">'+esc(r[8])+'</td>'
+  rows.forEach(function(r,i){
+    h+='<tr><td>'+(i+1)+'</td>'
+      +'<td class="l"><b>'+esc(r[1])+'</b></td>'
       +'<td>'+esc(r[9])+'</td>'
-      +'<td>'+fmt(r[10],2)+'</td>'
-      +'<td>'+fmt(r[11],2)+'</td>'
-      +'<td>'+fmt(r[12],2)+'</td>'
-      +'<td>'+fmt(r[3],2)+'</td>'
-      +'<td class="'+(r[19]>TOLERANCE?'bad':'')+'">'+fmt(r[19],2)+'</td>'
-      +'<td>'+fmt(r[13],0)+'</td>'
-      +'<td>'+fmt(r[14],0)+'</td>'
-      +'<td>'+fmt(r[15],2)+'</td>'
-      +'<td>'+fmt(r[16],2)+'</td>'
-      +'<td>'+fmt(r[17],2)+'</td>'
-      +'<td><span class="tag '+(pass?'yes':'no')+'">'+esc(r[18])+'</span></td>'
-      +'<td class="'+(r[20]?'waste':'')+'">'+fmt(r[20],2)+'</td></tr>';
+      +'<td class="l">'+esc(r[2])+'</td>'
+      +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
+      +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
+      +'<td>'+fmt(r[11],0)+'</td>'
+      +'<td>'+fmt(r[18],0)+'</td>'
+      +'<td class="l">'+esc(r[12])+'</td><td>'+fmt(r[13],0)+'</td>'
+      +'<td>'+fmt(r[15],2)+'</td><td>'+fmt(r[16],2)+'</td>'
+      +'<td class="pct '+pctClass(r[17])+'">'+fmt(r[17],2)+'%</td></tr>';
   });
   h+='</tbody></table></div></div></td></tr>';
   return h;
 }
-
-/* Switching factory clears the floor and fabric picks too. Both are scoped to
-   the old factory: that floor may not exist in the new one, and that fabric
-   may not be used there, which would silently empty the marker table. */
+/* Switching factory clears any floor pick, since that floor may not belong to
+   the newly selected building. Clicking the active factory again clears it. */
 function toggleFact(f){
   factFilter=(factFilter===f)?'':f;
   floorFilter='';
-  fabricFilter='';
   expandKey='';
   render();
 }
 function toggleFloor(f){
   floorFilter=(floorFilter===f)?'':f;
   expandKey='';
-  if(floorFilter) prefetchDetail(floorFilter);
+  if(floorFilter) prefetchDetail(floorFilter);   /* warm this floor immediately */
   render();
-}
-function toggleFabric(f){
-  fabricFilter=(fabricFilter===f)?'':f;
-  expandKey='';
-  render();
-}
-
-/* ---------- active filter bar ---------- */
-/* Every filter except the fabric one already shows its own state: the chips
-   highlight, the dropdown displays its choice, the search box holds its text.
-   The fabric pick only highlighted a row inside a panel that now scrolls, so
-   it could sit active and completely out of sight. This bar states every
-   active filter in one place and lets any of them be cleared in one click. */
-function clearAllFilters(){
-  factFilter=''; floorFilter=''; fabricFilter='';
-  compFilter='all'; query=''; expandKey='';
-  render();
-}
-function clearFilter(which){
-  if(which==='fact'){ factFilter=''; floorFilter=''; fabricFilter=''; }
-  else if(which==='floor') floorFilter='';
-  else if(which==='fabric') fabricFilter='';
-  else if(which==='comp') compFilter='all';
-  else if(which==='query') query='';
-  expandKey='';
-  render();
-}
-function activeFilterBar(){
-  var items=[];
-  if(factFilter)  items.push(['fact','Factory',factFilter]);
-  if(floorFilter) items.push(['floor','Floor',floorFilter]);
-  if(fabricFilter)items.push(['fabric','Fabric',fabricFilter]);
-  if(compFilter!=='all') items.push(['comp','Compliance',compLabel(compFilter)]);
-  if(query) items.push(['query','Search',query]);
-  if(!items.length) return '';
-
-  var h='<div class="activebar"><span class="ablabel">Filtered by</span>';
-  items.forEach(function(it){
-    h+='<span class="afchip">'+it[1]+': <b>'+esc(it[2])+'</b>'
-      +'<i onclick="clearFilter(\''+it[0]+'\')" title="Remove this filter">&times;</i></span>';
-  });
-  if(items.length>1) h+='<button class="afclear" onclick="clearAllFilters()">Clear all</button>';
-  return h+'</div>';
 }
 function renderKeepFocus(){ render(); var q=document.getElementById('q'); if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);} }
 
@@ -939,70 +1011,54 @@ function doPrint(){ window.focus(); window.print(); }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function exportExcel(){
   var S=currentSets(), tot=S.tot;
-  var scope=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
+  var scope = floorFilter ? ('Floor '+floorFilter)
+            : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
 
   var t='';
-  t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Fabric Roll Compliance Report</td></tr>';
-  t+='<tr><td colspan="11">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
-    +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
-    +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
+  t+='<table><tr><td colspan="10" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Individual Eff% Report</td></tr>';
+  t+='<tr><td colspan="10">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Team Avg Eff% filter: '+esc(effLabel(effFloorFilter))
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Individual Eff% filter: '+esc(effLabel(effIndFilter))
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
-  t+='<tr><td colspan="11">Fail rule: Roll Width &minus; MW &gt; '+fmt(TOLERANCE,2)+' inch'
-    +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; '+fmt(TOLERANCE,2)+') / Roll Width, failed rolls only</td></tr>';
   t+='<tr><td></td></tr></table>';
 
   /* KPI block */
   t+='<table border="1"><tr>'
-    +th2('Total Markers (nos)')+th2('Total Rolls (nos)')+th2('Roll Compliance %')
-    +th2('Failed Rolls (nos)')+th2('Wasted Fabric (yds)')+'</tr>'
-    +'<tr><td>'+tot.markers+'</td><td>'+tot.rolls+'</td>'+pctTd(tot.comp,1)
-    +'<td>'+tot.fails+'</td><td>'+fmt(tot.waste,2)+'</td></tr></table>';
+    +th2('Total Man Count (nos)')+th2('Overall Avg Eff%')+th2('Operators Below 65% (nos)')+'</tr>'
+    +'<tr><td>'+tot.man+'</td>'+pctTd(tot.eff,1)+'<td>'+tot.u65+'</td></tr></table>';
   t+='<table><tr><td></td></tr></table>';
 
   /* Floor table */
-  t+='<table border="1"><tr><td colspan="6" style="font-weight:bold;color:#333D6D">Floor wise Roll Compliance</td></tr><tr>'
-    +th2('Floor')+th2('Markers (nos)')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')
-    +th2('Compliance %')+th2('Wasted Yds')+'</tr>';
+  t+='<table border="1"><tr><td colspan="4" style="font-weight:bold;color:#333D6D">Floor Wise Report</td></tr><tr>'
+    +th2('Floor')+th2('Man Count (nos)')+th2('Team Avg Eff%')+th2('Eff% < 65% (nos)')+'</tr>';
   S.floorsShown.forEach(function(f){
-    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.markers+'</td><td>'+f.rolls+'</td><td>'+f.fails+'</td>'
-      +pctTd(f.comp,1)+'<td>'+fmt(f.waste,2)+'</td></tr>';
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
   });
-  t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+S.grand.markers
-    +'</td><td style="font-weight:bold">'+S.grand.rolls+'</td><td style="font-weight:bold">'+S.grand.fails
-    +'</td>'+pctTd(S.grand.comp,1,'font-weight:bold')+'<td style="font-weight:bold">'+fmt(S.grand.waste,2)+'</td></tr>';
+  t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
+    +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
   t+='</table><table><tr><td></td></tr></table>';
 
-  /* Fabric table */
-  t+='<table border="1"><tr><td colspan="6" style="font-weight:bold;color:#333D6D">Compliance by Fabric Type</td></tr><tr>'
-    +th2('Fabric Type')+th2('Markers (nos)')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')
-    +th2('Compliance %')+th2('Wasted Yds')+'</tr>';
-  S.fabrics.forEach(function(o){
-    t+='<tr><td>'+esc(o.fabric)+'</td><td>'+o.markers+'</td><td>'+o.rolls+'</td><td>'+o.fails+'</td>'
-      +pctTd(o.comp,1)+'<td>'+fmt(o.waste,2)+'</td></tr>';
-  });
-  t+='</table><table><tr><td></td></tr></table>';
-
-  /* Marker table */
-  t+='<table border="1"><tr><td colspan="11" style="font-weight:bold;color:#333D6D">Marker wise Roll Compliance</td></tr><tr>'
-    +th2('Floor')+th2('Marker SL')+th2('Cut No')+th2('Fabric Type')+th2('ML (Yds)')+th2('MW (Inch)')
-    +th2('Table')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')+th2('Compliance %')+th2('Wasted Yds')+'</tr>';
-  S.mkShown.forEach(function(m){
-    t+='<tr><td>'+esc(m.floor)+'</td><td>'+m.markerSL+'</td>'
-      +'<td style="mso-number-format:\'\\@\'">'+esc(m.cutNo)+'</td>'
-      +'<td>'+esc(m.fabric)+'</td><td>'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
-      +'<td>'+esc(m.table)+'</td><td>'+m.rolls+'</td><td>'+m.fails+'</td>'
-      +pctTd(m.rate,2)+'<td>'+fmt(m.waste,2)+'</td></tr>';
+  /* Individual table */
+  t+='<table border="1"><tr><td colspan="10" style="font-weight:bold;color:#333D6D">Individual Report</td></tr><tr>'
+    +th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('WH (hrs)')
+    +th2('Engagement%')+th2('Type')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
+  S.indShown.forEach(function(o){
+    t+='<tr><td>'+esc(o.floor)+'</td>'
+      +'<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
+      +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
+      +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
+      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
   });
   t+='</table>';
-  t+='<table><tr><td></td></tr><tr><td colspan="11">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  t+='<table><tr><td></td></tr><tr><td colspan="10">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
 
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
-    +'<x:Name>Fabric Roll Compliance</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    +'<x:Name>Daily Eff Report</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
     +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
 
-  var name='SOSL_Fabric_Roll_Compliance_'+DAY+'_'+(floorFilter||factFilter||'AllFloors')+'.xls';
+  var name='SOSL_Daily_Eff_'+DAY+'_'+(floorFilter||factFilter||'AllFloors')+'.xls';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=name;
@@ -1020,30 +1076,46 @@ function pctTd(v,dec,extra){
   return '<td style="'+st+'">'+(v/100)+'</td>';
 }
 
-/* ---------- sticky offsets ---------- */
+/* Keeps the sticky headers resting right under the control strip,
+   whatever its actual rendered height is at the current screen width. */
+function syncStripH(){
+  var s=document.querySelector('.strip');
+  if(s) document.documentElement.style.setProperty('--stripH', s.offsetHeight+'px');
+}
+
+/* Each card's title bar sticks first, then its table's column header row sits
+   directly below it. The two title bars are different heights (the Individual
+   Report one carries the floor chips), so each offset is measured separately
+   after every render instead of being hard coded. */
+/* Heights are read with getBoundingClientRect, not offsetHeight. offsetHeight
+   on a <thead> is unreliable across engines (table sections are not ordinary
+   boxes), and a wrong reading here pushes a sticky header far down the page.
+   Reading the header <tr> instead gives the true rendered row height. */
 function boxH(sel){
   var el=document.querySelector(sel);
   return el ? el.getBoundingClientRect().height : 0;
 }
 function syncStickyOffsets(){
+  syncStripH();
   var r=document.documentElement;
   var strip=boxH('.strip');
-  var mkHd=boxH('#mkcard>.hd');
-  r.style.setProperty('--stripH', strip+'px');
-  r.style.setProperty('--flrHdH', boxH('#floorcard>.hd')+'px');
-  r.style.setProperty('--mkHdH',  mkHd+'px');
+  var flrHd=boxH('#floorcard>.hd');
+  var indHd=boxH('#indcard>.hd');
+  var indCol=boxH('#indtable>thead>tr');
 
-  /* Where the opened roll table's header must sit: under the control strip,
-     the marker card's title bar and that table's own column header. Measured
-     on the header ROW, because getBoundingClientRect on a <thead> is not
-     reliable across engines and a wrong reading strands the header mid-table.
-     One resolved number rather than a chain of vars, plus a clamp so a bad
-     measurement can never push it down the page. */
-  var detTop=strip+mkHd+boxH('#mktable>thead>tr');
-  if(!isFinite(detTop) || detTop<0 || detTop>500) detTop=strip+mkHd+28;
-  r.style.setProperty('--detTop', detTop+'px');
+  r.style.setProperty('--flrHdH',flrHd+'px');
+  r.style.setProperty('--indHdH',indHd+'px');
+
+  /* One resolved number for the drill-down header instead of a chain of three
+     CSS vars, so a single bad reading cannot silently offset it down the page.
+     Clamped because an absurd value is what strands the header mid-table. */
+  var detTop=strip+indHd+indCol;
+  if(!isFinite(detTop) || detTop<0 || detTop>400) detTop=strip+indHd+28;
+  r.style.setProperty('--detTop',detTop+'px');
 }
 window.addEventListener('resize', syncStickyOffsets);
+/* Web font swaps in after first paint and changes row heights, so re-measure
+   once everything has settled. */
 window.addEventListener('load', syncStickyOffsets);
 
 boot();
