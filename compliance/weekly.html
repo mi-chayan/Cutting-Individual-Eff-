@@ -13,6 +13,7 @@
     /* Same compliance ladder as the daily report on purpose: a floor must
        never look green on one page and red on the other. */
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
+    --gap:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
@@ -42,9 +43,11 @@
   .cachetag{font-size:9.5px;font-weight:700;color:var(--green);background:#E8F5EE;
             border:1px solid #BFE3CE;border-radius:20px;padding:3px 9px;white-space:nowrap}
 
-  .wrap{padding:13px 16px 26px;max-width:1720px;margin:0 auto}
+  /* One gutter value everywhere: cards, grid gaps and card spacing all use
+   --gap, so nothing sits a few pixels off from its neighbour. */
+  .wrap{padding:var(--gap) var(--gap) 28px;max-width:1680px;margin:0 auto}
 
-  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--gap);margin-bottom:var(--gap)}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
        position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
@@ -56,7 +59,7 @@
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:var(--gap);
         overflow:clip;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .card .hd{padding:8px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
             gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
@@ -130,7 +133,7 @@
   .mxlgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 
   /* ---- bar list ---- */
-  .bars{padding:10px 13px 13px;max-height:430px;overflow-y:auto;
+  .bars{padding:10px 13px 13px;max-height:520px;overflow-y:auto;
         scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
   .bars::-webkit-scrollbar{width:8px}
   .bars::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
@@ -146,11 +149,17 @@
   .bval b.red{color:var(--red)} .bval b.green{color:var(--green)} .bval b.blue{color:var(--blue)}
 
   /* ---- chart ---- */
-  .chartbox{padding:12px 13px 4px;position:relative}
+  .chartbox{padding:12px 13px 8px;position:relative}
+  #chhost{width:100%;overflow:hidden}
+  /* SVG text is styled here, not with font-size attributes, so it inherits the
+     page font and stays the same physical size as the tables beside it. */
+  #chartsvg text{font-family:'Plus Jakarta Sans',sans-serif}
+  #chartsvg .axl{font-size:10.5px;font-weight:600;fill:#7A81A0}
+  #chartsvg .axb{font-size:10px;font-weight:800}
   .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
        font-weight:700;color:var(--mut);flex-wrap:wrap}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-  #chartsvg{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none}
+  #chartsvg{display:block;cursor:crosshair;touch-action:none;max-width:100%}
   .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
        background:#252A45;color:#fff;border-radius:9px;padding:8px 11px;font-size:11px;
        line-height:1.55;box-shadow:0 8px 22px rgba(37,42,69,.28);z-index:12;min-width:172px}
@@ -169,7 +178,13 @@
   .err{margin:16px;padding:13px 15px;border-radius:10px;background:#FDECEE;
        border:1px solid #F5C2C7;color:#8B2530;font-size:12px;font-weight:600;line-height:1.6}
   .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.7}
-  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  /* Side-by-side cards must end level even when one has more rows than the
+   other, so the row is sized by the taller card and both stretch to it. */
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);
+       align-items:stretch;margin-bottom:0}
+  .two>.card{margin-bottom:var(--gap);display:flex;flex-direction:column}
+  .two>.card>.hd{flex:0 0 auto}
+  .two>.card>.tscroll,.two>.card>.bars{flex:1 1 auto;min-height:0}
 
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
@@ -477,32 +492,36 @@ function ar(t,k){ return ST[t].k===k ? '<span class="ar">'+(ST[t].d>0?'▲':'▼
 
 /* ---------- interactive chart ---------- */
 var CH = { pts:[], L:0, iw:0, n:0, days:[] };
-function chart(byDay){
+/* The chart is built at the container's REAL pixel width, so one SVG unit is
+   one CSS pixel. The old version used a fixed 1000 unit viewBox stretched to
+   fill the card, which scaled every label up by about 1.7x and made the chart
+   typography clash with the rest of the page. */
+function chart(byDay, W){
   var n=byDay.length;
   if(!n) return '<div class="empty">No days in range.</div>';
 
-  var W=1000,H=260,L=48,R=48,T=14,B=42;
+  var H=274,L=52,R=52,T=16,B=44;
   var iw=W-L-R, ih=H-T-B, maxW=0;
   byDay.forEach(function(d){ if(d[4]>maxW) maxW=d[4] });
   if(maxW<=0) maxW=1;
   var bw=Math.max(5,Math.min(44,iw/n*0.5));
 
-  var s='<svg id="chartsvg" viewBox="0 0 '+W+' '+H+'" role="img" '
+  var s='<svg id="chartsvg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" '
        +'aria-label="Compliance percent and waste yards by day">';
 
   [0,25,50,75,100].forEach(function(v){
     var y=T+ih-(v/100)*ih;
     s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#EDEFF6"/>';
-    s+='<text x="'+(W-R+7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0">'+v+'%</text>';
+    s+='<text x="'+(W-R+7)+'" y="'+(y+3.5)+'" class="axl">'+v+'%</text>';
   });
   [0,0.5,1].forEach(function(f){
     var y=T+ih-f*ih;
-    s+='<text x="'+(L-7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0" text-anchor="end">'+fmt(maxW*f,1)+'</text>';
+    s+='<text x="'+(L-7)+'" y="'+(y+3.5)+'" class="axl" text-anchor="end">'+fmt(maxW*f,1)+'</text>';
   });
   /* 90% target line: the band where a floor stops being red */
   var y90=T+ih-0.90*ih;
   s+='<line x1="'+L+'" y1="'+y90+'" x2="'+(W-R)+'" y2="'+y90+'" stroke="#1E8E4E" stroke-width="1.2" stroke-dasharray="5 4" opacity=".65"/>';
-  s+='<text x="'+(L+5)+'" y="'+(y90-5)+'" font-size="9.5" font-weight="700" fill="#1E8E4E">90% band</text>';
+  s+='<text x="'+(L+5)+'" y="'+(y90-6)+'" class="axb" fill="#1E8E4E">90% band</text>';
 
   CH.pts=[]; CH.L=L; CH.iw=iw; CH.n=n; CH.days=byDay; CH.T=T; CH.ih=ih; CH.H=H; CH.W=W;
 
@@ -512,8 +531,10 @@ function chart(byDay){
     s+='<rect id="bar'+i+'" x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
        '" rx="2" fill="#C77700" fill-opacity="0.38"/>';
     CH.pts.push({x:cx,y:T+ih-(rateOf(d)/100)*ih,rate:rateOf(d),d:d});
-    if(n<=16 || i%Math.ceil(n/12)===0)
-      s+='<text x="'+cx+'" y="'+(H-B+18)+'" font-size="10" fill="#7A81A0" text-anchor="middle">'+esc(shortDate(d[0]))+'</text>';
+    /* label density follows the real width, so labels never collide */
+    var every=Math.max(1,Math.ceil(n/Math.max(4,Math.floor(iw/64))));
+    if(i%every===0)
+      s+='<text x="'+cx+'" y="'+(H-B+18)+'" class="axl" text-anchor="middle">'+esc(shortDate(d[0]))+'</text>';
   });
   s+='</g>';
 
@@ -638,7 +659,8 @@ function matrix(kind){
       var rv=tot[0]?(tot[0]-tot[1])/tot[0]*100:0;
       h+='<td class="cell" style="background:#F0F2F8"><span class="pill '+pctClass(rv)+'">'+fmt(rv,1)+'%</span></td>';
     }else{
-      h+='<td class="cell" style="background:#F0F2F8;font-weight:800">'+fmt(tot[3],1)+'</td>';
+      h+='<td class="cell" style="background:#F0F2F8;font-weight:800">'+fmt(tot[3],1)+
+         ' <span style="color:var(--mut);font-size:10px">Yds</span></td>';
     }
     h+='</tr>';
   });
@@ -652,12 +674,12 @@ function matrix(kind){
     if(kind==='c'){
       var v=a[0]?(a[0]-a[1])/a[0]*100:0;
       h+='<td style="color:var(--'+pctClass(v)+')">'+(a[0]?fmt(v,1)+'%':'&ndash;')+'</td>';
-    }else h+='<td>'+fmt(a[3],1)+'</td>';
+    }else h+='<td>'+fmt(a[3],1)+' <span style="font-size:9.5px;opacity:.65">Yds</span></td>';
   });
   if(kind==='c'){
     var gv=gt[0]?(gt[0]-gt[1])/gt[0]*100:0;
     h+='<td><span class="pill '+pctClass(gv)+'">'+fmt(gv,1)+'%</span></td>';
-  }else h+='<td>'+fmt(gt[3],1)+'</td>';
+  }else h+='<td>'+fmt(gt[3],1)+' <span style="font-size:9.5px;opacity:.65">Yds</span></td>';
   h+='</tr></tfoot></table></div>';
 
   h+='<div class="mxlgd">'+(kind==='c'
@@ -758,7 +780,7 @@ function render(){
    +'<div class="lgd"><span><i style="background:#723EC3"></i>Compliance % (right axis)</span>'
    +'<span><i style="background:#C77700;opacity:.5"></i>Waste Yds (left axis)</span>'
    +'<span><i style="background:#1E8E4E"></i>90% band</span></div>'
-   +chart(D.byDay)+'<div class="tip" id="chtip"></div></div></div>';
+   +'<div id="chhost"></div><div class="tip" id="chtip"></div></div></div>';
 
   h+='<div class="card"><div class="hd"><h3>Compliance % by Floor and Date</h3>'
    +'<span class="hint">'+RANGE.length+' day(s)</span>'
@@ -770,25 +792,18 @@ function render(){
    +'<input class="srch push" id="q_mxw" placeholder="Filter floor&hellip;" value="'+esc(ST.mxw.q)+'" '
    +'oninput="setQ(\'mxw\',this.value)"></div>'+matrix('w')+'</div>';
 
-  h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
+  h+='<div class="two">'
+   +'<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
    +'<span class="hint">'+(best?('best '+best[0]+' '+fmt(rateOf(best),1)+'%'):'')
    +(worst&&best&&worst[0]!==best[0]?('  |  worst '+worst[0]+' '+fmt(rateOf(worst),1)+'%'):'')+'</span>'
    +'<input class="srch push" id="q_floor" placeholder="Filter floor&hellip;" value="'+esc(ST.floor.q)+'" '
-   +'oninput="setQ(\'floor\',this.value)"></div>'+tableOf(D.byFloor,'Floor','floor')+'</div>';
-
-  h+='<div class="two">'
+   +'oninput="setQ(\'floor\',this.value)"></div>'+tableOf(D.byFloor,'Floor','floor')+'</div>'
    +'<div class="card"><div class="hd"><h3>Fabric Type</h3>'
    +'<span class="hint">'+D.byFabric.length+' type(s)</span>'
    +'<input class="srch push" id="q_fab" placeholder="Filter fabric&hellip;" value="'+esc(ST.fab.q)+'" '
    +'oninput="setQ(\'fab\',this.value)"></div>'
    +afBar('fab','Fabric type',D.byFabric.length,applyFilter(D.byFabric,ST.fab.q).length)
-   +barList(D.byFabric,'fab',18)+'</div>'
-   +'<div class="card"><div class="hd"><h3>Consignment</h3>'
-   +'<span class="hint">'+num(D.byConsign.length)+' total</span>'
-   +'<input class="srch push" id="q_con" placeholder="Filter consignment&hellip;" value="'+esc(ST.con.q)+'" '
-   +'oninput="setQ(\'con\',this.value)"></div>'
-   +afBar('con','Consignment',D.byConsign.length,applyFilter(D.byConsign,ST.con.q).length)
-   +barList(D.byConsign,'con',18)+'</div></div>';
+   +barList(D.byFabric,'fab',30)+'</div></div>';
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
    +'the ERP\'s own Floor Roll Compliance Rate exactly. <b>Waste Yds</b> = Used Yds &times; '
@@ -798,9 +813,23 @@ function render(){
 
   h+='</div>';
   $('content').innerHTML=h;
-  wireChart();
+  drawChart();
   prefetchAhead();
 }
+
+/* Measure first, then draw, so the SVG is 1:1 with CSS pixels. */
+function drawChart(){
+  var host=$('chhost');
+  if(!host||!D||!D.byDay.length) return;
+  var W=Math.max(520,Math.floor(host.clientWidth));
+  host.innerHTML=chart(D.byDay,W);
+  wireChart();
+}
+var _rsz;
+window.addEventListener('resize',function(){
+  clearTimeout(_rsz);
+  _rsz=setTimeout(drawChart,180);
+});
 
 /* ---------- silent background widening ----------
    Runs after the page is on screen and never touches the UI. It fills the
