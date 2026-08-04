@@ -251,11 +251,13 @@
   .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.7}
   /* Side-by-side cards must end level even when one has more rows than the
    other, so the row is sized by the taller card and both stretch to it. */
+  /* align-items:start, NOT stretch. Stretching made the Floor Ranking card
+     grow to match the Fabric Type list beside it, leaving a large empty band
+     under 13 rows of data. Each card now takes its natural height. The fabric
+     list is capped and scrolls on its own, so it never runs away. */
   .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);
-       align-items:stretch;margin-bottom:0}
-  .two>.card{margin-bottom:var(--gap);display:flex;flex-direction:column}
-  .two>.card>.hd{flex:0 0 auto}
-  .two>.card>.tscroll,.two>.card>.bars{flex:1 1 auto;min-height:0}
+       align-items:start;margin-bottom:0}
+  .two>.card{margin-bottom:var(--gap)}
 
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
