@@ -312,6 +312,53 @@ function doRefresh(){
 window.addEventListener('message', function(ev){
   if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
 });
+
+/* =====================================================================
+   Background warm-up for the Weekly Fabric Roll Compliance report
+   ---------------------------------------------------------------------
+   The weekly report reads its per-day aggregates from localStorage. This
+   shell fills that store quietly the moment the dashboard opens, while the
+   user is still looking at the first report. By the time they click Weekly,
+   the last week is already there and the page renders with no network call
+   and no spinner.
+
+   Uses exactly the same keys as weekly.html:
+     fabwk_dates      the list of available dates
+     fabwk_d_<date>   one aggregate per day
+   Silent by design: any failure just means the weekly page fetches for
+   itself, exactly as it did before.
+   ===================================================================== */
+var WARM_DAYS = 7;      /* how far back to pre-load */
+var WARM_KEY  = 'fabwk_d_', WARM_DATES = 'fabwk_dates';
+
+function warmGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
+function warmSet(k,o){ try{localStorage.setItem(k,JSON.stringify(o))}catch(e){} }
+
+function warmWeekly(){
+  fetch(FAB_API+'?action=dates')
+    .then(function(r){ return r.ok ? r.json() : null })
+    .then(function(res){
+      if(!res || res.error || !res.dates || !res.dates.length) return;
+      warmSet(WARM_DATES,{dates:res.dates,latest:res.latest});
+
+      /* the most recent WARM_DAYS days that actually have data */
+      var want = res.dates.slice(-WARM_DAYS);
+      var missing = want.filter(function(d){ return !warmGet(WARM_KEY+d) });
+      if(!missing.length) return;                 /* already warm, nothing to do */
+
+      return fetch(FAB_API+'?action=days&dates='+encodeURIComponent(missing.join(',')))
+        .then(function(r){ return r.ok ? r.json() : null })
+        .then(function(dres){
+          if(!dres || dres.error || !dres.days) return;
+          for(var k in dres.days) if(dres.days.hasOwnProperty(k)) warmSet(WARM_KEY+k,dres.days[k]);
+        });
+    })
+    .catch(function(){});                          /* stay silent, never block the UI */
+}
+
+/* Wait for the first report to settle so the warm-up never competes with it. */
+if(window.requestIdleCallback) requestIdleCallback(function(){ warmWeekly() },{timeout:4000});
+else setTimeout(warmWeekly,2000);
 </script>
 </body>
 </html>
