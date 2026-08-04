@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Fabric Roll Compliance Report</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
+    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    /* Same compliance ladder as the daily report: red below 90,
+       green 90 to 98, blue above 98. Kept identical on purpose so a floor
+       never looks green on one page and red on the other. */
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
+       font-size:13px;-webkit-text-size-adjust:100%}
+
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
+         display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
+         position:sticky;top:0;z-index:20}
+  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .sep{width:1px;height:22px;background:var(--line)}
+  .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+  .dpick{position:relative;display:inline-flex;align-items:center;gap:7px;
+         border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:#fff;
+         font-size:12px;font-weight:700;color:var(--txt);white-space:nowrap;cursor:pointer}
+  .dpick:hover{border-color:var(--violet)}
+  .dpick svg{width:13px;height:13px;fill:var(--violet);flex:0 0 auto}
+  .dpick input[type=date]{position:absolute;inset:0;width:100%;height:100%;
+         opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
+  .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
+        padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .mini:hover{background:var(--cream);border-color:var(--peach)}
+  .mini.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini svg{width:12px;height:12px;fill:var(--violet)}
+  .mini.on svg{fill:#fff}
+  .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+
+  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
+
+  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+       position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+  .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
+  .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
+  .kpi.k6:before{background:var(--green)}
+  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;
+        overflow:clip;box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+            gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
+  .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
+  .hint{font-size:10px;font-weight:700;color:var(--violet);letter-spacing:.2px;
+        background:#F3EEFC;border:1px solid #D6C8F0;border-radius:20px;padding:3px 10px;white-space:nowrap}
+  .push{margin-left:auto}
+
+  #floorcard{border:1px solid var(--peach);border-radius:14px;
+        box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
+        background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
+  #floorcard .hd{background:linear-gradient(90deg,var(--navy),#4A56A0)}
+  #floorcard .hd h3{color:#fff}
+  #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
+  #floorcard .hint{color:var(--peach);background:rgba(255,255,255,.13);border-color:rgba(255,207,149,.5)}
+  #floorcard th{background:#404B8C}
+
+  table{width:100%;border-collapse:collapse}
+  th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;
+     letter-spacing:.4px;padding:7px 9px;text-align:right;white-space:nowrap;cursor:pointer;
+     position:sticky;top:0}
+  th:first-child,td:first-child{text-align:left}
+  th:hover{background:#4A56A0}
+  td{padding:6px 9px;text-align:right;font-size:12px;border-bottom:1px solid #EFF1F7;
+     font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody tr:hover{background:#F6F4FD}
+  tbody tr:last-child td{border-bottom:0}
+  td.f{font-weight:800}
+  .pill{display:inline-block;min-width:56px;padding:2px 8px;border-radius:20px;
+        font-size:11px;font-weight:800;color:#fff;text-align:center}
+  .pill.red{background:var(--red)} .pill.green{background:var(--green)} .pill.blue{background:var(--blue)}
+  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0}
+
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  .bars{padding:10px 13px 13px}
+  .brow{display:grid;grid-template-columns:110px 1fr 92px;align-items:center;gap:9px;padding:4px 0}
+  .bname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btrack{height:12px;background:#EDEFF6;border-radius:3px;overflow:hidden}
+  .bfill{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  .bfill.red{background:var(--red)} .bfill.green{background:var(--green)} .bfill.blue{background:var(--blue)}
+  .bval{font-size:10.5px;font-weight:800;text-align:right;color:var(--mut)}
+  .bval b{font-size:11.5px}
+  .bval b.red{color:var(--red)} .bval b.green{color:var(--green)} .bval b.blue{color:var(--blue)}
+
+  .chartbox{padding:12px 13px 6px}
+  .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 10px;font-size:10.5px;
+       font-weight:700;color:var(--mut)}
+  .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+  .loading{padding:70px 0;text-align:center;color:var(--mut);font-size:12.5px}
+  .spin{width:26px;height:26px;border:3px solid #E4E6F0;border-top-color:var(--violet);
+        border-radius:50%;display:inline-block;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:56px 0;text-align:center;color:var(--mut);font-size:12.5px}
+  .err{margin:16px;padding:13px 15px;border-radius:10px;background:#FDECEE;
+       border:1px solid #F5C2C7;color:#8B2530;font-size:12px;font-weight:600}
+  .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.6}
+
+  @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
+  @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
+
+  @media print{
+    .strip{position:static} .acts{display:none}
+    body{background:#fff} .card{break-inside:avoid;box-shadow:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <h2>Weekly Fabric Roll Compliance Report</h2>
+  <div class="sep"></div>
+  <label>From</label>
+  <span class="dpick">
+    <span id="f1label">&ndash;</span>
+    <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+    <input type="date" id="f1" onchange="onPick()" onclick="openPicker(this)" aria-label="From date">
+  </span>
+  <label>To</label>
+  <span class="dpick">
+    <span id="t1label">&ndash;</span>
+    <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+    <input type="date" id="t1" onchange="onPick()" onclick="openPicker(this)" aria-label="To date">
+  </span>
+  <div class="sep"></div>
+  <button class="mini" id="p_tw"  onclick="preset('tw')">This Week</button>
+  <button class="mini" id="p_lw"  onclick="preset('lw')">Last Week</button>
+  <button class="mini" id="p_d7"  onclick="preset('d7')">Last 7 Days</button>
+  <button class="mini" id="p_d30" onclick="preset('d30')">Last 30 Days</button>
+  <div class="acts">
+    <button class="mini" onclick="exportExcel()" title="Export to Excel">
+      <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
+    </button>
+    <button class="mini" onclick="window.print()" title="Print">
+      <svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 00-3 3v6h4v4h12v-4h4v-6a3 3 0 00-3-3zm-3 11H8v-5h8v5zm3-8a1 1 0 110-2 1 1 0 010 2zM18 3H6v4h12V3z"/></svg> Print
+    </button>
+  </div>
+</div>
+
+<div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
+
+<script>
+/* =====================================================================
+   SNOWTEX - Weekly Fabric Roll Compliance Report
+   ---------------------------------------------------------------------
+   Overview only. No roll-level or marker-level detail: for that, open the
+   Daily Fabric Roll Compliance Report and pick the day.
+
+   COMPLIANCE % = passed rolls / total rolls.
+   Verified against the ERP export on 30-Jul-2026: this definition
+   reproduces the ERP's own "Floor Roll Compliance Rate" exactly on all 11
+   floors. The marker-level column G is NEVER averaged, because averaging
+   it does not reproduce the ERP figure.
+
+   All aggregation happens server side in Code.gs getWeekly(), so the
+   payload stays small however long the range is.
+   ===================================================================== */
+
+var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+var WK_PFX = 'fabric_wk_';
+
+var D = null, DATES = [], LATEST = '';
+var floorSort = { k:'rate', d:1 }, conSort = { k:'fails', d:-1 };
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/* ---------- small helpers ---------- */
+function $(id){ return document.getElementById(id) }
+function fmt(n,d){ return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d) }
+function num(n){ return (n==null||isNaN(n))?'-':Number(n).toLocaleString(undefined,{maximumFractionDigits:0}) }
+function pctClass(p){ return p<90?'red':(p<=98?'green':'blue') }
+function prettyDate(s){
+  if(!s) return '';
+  var p=s.split('-');
+  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+', '+p[0];
+}
+function shortDate(s){
+  if(!s) return '';
+  var p=s.split('-');
+  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1];
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] }) }
+function openPicker(el){ if(el.showPicker){ try{el.showPicker()}catch(e){} } }
+function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
+function cacheSet(k,o){ try{sessionStorage.setItem(k,JSON.stringify(o))}catch(e){} }
+function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*') }
+
+function iso(dt){
+  return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2);
+}
+function toDate(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]) }
+function addDays(s,n){ var d=toDate(s); d.setDate(d.getDate()+n); return iso(d) }
+/* Bangladesh RMG work week runs Saturday to Thursday, so a week starts on
+   Saturday. JS getDay(): Sat = 6. */
+function weekStart(s){
+  var d=toDate(s), back=(d.getDay()+1)%7;   /* Sat->0, Sun->1, ... Fri->6 */
+  d.setDate(d.getDate()-back);
+  return iso(d);
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  /* Always ask the sheet what the newest date is. Never trust a cached
+     "latest", that is what made the daily report show yesterday. */
+  fetch(API_URL+'?action=dates')
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    .then(function(res){
+      if(res.error) throw new Error(res.error);
+      DATES = res.dates||[]; LATEST = res.latest||'';
+      if(!LATEST){
+        $('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
+        return;
+      }
+      preset('d7');
+    })
+    .catch(showErr);
+}
+
+function setRange(from,to){
+  $('f1').value=from; $('t1').value=to; syncLabels(); load();
+}
+function syncLabels(){
+  $('f1label').textContent = prettyDate($('f1').value)||'-';
+  $('t1label').textContent = prettyDate($('t1').value)||'-';
+}
+function markPreset(id){
+  ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on', x===id) });
+}
+function onPick(){ markPreset(''); syncLabels(); load(); }
+
+function preset(which){
+  if(!LATEST) return;
+  var ws = weekStart(LATEST);
+  if(which==='tw'){  markPreset('p_tw');  setRange(ws, LATEST); }
+  else if(which==='lw'){ markPreset('p_lw'); var s=addDays(ws,-7); setRange(s, addDays(s,5)); }
+  else if(which==='d7'){ markPreset('p_d7'); setRange(addDays(LATEST,-6), LATEST); }
+  else { markPreset('p_d30'); setRange(addDays(LATEST,-29), LATEST); }
+}
+
+function load(){
+  var f=$('f1').value, t=$('t1').value;
+  if(!f||!t) return;
+  if(f>t){ $('content').innerHTML='<div class="err">From date is after To date. Fix the order.</div>'; return }
+
+  var key=WK_PFX+f+'_'+t, c=cacheGet(key);
+  if(c){ D=c; render(); return }
+
+  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>Building '+
+    prettyDate(f)+' to '+prettyDate(t)+'&hellip;</div>';
+  fetch(API_URL+'?action=weekly&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t))
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    .then(function(res){
+      if(res.error) throw new Error(res.error);
+      cacheSet(key,res); D=res; render();
+    })
+    .catch(showErr);
+}
+function showErr(e){
+  $('content').innerHTML='<div class="err"><b>Could not load.</b><br>'+esc(e.message||e)+
+    '<br><br>If this says Unknown action, the Apps Script needs re-deploying: '+
+    'Deploy &rarr; Manage deployments &rarr; pencil &rarr; New version &rarr; Deploy.</div>';
+}
+
+/* ---------- sorting ---------- */
+function rateOf(r){ return r[1] ? (r[1]-r[2])/r[1]*100 : 0 }
+function sortRows(rows, st){
+  var idx={name:0,rolls:1,fails:2,used:3,waste:4};
+  return rows.slice().sort(function(a,b){
+    var x,y;
+    if(st.k==='rate'){ x=rateOf(a); y=rateOf(b) }
+    else if(st.k==='failpct'){ x=a[1]?a[2]/a[1]:0; y=b[1]?b[2]/b[1]:0 }
+    else { x=a[idx[st.k]]; y=b[idx[st.k]] }
+    if(typeof x==='string') return st.d*x.localeCompare(y);
+    return st.d*(x-y);
+  });
+}
+function sortFloor(k){ floorSort.d = (floorSort.k===k) ? -floorSort.d : 1; floorSort.k=k; render() }
+function sortCon(k){ conSort.d = (conSort.k===k) ? -conSort.d : -1; conSort.k=k; render() }
+
+/* ---------- daily trend chart ---------- */
+function chart(byDay){
+  var n=byDay.length;
+  if(!n) return '<div class="empty">No days in range.</div>';
+
+  var W=1000, H=250, L=46, R=46, T=14, B=40;
+  var iw=W-L-R, ih=H-T-B;
+  var maxW=0;
+  byDay.forEach(function(d){ if(d[4]>maxW) maxW=d[4] });
+  if(maxW<=0) maxW=1;
+
+  var bw = Math.max(6, Math.min(46, iw/n*0.55));
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" '+
+        'aria-label="Compliance percent and waste yards by day">';
+
+  /* horizontal guides + right axis, compliance 0 to 100 */
+  [0,25,50,75,100].forEach(function(v){
+    var y=T+ih-(v/100)*ih;
+    s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#EDEFF6" stroke-width="1"/>';
+    s+='<text x="'+(W-R+7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0">'+v+'%</text>';
+  });
+  /* left axis, waste yds */
+  [0,0.5,1].forEach(function(f){
+    var y=T+ih-f*ih;
+    s+='<text x="'+(L-7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0" text-anchor="end">'+
+       fmt(maxW*f,1)+'</text>';
+  });
+
+  var pts=[];
+  byDay.forEach(function(d,i){
+    var cx = L + iw*((i+0.5)/n);
+    var rate = rateOf(d);
+    var bh = (d[4]/maxW)*ih;
+    s+='<rect x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
+       '" rx="2" fill="#C77700" fill-opacity="0.42"><title>'+esc(prettyDate(d[0]))+
+       ' | waste '+fmt(d[4],1)+' yds</title></rect>';
+    pts.push([cx, T+ih-(rate/100)*ih, rate, d]);
+    if(n<=16 || i%Math.ceil(n/12)===0){
+      s+='<text x="'+cx+'" y="'+(H-B+17)+'" font-size="10" fill="#7A81A0" text-anchor="middle">'+
+         esc(shortDate(d[0]))+'</text>';
+    }
+  });
+
+  s+='<polyline fill="none" stroke="#723EC3" stroke-width="2.2" stroke-linejoin="round" points="'+
+     pts.map(function(p){return p[0]+','+p[1]}).join(' ')+'"/>';
+  pts.forEach(function(p){
+    s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2">'+
+       '<title>'+esc(prettyDate(p[3][0]))+' | '+fmt(p[2],2)+'% | '+num(p[3][1])+' rolls, '+
+       p[3][2]+' failed</title></circle>';
+  });
+
+  s+='<line x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'" stroke="#D6DAE8"/>';
+  s+='</svg>';
+  return s;
+}
+
+/* ---------- bar list ---------- */
+function barList(rows, limit){
+  if(!rows.length) return '<div class="empty">Nothing in range.</div>';
+  var use=rows.slice(0,limit||rows.length);
+  var maxF=0; use.forEach(function(r){ if(r[2]>maxF) maxF=r[2] });
+  if(maxF<=0) maxF=1;
+  var h='<div class="bars">';
+  use.forEach(function(r){
+    var rate=rateOf(r), cls=pctClass(rate);
+    h+='<div class="brow" title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+
+       fmt(r[4],1)+' yds waste">'
+      +'<div class="bname">'+esc(r[0])+'</div>'
+      +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
+      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' yd</div>'
+      +'</div>';
+  });
+  return h+'</div>';
+}
+
+/* ---------- table ---------- */
+function tableOf(rows, firstHead, sortFn, st){
+  var h='<div style="overflow:auto"><table><thead><tr>'
+    +'<th onclick="'+sortFn+'(\'name\')">'+firstHead+'</th>'
+    +'<th onclick="'+sortFn+'(\'rolls\')">Rolls</th>'
+    +'<th onclick="'+sortFn+'(\'fails\')">Failed</th>'
+    +'<th onclick="'+sortFn+'(\'failpct\')">Fail %</th>'
+    +'<th onclick="'+sortFn+'(\'rate\')">Compliance %</th>'
+    +'<th onclick="'+sortFn+'(\'used\')">Used Yds</th>'
+    +'<th onclick="'+sortFn+'(\'waste\')">Waste Yds</th>'
+    +'</tr></thead><tbody>';
+  var t={rolls:0,fails:0,used:0,waste:0};
+  sortRows(rows,st).forEach(function(r){
+    var rate=rateOf(r);
+    t.rolls+=r[1]; t.fails+=r[2]; t.used+=r[3]; t.waste+=r[4];
+    h+='<tr><td class="f">'+esc(r[0])+'</td>'
+      +'<td>'+num(r[1])+'</td><td>'+num(r[2])+'</td>'
+      +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,1)+'%</td>'
+      +'<td><span class="pill '+pctClass(rate)+'">'+fmt(rate,2)+'%</span></td>'
+      +'<td>'+num(r[3])+'</td><td>'+fmt(r[4],1)+'</td></tr>';
+  });
+  var trate=t.rolls?(t.rolls-t.fails)/t.rolls*100:0;
+  h+='</tbody><tfoot><tr><td>Total</td><td>'+num(t.rolls)+'</td><td>'+num(t.fails)+'</td>'
+    +'<td>'+fmt(t.rolls?t.fails/t.rolls*100:0,1)+'%</td>'
+    +'<td><span class="pill '+pctClass(trate)+'">'+fmt(trate,2)+'%</span></td>'
+    +'<td>'+num(t.used)+'</td><td>'+fmt(t.waste,1)+'</td></tr></tfoot></table></div>';
+  return h;
+}
+
+/* ---------- render ---------- */
+function render(){
+  if(!D){ return }
+  syncLabels();
+  tellParent(D.generatedAt||'');
+
+  var T=D.totals||{};
+  if(!T.rolls){
+    $('content').innerHTML='<div class="wrap"><div class="empty">No data between '+
+      prettyDate(D.from)+' and '+prettyDate(D.to)+'.<br>'+
+      'Check that those days have been pushed to the sheet.</div></div>';
+    return;
+  }
+
+  var rate=(T.rolls-T.fails)/T.rolls*100;
+  var wastePct=T.used?(T.waste/T.used*100):0;
+  var byFloor=D.byFloor||[], byDay=D.byDay||[];
+
+  var best=null,worst=null;
+  byFloor.forEach(function(r){
+    if(!r[1]) return;
+    var x=rateOf(r);
+    if(!best||x>rateOf(best)) best=r;
+    if(!worst||x<rateOf(worst)) worst=r;
+  });
+
+  var h='<div class="wrap">';
+
+  h+='<div class="kpis">'
+   +kpi('k1','Date Range', shortDate(D.from)+' &ndash; '+shortDate(D.to), T.days+' day(s) with data','')
+   +kpi('k2','Rolls Checked', num(T.rolls), num(T.markers)+' markers, '+T.floors+' floors','')
+   +kpi('k3','Compliance %', fmt(rate,2)+'%', 'passed rolls / total rolls', pctClass(rate))
+   +kpi('k4','Failed Rolls', num(T.fails), fmt(T.fails/T.rolls*100,1)+'% of all rolls','red')
+   +kpi('k5','Waste Yds', fmt(T.waste,1), fmt(wastePct,3)+'% of fabric used','amber')
+   +kpi('k6','Fabric Used', num(T.used)+' yds', num(T.consignments)+' consignments','')
+   +'</div>';
+
+  h+='<div class="card"><div class="hd"><h3>Day by Day</h3>'
+   +'<span class="hint">'+byDay.length+' day(s)</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">hover a point or bar for the numbers</span></div>'
+   +'<div class="chartbox">'
+   +'<div class="lgd"><span><i style="background:#723EC3"></i>Compliance % (right axis)</span>'
+   +'<span><i style="background:#C77700;opacity:.42"></i>Waste Yds (left axis)</span></div>'
+   +chart(byDay)+'</div></div>';
+
+  h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
+   +'<span class="hint">'+(best?('best '+best[0]+' '+fmt(rateOf(best),1)+'%'):'')+
+     (worst&&best&&worst[0]!==best[0]?('  |  worst '+worst[0]+' '+fmt(rateOf(worst),1)+'%'):'')+'</span>'
+   +'<span class="push" style="font-size:10.5px;color:#FFCF95">click a heading to sort</span></div>'
+   +tableOf(byFloor,'Floor','sortFloor',floorSort)+'</div>';
+
+  h+='<div class="two">'
+   +'<div class="card"><div class="hd"><h3>Fabric Type</h3>'
+   +'<span class="hint">'+(D.byFabric||[]).length+' type(s)</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">by failed rolls</span></div>'
+   +barList(D.byFabric||[],14)+'</div>'
+   +'<div class="card"><div class="hd"><h3>Consignment</h3>'
+   +'<span class="hint">top 14 of '+num(T.consignments)+'</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">by failed rolls</span></div>'
+   +barList(D.byConsign||[],14)+'</div>'
+   +'</div>';
+
+  h+='<div class="card"><div class="hd"><h3>Consignment Detail</h3>'
+   +'<span class="hint">worst 40 by failed rolls</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">click a heading to sort</span></div>'
+   +tableOf(D.byConsign||[],'Consignment','sortCon',conSort)+'</div>';
+
+  h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls. '
+   +'This reproduces the ERP\'s own Floor Roll Compliance Rate exactly. '
+   +'<b>Waste Yds</b> = Used Yds &times; (Roll Width &minus; Marker Width &minus; '
+   +fmt(D.tolerance!=null?D.tolerance:1,2)+') &divide; Roll Width, charged on failed rolls only. '
+   +'Roll width is set by the supplier, so these numbers point upstream to receiving and '
+   +'procurement, not at the cutting floors. For roll level detail open the Daily report.</div>';
+
+  h+='</div>';
+  $('content').innerHTML=h;
+}
+
+function kpi(cls,k,v,s,vc){
+  return '<div class="kpi '+cls+'"><div class="k">'+k+'</div>'
+    +'<div class="v '+(vc||'')+'">'+v+'</div><div class="s">'+s+'</div></div>';
+}
+
+/* ---------- Excel export ---------- */
+function sect(title, rows, firstHead){
+  var t='<tr><td colspan="7" style="font-weight:bold;background:#333D6D;color:#fff">'+title+'</td></tr>'
+   +'<tr>'+['<td><b>'+firstHead+'</b></td>','<td><b>Rolls</b></td>','<td><b>Failed</b></td>',
+            '<td><b>Fail %</b></td>','<td><b>Compliance %</b></td>','<td><b>Used Yds</b></td>',
+            '<td><b>Waste Yds</b></td>'].join('')+'</tr>';
+  rows.forEach(function(r){
+    t+='<tr><td>'+esc(r[0])+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td>'
+      +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,2)+'</td><td>'+fmt(rateOf(r),2)+'</td>'
+      +'<td>'+fmt(r[3],2)+'</td><td>'+fmt(r[4],2)+'</td></tr>';
+  });
+  return t+'<tr><td colspan="7"></td></tr>';
+}
+function exportExcel(){
+  if(!D) return;
+  var T=D.totals||{}, rate=T.rolls?(T.rolls-T.fails)/T.rolls*100:0;
+  var t='<table><tr><td colspan="7" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      +'SOSL Cutting Section &ndash; Weekly Fabric Roll Compliance Report</td></tr>'
+      +'<tr><td colspan="7">'+prettyDate(D.from)+' to '+prettyDate(D.to)+'</td></tr>'
+      +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. '
+      +'Waste tolerance '+fmt(D.tolerance!=null?D.tolerance:1,2)+' inch.</td></tr>'
+      +'<tr><td colspan="7"></td></tr>'
+      +'<tr><td><b>Rolls</b></td><td>'+T.rolls+'</td><td><b>Failed</b></td><td>'+T.fails+'</td>'
+      +'<td><b>Compliance %</b></td><td>'+fmt(rate,2)+'</td><td></td></tr>'
+      +'<tr><td><b>Used Yds</b></td><td>'+fmt(T.used,2)+'</td><td><b>Waste Yds</b></td>'
+      +'<td>'+fmt(T.waste,2)+'</td><td><b>Markers</b></td><td>'+T.markers+'</td><td></td></tr>'
+      +'<tr><td colspan="7"></td></tr>';
+  t+=sect('DAY BY DAY', D.byDay||[], 'Date');
+  t+=sect('FLOOR', sortRows(D.byFloor||[],floorSort), 'Floor');
+  t+=sect('FABRIC TYPE', D.byFabric||[], 'Fabric Type');
+  t+=sect('CONSIGNMENT', sortRows(D.byConsign||[],conSort), 'Consignment');
+  t+='</table>';
+
+  var blob=new Blob(['﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head>'
+    +'<meta charset="utf-8"></head><body>'+t+'</body></html>'],
+    {type:'application/vnd.ms-excel'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Weekly Fabric Roll Compliance '+D.from+' to '+D.to+'.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* the parent shell asks every report to reload after a Refresh */
+window.addEventListener('message',function(ev){
+  if(ev.data && ev.data.type==='snapshot-updated'){
+    try{
+      var kill=[];
+      for(var i=0;i<sessionStorage.length;i++){
+        var k=sessionStorage.key(i);
+        if(k.indexOf(WK_PFX)===0) kill.push(k);
+      }
+      kill.forEach(function(k){ sessionStorage.removeItem(k) });
+    }catch(e){}
+    boot();
+  }
+});
+
+boot();
+</script>
+</body>
+</html>
