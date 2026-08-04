@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fabric Roll Compliance Report</title>
+<title>Daily Fabric Roll Compliance Report</title>
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -354,7 +354,7 @@
 <body>
 
 <div class="strip">
-  <h2>Fabric Roll Compliance Report</h2>
+  <h2>Daily Fabric Roll Compliance Report</h2>
   <div class="sep"></div>
   <label>Report Date</label>
   <span class="dpick">
@@ -363,7 +363,6 @@
     <input type="date" id="d1" onchange="pickDate()" onclick="openPicker(this)" aria-label="Report date">
   </span>
   <button class="mini" onclick="goLatest()">Latest Day</button>
-  <span class="showing" id="showing"></span>
   <div class="acts">
     <button class="mini" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -448,13 +447,20 @@ function tellParent(s){ if(window.parent!==window) window.parent.postMessage({ty
 /* ---------- boot: cache first, network only if empty ---------- */
 function boot(){
   var snap=cacheGet(SNAP_KEY);
-  if(snap){ applySnapshot(snap); return; }
+  if(snap) applySnapshot(snap);          /* paint instantly, may be stale */
+
+  /* Always re-check the server, even when the cache painted. If the sheet has
+     a newer day than the cache, the page silently moves to it. This is what
+     fixes "I pushed this morning but still see yesterday". */
   fetch(API_URL+'?action=snapshot')
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
-      cacheSet(SNAP_KEY,res); applySnapshot(res);
-    }).catch(showErr);
+      cacheSet(SNAP_KEY,res);
+      if(!snap || res.latest!==snap.latest || res.generatedAt!==snap.generatedAt){
+        applySnapshot(res);
+      }
+    }).catch(function(e){ if(!snap) showErr(e); });
 }
 
 function applySnapshot(res){
@@ -476,16 +482,42 @@ window.addEventListener('message',function(ev){
   }
 });
 
+/* Latest Day must mean "newest date in the Google Sheet", not "newest date
+   this browser tab happens to remember". The old version trusted LATEST from
+   the sessionStorage snapshot, so after the morning push it kept showing
+   yesterday until the tab was closed. Now it asks the server to rebuild and
+   re-read, and it clears the local caches so nothing stale can win. */
 function goLatest(){
-  if(!LATEST){boot();return}
-  document.getElementById('d1').value=LATEST;
-  pickDate();
+  document.getElementById('content').innerHTML=
+    '<div class="loading"><div class="spin"></div><br>Checking the sheet for the latest day&hellip;</div>';
+  clearCaches();
+  fetch(API_URL+'?action=snapshot&fresh=1')
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error)throw new Error(res.error);
+      cacheSet(SNAP_KEY,res);
+      applySnapshot(res);
+    }).catch(showErr);
+}
+
+/* Drop every cached day, detail and snapshot for this page. */
+function clearCaches(){
+  try{
+    var kill=[];
+    for(var i=0;i<sessionStorage.length;i++){
+      var k=sessionStorage.key(i);
+      if(k===SNAP_KEY||k.indexOf(DAYPFX)===0||k.indexOf(DETPFX)===0) kill.push(k);
+    }
+    kill.forEach(function(k){sessionStorage.removeItem(k)});
+  }catch(e){}
+  DETAIL={}; DETLOADING={};
 }
 
 function pickDate(){
   var d=document.getElementById('d1').value;
   if(!d)return;
   DAY=d;
+  syncDateLabel();   /* show the picked date immediately, not after loading */
   if(d===LATEST){
     var snap=cacheGet(SNAP_KEY);
     if(snap){ MARKERS=mapMarkers(snap.markers); FLOORRATES=snap.floorRates||{};
@@ -684,7 +716,6 @@ function syncDateLabel(){
 
 /* ---------- render ---------- */
 function render(){
-  document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   syncDateLabel();
   var S=currentSets(), tot=S.tot;
   var scopeLabel=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
@@ -697,7 +728,7 @@ function render(){
   h+='<div class="printhead">'
     +'<img src="../logo.jpg" alt="SNOWTEX">'
     +'<div class="phbody">'
-      +'<h1>SOSL Cutting Section &mdash; Fabric Roll Compliance Report</h1>'
+      +'<h1>SOSL Cutting Section &mdash; Daily Fabric Roll Compliance Report</h1>'
       +'<div class="meta">'
         +'<span>Date <b>'+prettyDate(DAY)+'</b></span>'
         +'<span>Scope <b>'+esc(scopeLabel)+'</b></span>'
@@ -984,7 +1015,7 @@ function exportExcel(){
   var scope=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
 
   var t='';
-  t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Fabric Roll Compliance Report</td></tr>';
+  t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Fabric Roll Compliance Report</td></tr>';
   t+='<tr><td colspan="11">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
