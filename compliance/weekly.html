@@ -10,9 +10,8 @@
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    /* Same compliance ladder as the daily report: red below 90,
-       green 90 to 98, blue above 98. Kept identical on purpose so a floor
-       never looks green on one page and red on the other. */
+    /* Same compliance ladder as the daily report on purpose: a floor must
+       never look green on one page and red on the other. */
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -21,7 +20,7 @@
 
   .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
          display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
-         position:sticky;top:0;z-index:20}
+         position:sticky;top:0;z-index:30}
   .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
   .sep{width:1px;height:22px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
@@ -40,8 +39,10 @@
   .mini svg{width:12px;height:12px;fill:var(--violet)}
   .mini.on svg{fill:#fff}
   .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+  .cachetag{font-size:9.5px;font-weight:700;color:var(--green);background:#E8F5EE;
+            border:1px solid #BFE3CE;border-radius:20px;padding:3px 9px;white-space:nowrap}
 
-  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
+  .wrap{padding:13px 16px 26px;max-width:1720px;margin:0 auto}
 
   .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
@@ -57,12 +58,15 @@
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:15px;
         overflow:clip;box-shadow:0 1px 2px rgba(37,42,69,.05)}
-  .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  .card .hd{padding:8px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
             gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
   .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
   .hint{font-size:10px;font-weight:700;color:var(--violet);letter-spacing:.2px;
         background:#F3EEFC;border:1px solid #D6C8F0;border-radius:20px;padding:3px 10px;white-space:nowrap}
   .push{margin-left:auto}
+  .srch{border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-family:inherit;
+        font-size:11px;width:150px;background:#fff;color:var(--txt)}
+  .srch:focus{outline:none;border-color:var(--violet)}
 
   #floorcard{border:1px solid var(--peach);border-radius:14px;
         box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
@@ -73,54 +77,104 @@
   #floorcard .hint{color:var(--peach);background:rgba(255,255,255,.13);border-color:rgba(255,207,149,.5)}
   #floorcard th{background:#404B8C}
 
+  /* ---- active filter bar, one per card ---- */
+  .afbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+         padding:6px 13px;background:#F6F4FD;border-bottom:1px solid #E4DDF6}
+  .aflabel{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .afchip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+          color:var(--navy);background:#fff;border:1px solid #D6C8F0;border-radius:20px;padding:3px 5px 3px 10px}
+  .afchip b{color:var(--violet)}
+  .afchip i{font-style:normal;cursor:pointer;width:15px;height:15px;border-radius:50%;
+            display:inline-flex;align-items:center;justify-content:center;
+            background:#EFE7FB;color:var(--violet);font-size:12px;line-height:1}
+  .afchip i:hover{background:var(--violet);color:#fff}
+  .afclear{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:20px;
+           padding:3px 11px;font-family:inherit;font-size:10.5px;font-weight:800;
+           color:var(--mut);cursor:pointer}
+  .afclear:hover{border-color:var(--red);color:var(--red)}
+
   table{width:100%;border-collapse:collapse}
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;
      letter-spacing:.4px;padding:7px 9px;text-align:right;white-space:nowrap;cursor:pointer;
-     position:sticky;top:0}
+     position:sticky;top:0;z-index:2;user-select:none}
   th:first-child,td:first-child{text-align:left}
   th:hover{background:#4A56A0}
+  th .ar{font-size:8px;opacity:.95;margin-left:3px}
   td{padding:6px 9px;text-align:right;font-size:12px;border-bottom:1px solid #EFF1F7;
      font-variant-numeric:tabular-nums;white-space:nowrap}
   tbody tr:hover{background:#F6F4FD}
   tbody tr:last-child td{border-bottom:0}
   td.f{font-weight:800}
+  td.clk{cursor:pointer}
+  td.clk:hover{text-decoration:underline;color:var(--violet)}
   .pill{display:inline-block;min-width:56px;padding:2px 8px;border-radius:20px;
         font-size:11px;font-weight:800;color:#fff;text-align:center}
   .pill.red{background:var(--red)} .pill.green{background:var(--green)} .pill.blue{background:var(--blue)}
   tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0}
+  .tscroll{overflow:auto;max-height:none}
 
-  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
-  .bars{padding:10px 13px 13px}
-  .brow{display:grid;grid-template-columns:110px 1fr 92px;align-items:center;gap:9px;padding:4px 0}
+  /* ---- matrix ---- */
+  .mx{overflow:auto}
+  .mx table{min-width:100%;width:max-content}
+  .mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:3;background:var(--navy);
+        color:#fff;font-weight:800;text-align:left;min-width:64px}
+  .mx tbody td:first-child{background:#F0F2F8;color:var(--txt);border-right:2px solid var(--line)}
+  .mx tbody tr:hover td:first-child{background:#E8E5F7}
+  .mx td{text-align:center;font-size:11.5px;padding:5px 7px;min-width:62px}
+  .mx th{text-align:center;font-size:9px;padding:6px 7px}
+  .mx td.cell{font-weight:700}
+  .mx tfoot td{background:#F6F7FB}
+  .mx tfoot td:first-child{background:#404B8C;color:#fff}
+  .mxlgd{display:flex;gap:14px;align-items:center;padding:7px 13px;font-size:10px;
+         font-weight:700;color:var(--mut);border-top:1px solid var(--line);flex-wrap:wrap}
+  .mxlgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+  /* ---- bar list ---- */
+  .bars{padding:10px 13px 13px;max-height:430px;overflow-y:auto;
+        scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .bars::-webkit-scrollbar{width:8px}
+  .bars::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
+  .brow{display:grid;grid-template-columns:118px 1fr 96px;align-items:center;gap:9px;
+        padding:4px 5px;margin:0 -5px;border-radius:6px;cursor:pointer}
+  .brow:hover{background:#F2F4FA}
+  .brow.on{background:#EFE7FB;box-shadow:inset 2px 0 0 var(--violet)}
   .bname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .btrack{height:12px;background:#EDEFF6;border-radius:3px;overflow:hidden}
   .bfill{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
   .bfill.red{background:var(--red)} .bfill.green{background:var(--green)} .bfill.blue{background:var(--blue)}
   .bval{font-size:10.5px;font-weight:800;text-align:right;color:var(--mut)}
-  .bval b{font-size:11.5px}
   .bval b.red{color:var(--red)} .bval b.green{color:var(--green)} .bval b.blue{color:var(--blue)}
 
-  .chartbox{padding:12px 13px 6px}
-  .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 10px;font-size:10.5px;
-       font-weight:700;color:var(--mut)}
+  /* ---- chart ---- */
+  .chartbox{padding:12px 13px 4px;position:relative}
+  .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
+       font-weight:700;color:var(--mut);flex-wrap:wrap}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  #chartsvg{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none}
+  .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
+       background:#252A45;color:#fff;border-radius:9px;padding:8px 11px;font-size:11px;
+       line-height:1.55;box-shadow:0 8px 22px rgba(37,42,69,.28);z-index:12;min-width:172px}
+  .tip.on{opacity:1}
+  .tip h4{font-size:11.5px;font-weight:800;margin-bottom:5px;color:var(--peach);
+          border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:4px}
+  .tip .r{display:flex;justify-content:space-between;gap:14px}
+  .tip .r span{color:#BFC4DC} .tip .r b{font-variant-numeric:tabular-nums}
+  .tip .r b.red{color:#FF9AA3} .tip .r b.green{color:#7FE0A8} .tip .r b.blue{color:#8CC2FF}
 
   .loading{padding:70px 0;text-align:center;color:var(--mut);font-size:12.5px}
   .spin{width:26px;height:26px;border:3px solid #E4E6F0;border-top-color:var(--violet);
         border-radius:50%;display:inline-block;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
-  .empty{padding:56px 0;text-align:center;color:var(--mut);font-size:12.5px}
+  .empty{padding:50px 0;text-align:center;color:var(--mut);font-size:12.5px}
   .err{margin:16px;padding:13px 15px;border-radius:10px;background:#FDECEE;
-       border:1px solid #F5C2C7;color:#8B2530;font-size:12px;font-weight:600}
-  .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.6}
+       border:1px solid #F5C2C7;color:#8B2530;font-size:12px;font-weight:600;line-height:1.6}
+  .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.7}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
-
-  @media print{
-    .strip{position:static} .acts{display:none}
-    body{background:#fff} .card{break-inside:avoid;box-shadow:none}
-  }
+  @media print{ .strip{position:static} .acts,.srch{display:none} body{background:#fff}
+                .card{break-inside:avoid;box-shadow:none} .bars{max-height:none;overflow:visible} }
 </style>
 </head>
 <body>
@@ -145,6 +199,7 @@
   <button class="mini" id="p_lw"  onclick="preset('lw')">Last Week</button>
   <button class="mini" id="p_d7"  onclick="preset('d7')">Last 7 Days</button>
   <button class="mini" id="p_d30" onclick="preset('d30')">Last 30 Days</button>
+  <span class="cachetag" id="cachetag" style="display:none"></span>
   <div class="acts">
     <button class="mini" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -161,382 +216,656 @@
 /* =====================================================================
    SNOWTEX - Weekly Fabric Roll Compliance Report
    ---------------------------------------------------------------------
-   Overview only. No roll-level or marker-level detail: for that, open the
-   Daily Fabric Roll Compliance Report and pick the day.
+   Overview only. For roll-level detail open the Daily report and pick a day.
 
    COMPLIANCE % = passed rolls / total rolls.
-   Verified against the ERP export on 30-Jul-2026: this definition
-   reproduces the ERP's own "Floor Roll Compliance Rate" exactly on all 11
-   floors. The marker-level column G is NEVER averaged, because averaging
-   it does not reproduce the ERP figure.
+   Verified against the ERP export on 30-Jul-2026: this reproduces the ERP's
+   own "Floor Roll Compliance Rate" exactly on all 11 floors. The marker-level
+   column G is NEVER averaged, because averaging it does not reproduce it.
 
-   All aggregation happens server side in Code.gs getWeekly(), so the
-   payload stays small however long the range is.
+   SPEED
+   The old version asked the server to rescan every row of all 11 tabs on
+   every single request, so it got slower every day the sheet grew. Now:
+     - the server aggregates each DAY once and parks it (_daycache tab)
+     - this page keeps those day aggregates in localStorage, so they survive
+       closing the browser
+     - changing the range only fetches the days not already held locally
+   A repeat visit therefore renders with no network call at all, and the
+   morning visit fetches exactly one new day.
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
-var WK_PFX = 'fabric_wk_';
+var LS_DAY = 'fabwk_d_';        /* one entry per date, survives browser restart */
+var LS_DATES = 'fabwk_dates';   /* the available-dates list + latest */
+var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
+var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 
-var D = null, DATES = [], LATEST = '';
-var floorSort = { k:'rate', d:1 }, conSort = { k:'fails', d:-1 };
+var DATES = [], LATEST = '', DAYS = {}, RANGE = [], D = null;
 var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var FLOOR_ORDER = ['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
-/* ---------- small helpers ---------- */
+/* per-table state: sort key, direction, and text filter */
+var ST = {
+  floor: { k:'rate',  d:1,  q:'' },
+  fab:   { k:'fails', d:-1, q:'' },
+  con:   { k:'fails', d:-1, q:'' },
+  mxc:   { q:'' },
+  mxw:   { q:'' }
+};
+
+/* ---------- helpers ---------- */
 function $(id){ return document.getElementById(id) }
 function fmt(n,d){ return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d) }
 function num(n){ return (n==null||isNaN(n))?'-':Number(n).toLocaleString(undefined,{maximumFractionDigits:0}) }
 function pctClass(p){ return p<90?'red':(p<=98?'green':'blue') }
-function prettyDate(s){
-  if(!s) return '';
-  var p=s.split('-');
-  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+', '+p[0];
-}
-function shortDate(s){
-  if(!s) return '';
-  var p=s.split('-');
-  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1];
-}
+function prettyDate(s){ if(!s)return ''; var p=s.split('-');
+  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+', '+p[0] }
+function shortDate(s){ if(!s)return ''; var p=s.split('-');
+  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1] }
+function tinyDate(s){ if(!s)return ''; var p=s.split('-');
+  return parseInt(p[2],10)+'<tspan> </tspan>'+MONTHS[parseInt(p[1],10)-1] }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] }) }
 function openPicker(el){ if(el.showPicker){ try{el.showPicker()}catch(e){} } }
-function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
-function cacheSet(k,o){ try{sessionStorage.setItem(k,JSON.stringify(o))}catch(e){} }
-function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*') }
-
-function iso(dt){
-  return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2);
-}
+function iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2) }
 function toDate(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]) }
 function addDays(s,n){ var d=toDate(s); d.setDate(d.getDate()+n); return iso(d) }
-/* Bangladesh RMG work week runs Saturday to Thursday, so a week starts on
-   Saturday. JS getDay(): Sat = 6. */
-function weekStart(s){
-  var d=toDate(s), back=(d.getDay()+1)%7;   /* Sat->0, Sun->1, ... Fri->6 */
-  d.setDate(d.getDate()-back);
-  return iso(d);
+/* Bangladesh RMG work week is Saturday to Thursday, so a week starts Saturday.
+   JS getDay(): Sat = 6, so (day+1)%7 gives days back to the last Saturday. */
+function weekStart(s){ var d=toDate(s); d.setDate(d.getDate()-((d.getDay()+1)%7)); return iso(d) }
+function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*') }
+
+function lsGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
+function lsSet(k,o){ try{localStorage.setItem(k,JSON.stringify(o));return true}catch(e){ pruneDays();
+  try{localStorage.setItem(k,JSON.stringify(o));return true}catch(e2){return false} } }
+function pruneDays(){
+  try{
+    var keys=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k && k.indexOf(LS_DAY)===0) keys.push(k);
+    }
+    keys.sort();                                   /* date-sorted because ISO */
+    keys.slice(0,Math.max(0,keys.length-KEEP_DAYS))
+        .forEach(function(k){ localStorage.removeItem(k) });
+  }catch(e){}
+}
+function clearAllDays(){
+  try{
+    var kill=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k && (k.indexOf(LS_DAY)===0 || k===LS_DATES)) kill.push(k);
+    }
+    kill.forEach(function(k){ localStorage.removeItem(k) });
+  }catch(e){}
+  DAYS={};
 }
 
 /* ---------- boot ---------- */
 function boot(){
-  /* Always ask the sheet what the newest date is. Never trust a cached
-     "latest", that is what made the daily report show yesterday. */
+  /* Paint from whatever we already hold, then confirm with the server behind
+     it. That is why re-opening the page feels instant. */
+  var cd = lsGet(LS_DATES);
+  if(cd && cd.dates && cd.dates.length){
+    DATES=cd.dates; LATEST=cd.latest;
+    if(!$('f1').value) preset('d7'); else load();
+  }else{
+    $('content').innerHTML='<div class="loading"><div class="spin"></div><br>First load, fetching dates&hellip;</div>';
+  }
+
   fetch(API_URL+'?action=dates')
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
     .then(function(res){
       if(res.error) throw new Error(res.error);
-      DATES = res.dates||[]; LATEST = res.latest||'';
+      var changed = !cd || res.latest!==cd.latest || (res.dates||[]).length!==(cd.dates||[]).length;
+      DATES=res.dates||[]; LATEST=res.latest||'';
+      lsSet(LS_DATES,{dates:DATES,latest:LATEST});
       if(!LATEST){
         $('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
         return;
       }
-      preset('d7');
+      if(!cd || !cd.dates || !cd.dates.length) preset('d7');
+      else if(changed) load();          /* a new day landed, refresh silently */
     })
-    .catch(showErr);
+    .catch(function(e){ if(!cd) showErr(e) });
 }
 
-function setRange(from,to){
-  $('f1').value=from; $('t1').value=to; syncLabels(); load();
-}
+function setRange(from,to){ $('f1').value=from; $('t1').value=to; syncLabels(); load() }
 function syncLabels(){
   $('f1label').textContent = prettyDate($('f1').value)||'-';
   $('t1label').textContent = prettyDate($('t1').value)||'-';
 }
-function markPreset(id){
-  ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on', x===id) });
-}
-function onPick(){ markPreset(''); syncLabels(); load(); }
-
+function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
+function onPick(){ markPreset(''); syncLabels(); load() }
 function preset(which){
   if(!LATEST) return;
-  var ws = weekStart(LATEST);
-  if(which==='tw'){  markPreset('p_tw');  setRange(ws, LATEST); }
-  else if(which==='lw'){ markPreset('p_lw'); var s=addDays(ws,-7); setRange(s, addDays(s,5)); }
-  else if(which==='d7'){ markPreset('p_d7'); setRange(addDays(LATEST,-6), LATEST); }
-  else { markPreset('p_d30'); setRange(addDays(LATEST,-29), LATEST); }
+  var ws=weekStart(LATEST);
+  if(which==='tw'){ markPreset('p_tw'); setRange(ws,LATEST) }
+  else if(which==='lw'){ markPreset('p_lw'); var s=addDays(ws,-7); setRange(s,addDays(s,5)) }
+  else if(which==='d7'){ markPreset('p_d7'); setRange(addDays(LATEST,-6),LATEST) }
+  else { markPreset('p_d30'); setRange(addDays(LATEST,-29),LATEST) }
 }
 
+/* ---------- load: only the days we do not already hold ---------- */
 function load(){
   var f=$('f1').value, t=$('t1').value;
   if(!f||!t) return;
-  if(f>t){ $('content').innerHTML='<div class="err">From date is after To date. Fix the order.</div>'; return }
+  if(f>t){ $('content').innerHTML='<div class="err"><b>From date is after To date.</b><br>Fix the order and it will load.</div>'; return }
 
-  var key=WK_PFX+f+'_'+t, c=cacheGet(key);
-  if(c){ D=c; render(); return }
+  RANGE = DATES.filter(function(d){ return d>=f && d<=t });
+  if(!RANGE.length){
+    $('content').innerHTML='<div class="wrap"><div class="empty">No data between '+prettyDate(f)+
+      ' and '+prettyDate(t)+'.<br>Those days have not been pushed to the sheet yet.</div></div>';
+    tag('');
+    return;
+  }
 
-  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>Building '+
-    prettyDate(f)+' to '+prettyDate(t)+'&hellip;</div>';
-  fetch(API_URL+'?action=weekly&from='+encodeURIComponent(f)+'&to='+encodeURIComponent(t))
-    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
-    .then(function(res){
+  var missing=[];
+  RANGE.forEach(function(d){
+    if(!DAYS[d]){
+      var c=lsGet(LS_DAY+d);
+      if(c) DAYS[d]=c; else missing.push(d);
+    }
+  });
+
+  if(!missing.length){ tag('from cache, no fetch'); merge(); render(); return }
+
+  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>Fetching '+
+    missing.length+' new day(s)&hellip;<br><span style="font-size:11px">'+
+    (RANGE.length-missing.length)+' of '+RANGE.length+' already cached</span></div>';
+
+  var chunks=[];
+  for(var i=0;i<missing.length;i+=FETCH_CHUNK) chunks.push(missing.slice(i,i+FETCH_CHUNK));
+
+  Promise.all(chunks.map(function(c){
+    return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
+      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
+  })).then(function(all){
+    all.forEach(function(res){
       if(res.error) throw new Error(res.error);
-      cacheSet(key,res); D=res; render();
-    })
-    .catch(showErr);
+      var d=res.days||{};
+      for(var k in d) if(d.hasOwnProperty(k)){ DAYS[k]=d[k]; lsSet(LS_DAY+k,d[k]) }
+      if(res.generatedAt) tellParent(res.generatedAt);
+    });
+    tag(missing.length+' day(s) fetched, '+(RANGE.length-missing.length)+' cached');
+    merge(); render();
+  }).catch(showErr);
 }
+function tag(s){
+  var el=$('cachetag');
+  if(!s){ el.style.display='none'; return }
+  el.style.display=''; el.textContent=s;
+}
+
+/* ---------- merge day aggregates into one range object ---------- */
+function merge(){
+  var f={},fb={},c={}, t=[0,0,0,0,0], byDay=[];
+  function add(store,row){
+    var b=store[row[0]] || (store[row[0]]=[row[0],0,0,0,0]);
+    b[1]+=row[1]; b[2]+=row[2]; b[3]+=row[3]; b[4]+=row[4];
+  }
+  RANGE.forEach(function(ds){
+    var a=DAYS[ds]; if(!a) return;
+    (a.f||[]).forEach(function(r){ add(f,r) });
+    (a.fb||[]).forEach(function(r){ add(fb,r) });
+    (a.c||[]).forEach(function(r){ add(c,r) });
+    for(var i=0;i<5;i++) t[i]+=(a.t&&a.t[i])||0;
+    byDay.push([ds,a.t[0],a.t[1],a.t[2],a.t[3]]);
+  });
+  function pack(o,sort){
+    var arr=[]; for(var k in o) if(o.hasOwnProperty(k)) arr.push(o[k]);
+    arr.forEach(function(r){ r[3]=Math.round(r[3]*100)/100; r[4]=Math.round(r[4]*100)/100 });
+    arr.sort(sort); return arr;
+  }
+  D = {
+    from:$('f1').value, to:$('t1').value,
+    byDay: byDay,
+    byFloor: pack(f,function(a,b){ return FLOOR_ORDER.indexOf(a[0])-FLOOR_ORDER.indexOf(b[0]) }),
+    byFabric: pack(fb,function(a,b){ return b[2]-a[2] }),
+    byConsign: pack(c,function(a,b){ return (b[2]-a[2])||(b[4]-a[4]) }),
+    totals: { rolls:t[0], fails:t[1], used:Math.round(t[2]*100)/100,
+              waste:Math.round(t[3]*100)/100, markers:t[4],
+              days:byDay.length, floors:Object.keys(f).length,
+              consignments:Object.keys(c).length }
+  };
+}
+
 function showErr(e){
   $('content').innerHTML='<div class="err"><b>Could not load.</b><br>'+esc(e.message||e)+
-    '<br><br>If this says Unknown action, the Apps Script needs re-deploying: '+
-    'Deploy &rarr; Manage deployments &rarr; pencil &rarr; New version &rarr; Deploy.</div>';
+    '<br><br>If this says <i>Unknown action</i>, the Apps Script still needs deploying: '+
+    'Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy.</div>';
 }
 
-/* ---------- sorting ---------- */
+/* ---------- sorting and filtering ---------- */
 function rateOf(r){ return r[1] ? (r[1]-r[2])/r[1]*100 : 0 }
-function sortRows(rows, st){
+function applyFilter(rows,q){
+  if(!q) return rows;
+  var s=q.toLowerCase();
+  return rows.filter(function(r){ return String(r[0]).toLowerCase().indexOf(s)>-1 });
+}
+function sortRows(rows,st){
   var idx={name:0,rolls:1,fails:2,used:3,waste:4};
   return rows.slice().sort(function(a,b){
     var x,y;
     if(st.k==='rate'){ x=rateOf(a); y=rateOf(b) }
     else if(st.k==='failpct'){ x=a[1]?a[2]/a[1]:0; y=b[1]?b[2]/b[1]:0 }
     else { x=a[idx[st.k]]; y=b[idx[st.k]] }
-    if(typeof x==='string') return st.d*x.localeCompare(y);
+    if(typeof x==='string') return st.d*String(x).localeCompare(String(y));
     return st.d*(x-y);
   });
 }
-function sortFloor(k){ floorSort.d = (floorSort.k===k) ? -floorSort.d : 1; floorSort.k=k; render() }
-function sortCon(k){ conSort.d = (conSort.k===k) ? -conSort.d : -1; conSort.k=k; render() }
+function setSort(t,k){ var st=ST[t]; st.d=(st.k===k)?-st.d:(k==='name'?1:-1); st.k=k; render() }
+function setQ(t,v){ ST[t].q=v; render(); var el=$('q_'+t); if(el){ el.focus();
+  try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){} } }
+function clearQ(t){ ST[t].q=''; render() }
 
-/* ---------- daily trend chart ---------- */
+function afBar(t,label,total,shown){
+  var st=ST[t];
+  if(!st.q) return '';
+  return '<div class="afbar"><span class="aflabel">Filter</span>'
+    +'<span class="afchip">'+label+' contains <b>'+esc(st.q)+'</b>'
+    +'<i onclick="clearQ(\''+t+'\')" title="Remove this filter">&times;</i></span>'
+    +'<span style="font-size:10.5px;color:var(--mut)">showing '+shown+' of '+total+'</span>'
+    +'<button class="afclear" onclick="clearQ(\''+t+'\')">Clear filter</button></div>';
+}
+function ar(t,k){ return ST[t].k===k ? '<span class="ar">'+(ST[t].d>0?'▲':'▼')+'</span>' : '' }
+
+/* ---------- interactive chart ---------- */
+var CH = { pts:[], L:0, iw:0, n:0, days:[] };
 function chart(byDay){
   var n=byDay.length;
   if(!n) return '<div class="empty">No days in range.</div>';
 
-  var W=1000, H=250, L=46, R=46, T=14, B=40;
-  var iw=W-L-R, ih=H-T-B;
-  var maxW=0;
+  var W=1000,H=260,L=48,R=48,T=14,B=42;
+  var iw=W-L-R, ih=H-T-B, maxW=0;
   byDay.forEach(function(d){ if(d[4]>maxW) maxW=d[4] });
   if(maxW<=0) maxW=1;
+  var bw=Math.max(5,Math.min(44,iw/n*0.5));
 
-  var bw = Math.max(6, Math.min(46, iw/n*0.55));
-  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" '+
-        'aria-label="Compliance percent and waste yards by day">';
+  var s='<svg id="chartsvg" viewBox="0 0 '+W+' '+H+'" role="img" '
+       +'aria-label="Compliance percent and waste yards by day">';
 
-  /* horizontal guides + right axis, compliance 0 to 100 */
   [0,25,50,75,100].forEach(function(v){
     var y=T+ih-(v/100)*ih;
-    s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#EDEFF6" stroke-width="1"/>';
+    s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#EDEFF6"/>';
     s+='<text x="'+(W-R+7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0">'+v+'%</text>';
   });
-  /* left axis, waste yds */
   [0,0.5,1].forEach(function(f){
     var y=T+ih-f*ih;
-    s+='<text x="'+(L-7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0" text-anchor="end">'+
-       fmt(maxW*f,1)+'</text>';
+    s+='<text x="'+(L-7)+'" y="'+(y+3.5)+'" font-size="10" fill="#7A81A0" text-anchor="end">'+fmt(maxW*f,1)+'</text>';
   });
+  /* 90% target line: the band where a floor stops being red */
+  var y90=T+ih-0.90*ih;
+  s+='<line x1="'+L+'" y1="'+y90+'" x2="'+(W-R)+'" y2="'+y90+'" stroke="#1E8E4E" stroke-width="1.2" stroke-dasharray="5 4" opacity=".65"/>';
+  s+='<text x="'+(L+5)+'" y="'+(y90-5)+'" font-size="9.5" font-weight="700" fill="#1E8E4E">90% band</text>';
 
-  var pts=[];
+  CH.pts=[]; CH.L=L; CH.iw=iw; CH.n=n; CH.days=byDay; CH.T=T; CH.ih=ih; CH.H=H; CH.W=W;
+
+  s+='<g id="chbars">';
   byDay.forEach(function(d,i){
-    var cx = L + iw*((i+0.5)/n);
-    var rate = rateOf(d);
-    var bh = (d[4]/maxW)*ih;
-    s+='<rect x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
-       '" rx="2" fill="#C77700" fill-opacity="0.42"><title>'+esc(prettyDate(d[0]))+
-       ' | waste '+fmt(d[4],1)+' yds</title></rect>';
-    pts.push([cx, T+ih-(rate/100)*ih, rate, d]);
-    if(n<=16 || i%Math.ceil(n/12)===0){
-      s+='<text x="'+cx+'" y="'+(H-B+17)+'" font-size="10" fill="#7A81A0" text-anchor="middle">'+
-         esc(shortDate(d[0]))+'</text>';
-    }
+    var cx=L+iw*((i+0.5)/n), bh=(d[4]/maxW)*ih;
+    s+='<rect id="bar'+i+'" x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
+       '" rx="2" fill="#C77700" fill-opacity="0.38"/>';
+    CH.pts.push({x:cx,y:T+ih-(rateOf(d)/100)*ih,rate:rateOf(d),d:d});
+    if(n<=16 || i%Math.ceil(n/12)===0)
+      s+='<text x="'+cx+'" y="'+(H-B+18)+'" font-size="10" fill="#7A81A0" text-anchor="middle">'+esc(shortDate(d[0]))+'</text>';
   });
+  s+='</g>';
 
+  s+='<line id="chair" x1="0" y1="'+T+'" x2="0" y2="'+(T+ih)+'" stroke="#723EC3" stroke-width="1" stroke-dasharray="4 3" opacity="0"/>';
   s+='<polyline fill="none" stroke="#723EC3" stroke-width="2.2" stroke-linejoin="round" points="'+
-     pts.map(function(p){return p[0]+','+p[1]}).join(' ')+'"/>';
-  pts.forEach(function(p){
-    s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2">'+
-       '<title>'+esc(prettyDate(p[3][0]))+' | '+fmt(p[2],2)+'% | '+num(p[3][1])+' rolls, '+
-       p[3][2]+' failed</title></circle>';
+     CH.pts.map(function(p){return p.x+','+p.y}).join(' ')+'"/>';
+  CH.pts.forEach(function(p,i){
+    s+='<circle id="pt'+i+'" cx="'+p.x+'" cy="'+p.y+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2"/>';
   });
-
   s+='<line x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'" stroke="#D6DAE8"/>';
+  s+='<rect id="chhit" x="'+L+'" y="'+T+'" width="'+iw+'" height="'+ih+'" fill="transparent"/>';
   s+='</svg>';
   return s;
 }
 
-/* ---------- bar list ---------- */
-function barList(rows, limit){
-  if(!rows.length) return '<div class="empty">Nothing in range.</div>';
-  var use=rows.slice(0,limit||rows.length);
-  var maxF=0; use.forEach(function(r){ if(r[2]>maxF) maxF=r[2] });
-  if(maxF<=0) maxF=1;
-  var h='<div class="bars">';
-  use.forEach(function(r){
-    var rate=rateOf(r), cls=pctClass(rate);
-    h+='<div class="brow" title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+
-       fmt(r[4],1)+' yds waste">'
-      +'<div class="bname">'+esc(r[0])+'</div>'
-      +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
-      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' yd</div>'
-      +'</div>';
-  });
-  return h+'</div>';
+function wireChart(){
+  var svg=$('chartsvg'); if(!svg) return;
+  var box=$('chartwrap'), tip=$('chtip'), hair=$('chair');
+  var last=-1;
+
+  function hide(){
+    tip.classList.remove('on'); hair.setAttribute('opacity','0');
+    if(last>=0){ var c=$('pt'+last), b=$('bar'+last);
+      if(c){ c.setAttribute('r','3.6'); c.setAttribute('fill','#fff') }
+      if(b) b.setAttribute('fill-opacity','0.38');
+      last=-1; }
+  }
+  function move(ev){
+    var t=(ev.touches&&ev.touches[0])||ev;
+    var rc=svg.getBoundingClientRect();
+    var vx=(t.clientX-rc.left)/rc.width*CH.W;
+    var i=Math.round((vx-CH.L)/CH.iw*CH.n-0.5);
+    if(i<0) i=0; if(i>CH.n-1) i=CH.n-1;
+    if(!CH.pts[i]) return;
+    var p=CH.pts[i], d=p.d;
+
+    if(i!==last){
+      hide();
+      last=i;
+      var c=$('pt'+i), b=$('bar'+i);
+      if(c){ c.setAttribute('r','5.6'); c.setAttribute('fill','#723EC3') }
+      if(b) b.setAttribute('fill-opacity','0.85');
+      hair.setAttribute('x1',p.x); hair.setAttribute('x2',p.x); hair.setAttribute('opacity','1');
+      var cls=pctClass(p.rate);
+      tip.innerHTML='<h4>'+esc(prettyDate(d[0]))+'</h4>'
+        +row('Compliance','<b class="'+cls+'">'+fmt(p.rate,2)+'%</b>')
+        +row('Rolls',num(d[1]))
+        +row('Failed','<b class="red">'+num(d[2])+'</b>')
+        +row('Fail %',fmt(d[1]?d[2]/d[1]*100:0,1)+'%')
+        +row('Used Yds',num(d[3]))
+        +row('Waste Yds','<b>'+fmt(d[4],1)+'</b>');
+      tip.classList.add('on');
+    }
+    /* keep the tooltip inside the card */
+    var bx=box.getBoundingClientRect();
+    var lx=t.clientX-bx.left+14, ty=t.clientY-bx.top-10;
+    if(lx+tip.offsetWidth>bx.width-8) lx=t.clientX-bx.left-tip.offsetWidth-14;
+    if(ty<4) ty=4;
+    if(ty+tip.offsetHeight>bx.height-4) ty=bx.height-tip.offsetHeight-4;
+    tip.style.left=lx+'px'; tip.style.top=ty+'px';
+  }
+  function row(k,v){ return '<div class="r"><span>'+k+'</span><b>'+v+'</b></div>' }
+
+  svg.addEventListener('mousemove',move);
+  svg.addEventListener('mouseleave',hide);
+  svg.addEventListener('touchstart',function(e){ move(e); e.preventDefault() },{passive:false});
+  svg.addEventListener('touchmove',function(e){ move(e); e.preventDefault() },{passive:false});
+  svg.addEventListener('touchend',hide);
 }
 
-/* ---------- table ---------- */
-function tableOf(rows, firstHead, sortFn, st){
-  var h='<div style="overflow:auto"><table><thead><tr>'
-    +'<th onclick="'+sortFn+'(\'name\')">'+firstHead+'</th>'
-    +'<th onclick="'+sortFn+'(\'rolls\')">Rolls</th>'
-    +'<th onclick="'+sortFn+'(\'fails\')">Failed</th>'
-    +'<th onclick="'+sortFn+'(\'failpct\')">Fail %</th>'
-    +'<th onclick="'+sortFn+'(\'rate\')">Compliance %</th>'
-    +'<th onclick="'+sortFn+'(\'used\')">Used Yds</th>'
-    +'<th onclick="'+sortFn+'(\'waste\')">Waste Yds</th>'
-    +'</tr></thead><tbody>';
-  var t={rolls:0,fails:0,used:0,waste:0};
-  sortRows(rows,st).forEach(function(r){
+/* ---------- matrix: floors down, dates across ---------- */
+function matrix(kind){
+  var t = kind==='c' ? 'mxc' : 'mxw';
+  var st = ST[t];
+  var floors = FLOOR_ORDER.filter(function(f){
+    return D.byFloor.some(function(r){ return r[0]===f });
+  });
+  var total = floors.length;
+  floors = applyFilter(floors.map(function(f){return [f]}), st.q).map(function(r){return r[0]});
+
+  if(!floors.length)
+    return afBar(t,'Floor',total,0)+'<div class="empty">No floor matches that filter.</div>';
+
+  var h = afBar(t,'Floor',total,floors.length);
+  h+='<div class="mx"><table><thead><tr><th>Floor</th>';
+  RANGE.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
+  h+='<th style="background:#4A56A0">Range</th></tr></thead><tbody>';
+
+  /* one lookup: date -> floor -> row */
+  var M={};
+  RANGE.forEach(function(ds){
+    M[ds]={};
+    ((DAYS[ds]||{}).f||[]).forEach(function(r){ M[ds][r[0]]=r });
+  });
+
+  var maxW=0;
+  if(kind==='w') RANGE.forEach(function(ds){ floors.forEach(function(f){
+    var r=M[ds][f]; if(r&&r[4]>maxW) maxW=r[4]; }) });
+  if(maxW<=0) maxW=1;
+
+  floors.forEach(function(f){
+    h+='<tr><td>'+f+'</td>';
+    var tot=[0,0,0,0];
+    RANGE.forEach(function(ds){
+      var r=M[ds][f];
+      if(!r||!r[1]){ h+='<td style="color:#C3C8DA">&ndash;</td>'; return }
+      tot[0]+=r[1]; tot[1]+=r[2]; tot[2]+=r[3]; tot[3]+=r[4];
+      if(kind==='c'){
+        var v=rateOf(r), c=pctClass(v);
+        h+='<td class="cell" style="color:var(--'+c+')" title="'+f+' on '+esc(prettyDate(ds))+
+           ': '+r[1]+' rolls, '+r[2]+' failed">'+fmt(v,1)+'</td>';
+      }else{
+        var op=Math.min(0.82,0.10+(r[4]/maxW)*0.72);
+        h+='<td class="cell" style="background:rgba(214,69,80,'+(r[4]>0?op:0)+
+           ');color:'+(op>0.45?'#fff':'var(--txt)')+'" title="'+f+' on '+esc(prettyDate(ds))+
+           ': '+fmt(r[4],2)+' yds waste from '+r[2]+' failed roll(s)">'+
+           (r[4]>0?fmt(r[4],1):'0')+'</td>';
+      }
+    });
+    if(kind==='c'){
+      var rv=tot[0]?(tot[0]-tot[1])/tot[0]*100:0;
+      h+='<td class="cell" style="background:#F0F2F8"><span class="pill '+pctClass(rv)+'">'+fmt(rv,1)+'</span></td>';
+    }else{
+      h+='<td class="cell" style="background:#F0F2F8;font-weight:800">'+fmt(tot[3],1)+'</td>';
+    }
+    h+='</tr>';
+  });
+
+  h+='</tbody><tfoot><tr><td>All</td>';
+  var gt=[0,0,0,0];
+  RANGE.forEach(function(ds){
+    var a=[0,0,0,0];
+    floors.forEach(function(f){ var r=M[ds][f]; if(r){ a[0]+=r[1];a[1]+=r[2];a[2]+=r[3];a[3]+=r[4] } });
+    gt[0]+=a[0]; gt[1]+=a[1]; gt[2]+=a[2]; gt[3]+=a[3];
+    if(kind==='c'){
+      var v=a[0]?(a[0]-a[1])/a[0]*100:0;
+      h+='<td style="color:var(--'+pctClass(v)+')">'+(a[0]?fmt(v,1):'&ndash;')+'</td>';
+    }else h+='<td>'+fmt(a[3],1)+'</td>';
+  });
+  if(kind==='c'){
+    var gv=gt[0]?(gt[0]-gt[1])/gt[0]*100:0;
+    h+='<td><span class="pill '+pctClass(gv)+'">'+fmt(gv,1)+'</span></td>';
+  }else h+='<td>'+fmt(gt[3],1)+'</td>';
+  h+='</tr></tfoot></table></div>';
+
+  h+='<div class="mxlgd">'+(kind==='c'
+     ? '<span><i style="background:var(--red)"></i>below 90%</span><span><i style="background:var(--green)"></i>90 to 98%</span><span><i style="background:var(--blue)"></i>above 98%</span><span>&ndash; means that floor had no rolls that day</span>'
+     : '<span><i style="background:rgba(214,69,80,.15)"></i>less waste</span><span><i style="background:rgba(214,69,80,.82)"></i>more waste</span><span>shaded against the worst cell in this table</span>')
+     +'</div>';
+  return h;
+}
+
+/* ---------- plain table ---------- */
+function tableOf(rows,firstHead,t){
+  var st=ST[t], total=rows.length;
+  var view=applyFilter(rows,st.q);
+  var h=afBar(t,firstHead,total,view.length);
+  if(!view.length) return h+'<div class="empty">Nothing matches that filter.</div>';
+
+  h+='<div class="tscroll"><table><thead><tr>'
+   +'<th onclick="setSort(\''+t+'\',\'name\')">'+firstHead+ar(t,'name')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'rolls\')">Rolls'+ar(t,'rolls')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'fails\')">Failed'+ar(t,'fails')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'failpct\')">Fail %'+ar(t,'failpct')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'rate\')">Compliance %'+ar(t,'rate')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'used\')">Used Yds'+ar(t,'used')+'</th>'
+   +'<th onclick="setSort(\''+t+'\',\'waste\')">Waste Yds'+ar(t,'waste')+'</th>'
+   +'</tr></thead><tbody>';
+  var tt={r:0,f:0,u:0,w:0};
+  sortRows(view,st).forEach(function(r){
     var rate=rateOf(r);
-    t.rolls+=r[1]; t.fails+=r[2]; t.used+=r[3]; t.waste+=r[4];
-    h+='<tr><td class="f">'+esc(r[0])+'</td>'
+    tt.r+=r[1]; tt.f+=r[2]; tt.u+=r[3]; tt.w+=r[4];
+    h+='<tr><td class="f clk" onclick="setQ(\''+t+'\',\''+esc(String(r[0]).replace(/'/g,"")) +'\')" '
+      +'title="Click to filter on this">'+esc(r[0])+'</td>'
       +'<td>'+num(r[1])+'</td><td>'+num(r[2])+'</td>'
       +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,1)+'%</td>'
       +'<td><span class="pill '+pctClass(rate)+'">'+fmt(rate,2)+'%</span></td>'
       +'<td>'+num(r[3])+'</td><td>'+fmt(r[4],1)+'</td></tr>';
   });
-  var trate=t.rolls?(t.rolls-t.fails)/t.rolls*100:0;
-  h+='</tbody><tfoot><tr><td>Total</td><td>'+num(t.rolls)+'</td><td>'+num(t.fails)+'</td>'
-    +'<td>'+fmt(t.rolls?t.fails/t.rolls*100:0,1)+'%</td>'
-    +'<td><span class="pill '+pctClass(trate)+'">'+fmt(trate,2)+'%</span></td>'
-    +'<td>'+num(t.used)+'</td><td>'+fmt(t.waste,1)+'</td></tr></tfoot></table></div>';
+  var tr=tt.r?(tt.r-tt.f)/tt.r*100:0;
+  h+='</tbody><tfoot><tr><td>'+(st.q?'Filtered total':'Total')+'</td><td>'+num(tt.r)+'</td><td>'+num(tt.f)+'</td>'
+   +'<td>'+fmt(tt.r?tt.f/tt.r*100:0,1)+'%</td>'
+   +'<td><span class="pill '+pctClass(tr)+'">'+fmt(tr,2)+'%</span></td>'
+   +'<td>'+num(tt.u)+'</td><td>'+fmt(tt.w,1)+'</td></tr></tfoot></table></div>';
   return h;
+}
+
+/* ---------- bar list ---------- */
+function barList(rows,t,limit){
+  var st=ST[t];
+  var view=applyFilter(rows,st.q);
+  if(!view.length) return '<div class="empty">Nothing matches that filter.</div>';
+  var use=view.slice(0,limit||view.length);
+  var maxF=0; use.forEach(function(r){ if(r[2]>maxF) maxF=r[2] });
+  if(maxF<=0) maxF=1;
+  var h='<div class="bars">';
+  use.forEach(function(r){
+    var rate=rateOf(r), cls=pctClass(rate);
+    h+='<div class="brow'+(st.q&&String(r[0]).toLowerCase().indexOf(st.q.toLowerCase())>-1?' on':'')+'" '
+      +'onclick="setQ(\''+t+'\',\''+esc(String(r[0]).replace(/'/g,"")) +'\')" '
+      +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+fmt(r[4],1)+' yds waste. Click to filter.">'
+      +'<div class="bname">'+esc(r[0])+'</div>'
+      +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
+      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' yd</div></div>';
+  });
+  return h+'</div>';
 }
 
 /* ---------- render ---------- */
 function render(){
-  if(!D){ return }
+  if(!D) return;
   syncLabels();
-  tellParent(D.generatedAt||'');
-
-  var T=D.totals||{};
+  var T=D.totals;
   if(!T.rolls){
-    $('content').innerHTML='<div class="wrap"><div class="empty">No data between '+
-      prettyDate(D.from)+' and '+prettyDate(D.to)+'.<br>'+
-      'Check that those days have been pushed to the sheet.</div></div>';
+    $('content').innerHTML='<div class="wrap"><div class="empty">No rolls between '+
+      prettyDate(D.from)+' and '+prettyDate(D.to)+'.</div></div>';
     return;
   }
-
   var rate=(T.rolls-T.fails)/T.rolls*100;
   var wastePct=T.used?(T.waste/T.used*100):0;
-  var byFloor=D.byFloor||[], byDay=D.byDay||[];
-
   var best=null,worst=null;
-  byFloor.forEach(function(r){
-    if(!r[1]) return;
-    var x=rateOf(r);
-    if(!best||x>rateOf(best)) best=r;
-    if(!worst||x<rateOf(worst)) worst=r;
-  });
+  D.byFloor.forEach(function(r){ if(!r[1])return; var x=rateOf(r);
+    if(!best||x>rateOf(best))best=r; if(!worst||x<rateOf(worst))worst=r });
 
   var h='<div class="wrap">';
-
   h+='<div class="kpis">'
-   +kpi('k1','Date Range', shortDate(D.from)+' &ndash; '+shortDate(D.to), T.days+' day(s) with data','')
-   +kpi('k2','Rolls Checked', num(T.rolls), num(T.markers)+' markers, '+T.floors+' floors','')
-   +kpi('k3','Compliance %', fmt(rate,2)+'%', 'passed rolls / total rolls', pctClass(rate))
-   +kpi('k4','Failed Rolls', num(T.fails), fmt(T.fails/T.rolls*100,1)+'% of all rolls','red')
-   +kpi('k5','Waste Yds', fmt(T.waste,1), fmt(wastePct,3)+'% of fabric used','amber')
-   +kpi('k6','Fabric Used', num(T.used)+' yds', num(T.consignments)+' consignments','')
+   +kpi('k1','Date Range',shortDate(D.from)+' &ndash; '+shortDate(D.to),T.days+' day(s) with data','')
+   +kpi('k2','Rolls Checked',num(T.rolls),num(T.markers)+' markers, '+T.floors+' floors','')
+   +kpi('k3','Compliance %',fmt(rate,2)+'%','passed rolls / total rolls',pctClass(rate))
+   +kpi('k4','Failed Rolls',num(T.fails),fmt(T.fails/T.rolls*100,1)+'% of all rolls','red')
+   +kpi('k5','Waste Yds',fmt(T.waste,1),fmt(wastePct,3)+'% of fabric used','amber')
+   +kpi('k6','Fabric Used',num(T.used)+' yds',num(T.consignments)+' consignments','')
    +'</div>';
 
   h+='<div class="card"><div class="hd"><h3>Day by Day</h3>'
-   +'<span class="hint">'+byDay.length+' day(s)</span>'
-   +'<span class="push" style="font-size:10.5px;color:var(--mut)">hover a point or bar for the numbers</span></div>'
-   +'<div class="chartbox">'
+   +'<span class="hint">'+D.byDay.length+' day(s)</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">move the cursor across the chart</span></div>'
+   +'<div class="chartbox" id="chartwrap">'
    +'<div class="lgd"><span><i style="background:#723EC3"></i>Compliance % (right axis)</span>'
-   +'<span><i style="background:#C77700;opacity:.42"></i>Waste Yds (left axis)</span></div>'
-   +chart(byDay)+'</div></div>';
+   +'<span><i style="background:#C77700;opacity:.5"></i>Waste Yds (left axis)</span>'
+   +'<span><i style="background:#1E8E4E"></i>90% band</span></div>'
+   +chart(D.byDay)+'<div class="tip" id="chtip"></div></div></div>';
+
+  h+='<div class="card"><div class="hd"><h3>Compliance % by Floor and Date</h3>'
+   +'<span class="hint">'+RANGE.length+' day(s)</span>'
+   +'<input class="srch push" id="q_mxc" placeholder="Filter floor&hellip;" value="'+esc(ST.mxc.q)+'" '
+   +'oninput="setQ(\'mxc\',this.value)"></div>'+matrix('c')+'</div>';
+
+  h+='<div class="card"><div class="hd"><h3>Wasted Fabric (Yds) by Floor and Date</h3>'
+   +'<span class="hint">'+fmt(T.waste,1)+' yds total</span>'
+   +'<input class="srch push" id="q_mxw" placeholder="Filter floor&hellip;" value="'+esc(ST.mxw.q)+'" '
+   +'oninput="setQ(\'mxw\',this.value)"></div>'+matrix('w')+'</div>';
 
   h+='<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
-   +'<span class="hint">'+(best?('best '+best[0]+' '+fmt(rateOf(best),1)+'%'):'')+
-     (worst&&best&&worst[0]!==best[0]?('  |  worst '+worst[0]+' '+fmt(rateOf(worst),1)+'%'):'')+'</span>'
-   +'<span class="push" style="font-size:10.5px;color:#FFCF95">click a heading to sort</span></div>'
-   +tableOf(byFloor,'Floor','sortFloor',floorSort)+'</div>';
+   +'<span class="hint">'+(best?('best '+best[0]+' '+fmt(rateOf(best),1)+'%'):'')
+   +(worst&&best&&worst[0]!==best[0]?('  |  worst '+worst[0]+' '+fmt(rateOf(worst),1)+'%'):'')+'</span>'
+   +'<input class="srch push" id="q_floor" placeholder="Filter floor&hellip;" value="'+esc(ST.floor.q)+'" '
+   +'oninput="setQ(\'floor\',this.value)"></div>'+tableOf(D.byFloor,'Floor','floor')+'</div>';
 
   h+='<div class="two">'
    +'<div class="card"><div class="hd"><h3>Fabric Type</h3>'
-   +'<span class="hint">'+(D.byFabric||[]).length+' type(s)</span>'
-   +'<span class="push" style="font-size:10.5px;color:var(--mut)">by failed rolls</span></div>'
-   +barList(D.byFabric||[],14)+'</div>'
+   +'<span class="hint">'+D.byFabric.length+' type(s)</span>'
+   +'<input class="srch push" id="q_fab" placeholder="Filter fabric&hellip;" value="'+esc(ST.fab.q)+'" '
+   +'oninput="setQ(\'fab\',this.value)"></div>'
+   +afBar('fab','Fabric type',D.byFabric.length,applyFilter(D.byFabric,ST.fab.q).length)
+   +barList(D.byFabric,'fab',18)+'</div>'
    +'<div class="card"><div class="hd"><h3>Consignment</h3>'
-   +'<span class="hint">top 14 of '+num(T.consignments)+'</span>'
-   +'<span class="push" style="font-size:10.5px;color:var(--mut)">by failed rolls</span></div>'
-   +barList(D.byConsign||[],14)+'</div>'
-   +'</div>';
+   +'<span class="hint">'+num(D.byConsign.length)+' total</span>'
+   +'<input class="srch push" id="q_con" placeholder="Filter consignment&hellip;" value="'+esc(ST.con.q)+'" '
+   +'oninput="setQ(\'con\',this.value)"></div>'
+   +afBar('con','Consignment',D.byConsign.length,applyFilter(D.byConsign,ST.con.q).length)
+   +barList(D.byConsign,'con',18)+'</div></div>';
 
   h+='<div class="card"><div class="hd"><h3>Consignment Detail</h3>'
-   +'<span class="hint">worst 40 by failed rolls</span>'
+   +'<span class="hint">click any name to filter</span>'
    +'<span class="push" style="font-size:10.5px;color:var(--mut)">click a heading to sort</span></div>'
-   +tableOf(D.byConsign||[],'Consignment','sortCon',conSort)+'</div>';
+   +tableOf(D.byConsign,'Consignment','con')+'</div>';
 
-  h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls. '
-   +'This reproduces the ERP\'s own Floor Roll Compliance Rate exactly. '
-   +'<b>Waste Yds</b> = Used Yds &times; (Roll Width &minus; Marker Width &minus; '
-   +fmt(D.tolerance!=null?D.tolerance:1,2)+') &divide; Roll Width, charged on failed rolls only. '
-   +'Roll width is set by the supplier, so these numbers point upstream to receiving and '
-   +'procurement, not at the cutting floors. For roll level detail open the Daily report.</div>';
+  h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
+   +'the ERP\'s own Floor Roll Compliance Rate exactly. <b>Waste Yds</b> = Used Yds &times; '
+   +'(Roll Width &minus; Marker Width &minus; 1.00) &divide; Roll Width, charged on failed rolls only. '
+   +'Roll width is set by the supplier, so these numbers point upstream at receiving and procurement, '
+   +'not at the cutting floors. For roll level detail open the Daily report and pick the day.</div>';
 
   h+='</div>';
   $('content').innerHTML=h;
+  wireChart();
 }
-
 function kpi(cls,k,v,s,vc){
-  return '<div class="kpi '+cls+'"><div class="k">'+k+'</div>'
-    +'<div class="v '+(vc||'')+'">'+v+'</div><div class="s">'+s+'</div></div>';
+  return '<div class="kpi '+cls+'"><div class="k">'+k+'</div><div class="v '+(vc||'')+'">'+v+
+         '</div><div class="s">'+s+'</div></div>';
 }
 
-/* ---------- Excel export ---------- */
-function sect(title, rows, firstHead){
+/* ---------- Excel ---------- */
+function sect(title,rows,firstHead){
   var t='<tr><td colspan="7" style="font-weight:bold;background:#333D6D;color:#fff">'+title+'</td></tr>'
-   +'<tr>'+['<td><b>'+firstHead+'</b></td>','<td><b>Rolls</b></td>','<td><b>Failed</b></td>',
-            '<td><b>Fail %</b></td>','<td><b>Compliance %</b></td>','<td><b>Used Yds</b></td>',
-            '<td><b>Waste Yds</b></td>'].join('')+'</tr>';
+   +'<tr><td><b>'+firstHead+'</b></td><td><b>Rolls</b></td><td><b>Failed</b></td><td><b>Fail %</b></td>'
+   +'<td><b>Compliance %</b></td><td><b>Used Yds</b></td><td><b>Waste Yds</b></td></tr>';
   rows.forEach(function(r){
     t+='<tr><td>'+esc(r[0])+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td>'
-      +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,2)+'</td><td>'+fmt(rateOf(r),2)+'</td>'
-      +'<td>'+fmt(r[3],2)+'</td><td>'+fmt(r[4],2)+'</td></tr>';
+     +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,2)+'</td><td>'+fmt(rateOf(r),2)+'</td>'
+     +'<td>'+fmt(r[3],2)+'</td><td>'+fmt(r[4],2)+'</td></tr>';
   });
   return t+'<tr><td colspan="7"></td></tr>';
 }
+function mxSect(title,kind){
+  var t='<tr><td colspan="'+(RANGE.length+2)+'" style="font-weight:bold;background:#333D6D;color:#fff">'+title+'</td></tr>';
+  t+='<tr><td><b>Floor</b></td>';
+  RANGE.forEach(function(d){ t+='<td><b>'+esc(shortDate(d))+'</b></td>' });
+  t+='<td><b>Range</b></td></tr>';
+  var M={};
+  RANGE.forEach(function(ds){ M[ds]={}; ((DAYS[ds]||{}).f||[]).forEach(function(r){ M[ds][r[0]]=r }) });
+  FLOOR_ORDER.forEach(function(f){
+    if(!D.byFloor.some(function(r){return r[0]===f})) return;
+    t+='<tr><td>'+f+'</td>';
+    var a=[0,0,0,0];
+    RANGE.forEach(function(ds){
+      var r=M[ds][f];
+      if(!r||!r[1]){ t+='<td></td>'; return }
+      a[0]+=r[1]; a[1]+=r[2]; a[3]+=r[4];
+      t+='<td>'+(kind==='c'?fmt(rateOf(r),2):fmt(r[4],2))+'</td>';
+    });
+    t+='<td>'+(kind==='c'?fmt(a[0]?(a[0]-a[1])/a[0]*100:0,2):fmt(a[3],2))+'</td></tr>';
+  });
+  return t+'<tr><td colspan="'+(RANGE.length+2)+'"></td></tr>';
+}
 function exportExcel(){
   if(!D) return;
-  var T=D.totals||{}, rate=T.rolls?(T.rolls-T.fails)/T.rolls*100:0;
+  var T=D.totals, rate=T.rolls?(T.rolls-T.fails)/T.rolls*100:0;
   var t='<table><tr><td colspan="7" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      +'SOSL Cutting Section &ndash; Weekly Fabric Roll Compliance Report</td></tr>'
-      +'<tr><td colspan="7">'+prettyDate(D.from)+' to '+prettyDate(D.to)+'</td></tr>'
-      +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. '
-      +'Waste tolerance '+fmt(D.tolerance!=null?D.tolerance:1,2)+' inch.</td></tr>'
-      +'<tr><td colspan="7"></td></tr>'
-      +'<tr><td><b>Rolls</b></td><td>'+T.rolls+'</td><td><b>Failed</b></td><td>'+T.fails+'</td>'
-      +'<td><b>Compliance %</b></td><td>'+fmt(rate,2)+'</td><td></td></tr>'
-      +'<tr><td><b>Used Yds</b></td><td>'+fmt(T.used,2)+'</td><td><b>Waste Yds</b></td>'
-      +'<td>'+fmt(T.waste,2)+'</td><td><b>Markers</b></td><td>'+T.markers+'</td><td></td></tr>'
-      +'<tr><td colspan="7"></td></tr>';
-  t+=sect('DAY BY DAY', D.byDay||[], 'Date');
-  t+=sect('FLOOR', sortRows(D.byFloor||[],floorSort), 'Floor');
-  t+=sect('FABRIC TYPE', D.byFabric||[], 'Fabric Type');
-  t+=sect('CONSIGNMENT', sortRows(D.byConsign||[],conSort), 'Consignment');
+   +'SOSL Cutting Section &ndash; Weekly Fabric Roll Compliance Report</td></tr>'
+   +'<tr><td colspan="7">'+prettyDate(D.from)+' to '+prettyDate(D.to)+'</td></tr>'
+   +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. Waste tolerance 1.00 inch.</td></tr>'
+   +'<tr><td colspan="7"></td></tr>'
+   +'<tr><td><b>Rolls</b></td><td>'+T.rolls+'</td><td><b>Failed</b></td><td>'+T.fails+'</td>'
+   +'<td><b>Compliance %</b></td><td>'+fmt(rate,2)+'</td><td></td></tr>'
+   +'<tr><td><b>Used Yds</b></td><td>'+fmt(T.used,2)+'</td><td><b>Waste Yds</b></td><td>'+fmt(T.waste,2)+'</td>'
+   +'<td><b>Markers</b></td><td>'+T.markers+'</td><td></td></tr><tr><td colspan="7"></td></tr>';
+  t+=sect('DAY BY DAY',D.byDay,'Date');
+  t+=mxSect('COMPLIANCE % BY FLOOR AND DATE','c');
+  t+=mxSect('WASTE YDS BY FLOOR AND DATE','w');
+  t+=sect('FLOOR',sortRows(D.byFloor,ST.floor),'Floor');
+  t+=sect('FABRIC TYPE',D.byFabric,'Fabric Type');
+  t+=sect('CONSIGNMENT',sortRows(D.byConsign,ST.con),'Consignment');
   t+='</table>';
-
   var blob=new Blob(['﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head>'
-    +'<meta charset="utf-8"></head><body>'+t+'</body></html>'],
-    {type:'application/vnd.ms-excel'});
+    +'<meta charset="utf-8"></head><body>'+t+'</body></html>'],{type:'application/vnd.ms-excel'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='Weekly Fabric Roll Compliance '+D.from+' to '+D.to+'.xls';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-/* the parent shell asks every report to reload after a Refresh */
+/* the shell's Refresh button asks every report to reload from scratch */
 window.addEventListener('message',function(ev){
-  if(ev.data && ev.data.type==='snapshot-updated'){
-    try{
-      var kill=[];
-      for(var i=0;i<sessionStorage.length;i++){
-        var k=sessionStorage.key(i);
-        if(k.indexOf(WK_PFX)===0) kill.push(k);
-      }
-      kill.forEach(function(k){ sessionStorage.removeItem(k) });
-    }catch(e){}
-    boot();
-  }
+  if(ev.data && ev.data.type==='snapshot-updated'){ clearAllDays(); boot() }
 });
 
 boot();
