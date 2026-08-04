@@ -922,10 +922,8 @@ function render(){
    +barList(D.byFabric,'fab',30)+'</div></div>';
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
-   +'the ERP\'s own Floor Roll Compliance Rate exactly. <b>Waste Yds</b> = Used Yds &times; '
-   +'(Roll Width &minus; Marker Width &minus; 1.00) &divide; Roll Width, charged on failed rolls only. '
-   +'Roll width is set by the supplier, so these numbers point upstream at receiving and procurement, '
-   +'not at the cutting floors. For roll level detail open the Daily report and pick the day.</div>';
+   +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. <b>Waste Yds</b> = Used Yds &times; '
+   +'(Roll Width &minus; Marker Width &minus; 1.00) &divide; Roll Width, charged on failed rolls only.</div>';
 
   h+='</div>';
   $('content').innerHTML=h;
