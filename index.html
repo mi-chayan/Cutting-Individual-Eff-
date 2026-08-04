@@ -141,7 +141,8 @@
       <button class="mi on" id="t_daily" onclick="go('daily')">Daily Individual Eff% Report</button>
       <button class="mi" id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
       <div class="menuhd">Compliance</div>
-      <button class="mi" id="t_fabric" onclick="go('fabric')">Fabric Roll Compliance Report</button>
+      <button class="mi" id="t_fabric" onclick="go('fabric')">Daily Fabric Roll Compliance Report</button>
+      <button class="mi" id="t_fabweek" onclick="go('fabweek')">Weekly Fabric Roll Compliance Report</button>
     </div>
   </div>
   <h1>SOSL Cutting Section Dashboard</h1>
@@ -210,10 +211,14 @@ var REPORTS = {
   range:  { page:'efficiency/range.html',  url:EFF_API,
             key:'sosl_snapshot_v1',   drop:['sosl_day_','sosl_det'] },
   fabric: { page:'compliance/fabric.html', url:FAB_API,
-            key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] }
+            key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] },
+  /* The weekly report aggregates server side and parks nothing, so it has no
+     snapshot key of its own. Refresh just clears its per-range cache. */
+  fabweek:{ page:'compliance/weekly.html', url:FAB_API,
+            key:'fabric_snapshot_v1', drop:['fabric_wk_'] }
 };
 
-var TABS=['daily','range','fabric'], curTab='daily';
+var TABS=['daily','range','fabric','fabweek'], curTab='daily';
 
 /* ---------- pages menu ---------- */
 function openMenu(){
