@@ -40,6 +40,19 @@
   .mini svg{width:12px;height:12px;fill:var(--violet)}
   .mini.on svg{fill:#fff}
   .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+
+  /* Excel and Print are the two things people actually reach for, so they get
+     real colour instead of disappearing into the neutral filter buttons.
+     Tinted at rest, solid on hover, same shape as every other .mini. */
+  .mini.xls{background:#E8F5EE;color:#14663A;border-color:#9FD5B8;font-weight:800}
+  .mini.xls svg{fill:#1E8E4E}
+  .mini.xls:hover{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
+  .mini.xls:hover svg{fill:#fff}
+  .mini.prn{background:#EEF1FA;color:#2B3566;border-color:#B9C2E4;font-weight:800}
+  .mini.prn svg{fill:#333D6D}
+  .mini.prn:hover{background:#333D6D;color:#fff;border-color:#333D6D}
+  .mini.prn:hover svg{fill:#fff}
+
   .cachetag{font-size:9.5px;font-weight:700;color:var(--green);background:#E8F5EE;
             border:1px solid #BFE3CE;border-radius:20px;padding:3px 9px;white-space:nowrap}
 
@@ -97,9 +110,14 @@
   .afclear:hover{border-color:var(--red);color:var(--red)}
 
   table{width:100%;border-collapse:collapse}
+  /* Column headings must stay visible while the rows scroll. They pin to the
+     top of their own scroll box (.tscroll / .mx), which is why those boxes
+     carry a max-height: a sticky header needs a container that actually
+     scrolls, otherwise it has nothing to stick to. */
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;
      letter-spacing:.4px;padding:7px 9px;text-align:right;white-space:nowrap;cursor:pointer;
-     position:sticky;top:0;z-index:2;user-select:none}
+     position:sticky;top:0;z-index:5;user-select:none;
+     box-shadow:0 1px 0 rgba(0,0,0,.18)}
   th:first-child,td:first-child{text-align:left}
   th:hover{background:#4A56A0}
   th .ar{font-size:8px;opacity:.95;margin-left:3px}
@@ -113,14 +131,29 @@
   .pill{display:inline-block;min-width:56px;padding:2px 8px;border-radius:20px;
         font-size:11px;font-weight:800;color:#fff;text-align:center}
   .pill.red{background:var(--red)} .pill.green{background:var(--green)} .pill.blue{background:var(--blue)}
-  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0}
-  .tscroll{overflow:auto;max-height:none}
+  /* The totals row pins to the bottom of the same box, so you can scroll the
+     middle of a long list and still read the header and the total. */
+  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0;
+           position:sticky;bottom:0;z-index:5;box-shadow:0 -1px 0 var(--line)}
+  .tscroll{overflow:auto;max-height:min(70vh,660px);
+           scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .tscroll::-webkit-scrollbar{width:9px;height:9px}
+  .tscroll::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
 
   /* ---- matrix ---- */
-  .mx{overflow:auto}
+  .mx{overflow:auto;max-height:min(70vh,660px);
+      scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .mx::-webkit-scrollbar{width:9px;height:9px}
+  .mx::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
   .mx table{min-width:100%;width:max-content}
-  .mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:3;background:var(--navy);
+  /* Three sticky layers, so the z-index order matters:
+       6 corner cell   pinned top AND left, must sit above both
+       5 header row    pinned top
+       4 floor column  pinned left */
+  .mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:4;background:var(--navy);
         color:#fff;font-weight:800;text-align:left;min-width:64px}
+  .mx thead th:first-child{z-index:6}
+  .mx tfoot td:first-child{z-index:6}
   .mx tbody td:first-child{background:#F0F2F8;color:var(--txt);border-right:2px solid var(--line)}
   .mx tbody tr:hover td:first-child{background:#E8E5F7}
   .mx td{text-align:center;font-size:11.5px;padding:5px 7px;min-width:62px}
@@ -189,7 +222,10 @@
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
   @media print{ .strip{position:static} .acts,.srch{display:none} body{background:#fff}
-                .card{break-inside:avoid;box-shadow:none} .bars{max-height:none;overflow:visible} }
+                .card{break-inside:avoid;box-shadow:none}
+                /* release every scroll box so nothing is cut off on paper */
+                .bars,.tscroll,.mx{max-height:none;overflow:visible}
+                th,tfoot td{position:static;box-shadow:none} }
 </style>
 </head>
 <body>
@@ -210,16 +246,17 @@
     <input type="date" id="t1" onchange="onPick()" onclick="openPicker(this)" aria-label="To date">
   </span>
   <div class="sep"></div>
-  <button class="mini" id="p_tw"  onclick="preset('tw')">This Week</button>
-  <button class="mini" id="p_lw"  onclick="preset('lw')">Last Week</button>
+  <button class="mini" id="p_tw"  onclick="preset('tw')"
+          title="SNOWTEX week: Wednesday to Tuesday. From this week's Wednesday up to the latest day with data.">This Week</button>
+  <button class="mini" id="p_lw"  onclick="preset('lw')"
+          title="SNOWTEX week: Wednesday to Tuesday. The full week before this one.">Last Week</button>
   <button class="mini" id="p_d7"  onclick="preset('d7')">Last 7 Days</button>
   <button class="mini" id="p_d30" onclick="preset('d30')">Last 30 Days</button>
-  <span class="cachetag" id="cachetag" style="display:none"></span>
   <div class="acts">
-    <button class="mini" onclick="exportExcel()" title="Export to Excel">
+    <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
-    <button class="mini" onclick="window.print()" title="Print">
+    <button class="mini prn" onclick="window.print()" title="Print">
       <svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 00-3 3v6h4v4h12v-4h4v-6a3 3 0 00-3-3zm-3 11H8v-5h8v5zm3-8a1 1 0 110-2 1 1 0 010 2zM18 3H6v4h12V3z"/></svg> Print
     </button>
   </div>
@@ -252,6 +289,7 @@
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
 var LS_DAY = 'fabwk_d_';        /* one entry per date, survives browser restart */
 var LS_DATES = 'fabwk_dates';   /* the available-dates list + latest */
+var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock */
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
@@ -260,6 +298,7 @@ var PREFETCH_WINDOW = 30;
 var prefetching = false;
 
 var DATES = [], LATEST = '', DAYS = {}, RANGE = [], D = null;
+var STAMP = '';   /* "Last updated" shown by the dashboard shell */
 var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var FLOOR_ORDER = ['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 
@@ -289,10 +328,24 @@ function openPicker(el){ if(el.showPicker){ try{el.showPicker()}catch(e){} } }
 function iso(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2) }
 function toDate(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]) }
 function addDays(s,n){ var d=toDate(s); d.setDate(d.getDate()+n); return iso(d) }
-/* Bangladesh RMG work week is Saturday to Thursday, so a week starts Saturday.
-   JS getDay(): Sat = 6, so (day+1)%7 gives days back to the last Saturday. */
-function weekStart(s){ var d=toDate(s); d.setDate(d.getDate()-((d.getDay()+1)%7)); return iso(d) }
+/* SNOWTEX week runs WEDNESDAY to TUESDAY. Not the calendar week, not the
+   Bangladesh Sat-Thu working week: the company reporting week.
+   JS getDay(): Wed = 3, so (day - 3 + 7) % 7 is the number of days back to
+   the Wednesday that opened the current week.
+     Wed -> 0   Thu -> 1   Fri -> 2   Sat -> 3
+     Sun -> 4   Mon -> 5   Tue -> 6  (Tuesday closes the week) */
+var WEEK_START_DOW = 3;          /* 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat */
+var WEEK_LEN = 7;                /* Wed..Tue inclusive */
+function weekStart(s){
+  var d=toDate(s);
+  d.setDate(d.getDate()-((d.getDay()-WEEK_START_DOW+7)%7));
+  return iso(d);
+}
+/* The Tuesday that closes the week beginning on the given Wednesday. */
+function weekEnd(ws){ return addDays(ws, WEEK_LEN-1) }
 function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*') }
+/* Single place that owns the header clock: remember it, persist it, post it. */
+function setStamp(s){ if(!s) return; STAMP=s; lsSet(LS_STAMP,s); tellParent(s) }
 
 function lsGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
 function lsSet(k,o){ try{localStorage.setItem(k,JSON.stringify(o));return true}catch(e){ pruneDays();
@@ -323,6 +376,13 @@ function clearAllDays(){
 
 /* ---------- boot ---------- */
 function boot(){
+  /* The shell blanks its clock when you switch reports and waits for the
+     report to post its own. This page used to post only when it actually
+     fetched, so a fully cached load left "Last updated" empty. Post the last
+     known stamp straight away, then refresh it from the server. */
+  STAMP = lsGet(LS_STAMP) || '';
+  if(STAMP) tellParent(STAMP);
+
   /* Paint from whatever we already hold, then confirm with the server behind
      it. That is why re-opening the page feels instant. */
   var cd = lsGet(LS_DATES);
@@ -340,6 +400,7 @@ function boot(){
       var changed = !cd || res.latest!==cd.latest || (res.dates||[]).length!==(cd.dates||[]).length;
       DATES=res.dates||[]; LATEST=res.latest||'';
       lsSet(LS_DATES,{dates:DATES,latest:LATEST});
+      if(res.generatedAt){ setStamp(res.generatedAt) }
       if(!LATEST){
         $('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
         return;
@@ -360,8 +421,17 @@ function onPick(){ markPreset(''); syncLabels(); load() }
 function preset(which){
   if(!LATEST) return;
   var ws=weekStart(LATEST);
-  if(which==='tw'){ markPreset('p_tw'); setRange(ws,LATEST) }
-  else if(which==='lw'){ markPreset('p_lw'); var s=addDays(ws,-7); setRange(s,addDays(s,5)) }
+  if(which==='tw'){
+    /* This Week: from the Wednesday that opened the current week up to the
+       latest day with data. Not to the closing Tuesday, because that day has
+       usually not happened yet. */
+    markPreset('p_tw'); setRange(ws,LATEST);
+  }
+  else if(which==='lw'){
+    /* Last Week: the full Wednesday to Tuesday block before this one. */
+    var s=addDays(ws,-WEEK_LEN);
+    markPreset('p_lw'); setRange(s,weekEnd(s));
+  }
   else if(which==='d7'){ markPreset('p_d7'); setRange(addDays(LATEST,-6),LATEST) }
   else { markPreset('p_d30'); setRange(addDays(LATEST,-29),LATEST) }
 }
@@ -376,7 +446,6 @@ function load(){
   if(!RANGE.length){
     $('content').innerHTML='<div class="wrap"><div class="empty">No data between '+prettyDate(f)+
       ' and '+prettyDate(t)+'.<br>Those days have not been pushed to the sheet yet.</div></div>';
-    tag('');
     return;
   }
 
@@ -388,7 +457,7 @@ function load(){
     }
   });
 
-  if(!missing.length){ tag('from cache, no fetch'); merge(); render(); return }
+  if(!missing.length){ merge(); render(); return }
 
   $('content').innerHTML='<div class="loading"><div class="spin"></div><br>Fetching '+
     missing.length+' new day(s)&hellip;<br><span style="font-size:11px">'+
@@ -405,17 +474,15 @@ function load(){
       if(res.error) throw new Error(res.error);
       var d=res.days||{};
       for(var k in d) if(d.hasOwnProperty(k)){ DAYS[k]=d[k]; lsSet(LS_DAY+k,d[k]) }
-      if(res.generatedAt) tellParent(res.generatedAt);
+      if(res.generatedAt) setStamp(res.generatedAt);
     });
-    tag(missing.length+' day(s) fetched, '+(RANGE.length-missing.length)+' cached');
     merge(); render();
   }).catch(showErr);
 }
-function tag(s){
-  var el=$('cachetag');
-  if(!s){ el.style.display='none'; return }
-  el.style.display=''; el.textContent=s;
-}
+/* The cache state used to show as a chip in the strip. It was noise: the user
+   does not care where the numbers came from, only that they are on screen.
+   Kept as a no-op so the call sites stay readable. */
+function tag(){}
 
 /* ---------- merge day aggregates into one range object ---------- */
 function merge(){
@@ -751,6 +818,7 @@ function barList(rows,t,limit){
 function render(){
   if(!D) return;
   syncLabels();
+  tellParent(STAMP);      /* fires even on a fully cached load */
   var T=D.totals;
   if(!T.rolls){
     $('content').innerHTML='<div class="wrap"><div class="empty">No rolls between '+
@@ -765,7 +833,8 @@ function render(){
 
   var h='<div class="wrap">';
   h+='<div class="kpis">'
-   +kpi('k1','Date Range',shortDate(D.from)+' &ndash; '+shortDate(D.to),T.days+' day(s) with data','')
+   +kpi('k1','Date Range',shortDate(D.from)+' &ndash; '+shortDate(D.to),
+        T.days+' day(s) with data &middot; week Wed&ndash;Tue','')
    +kpi('k2','Rolls Checked',num(T.rolls),num(T.markers)+' markers, '+T.floors+' floors','')
    +kpi('k3','Compliance %',fmt(rate,2)+'%','passed rolls / total rolls',pctClass(rate))
    +kpi('k4','Failed Rolls',num(T.fails),fmt(T.fails/T.rolls*100,1)+'% of all rolls','red')
