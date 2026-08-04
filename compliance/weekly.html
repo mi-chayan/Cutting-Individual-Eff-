@@ -876,9 +876,6 @@ function render(){
   }
   var rate=(T.rolls-T.fails)/T.rolls*100;
   var wastePct=T.used?(T.waste/T.used*100):0;
-  var best=null,worst=null;
-  D.byFloor.forEach(function(r){ if(!r[1])return; var x=rateOf(r);
-    if(!best||x>rateOf(best))best=r; if(!worst||x<rateOf(worst))worst=r });
 
   var h='<div class="wrap">';
   h+='<div class="kpis">'
@@ -912,8 +909,6 @@ function render(){
 
   h+='<div class="two">'
    +'<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
-   +'<span class="hint">'+(best?('best '+best[0]+' '+fmt(rateOf(best),1)+'%'):'')
-   +(worst&&best&&worst[0]!==best[0]?('  |  worst '+worst[0]+' '+fmt(rateOf(worst),1)+'%'):'')+'</span>'
    +'<input class="srch push" id="q_floor" placeholder="Filter floor&hellip;" value="'+esc(ST.floor.q)+'" '
    +'oninput="setQ(\'floor\',this.value)"></div>'+tableOf(D.byFloor,'Floor','floor')+'</div>'
    +'<div class="card"><div class="hd"><h3>Fabric Type</h3>'
