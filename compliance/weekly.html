@@ -14,6 +14,10 @@
        never look green on one page and red on the other. */
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
     --gap:14px;
+    /* Measured at runtime by syncStickyOffsets(). Same idea as fabric.html and
+       daily.html: everything that must stay on screen is stacked from the top
+       of the viewport downwards, using real measured heights. */
+    --stripH:44px; --cardHdH:34px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
@@ -58,7 +62,9 @@
 
   /* One gutter value everywhere: cards, grid gaps and card spacing all use
    --gap, so nothing sits a few pixels off from its neighbour. */
-  .wrap{padding:var(--gap) var(--gap) 28px;max-width:1680px;margin:0 auto}
+  /* Identical to fabric.html and daily.html so the content block does not
+     jump wider when you switch to this report. */
+  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
   .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--gap);margin-bottom:var(--gap)}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
@@ -76,6 +82,12 @@
         overflow:clip;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .card .hd{padding:8px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
             gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
+  /* The card title bar sticks directly under the control strip, so you always
+     know which table you are looking at. */
+  @media(min-width:901px){
+    .card>.hd{position:sticky;top:var(--stripH);z-index:16}
+    .afbar{position:sticky;top:calc(var(--stripH) + var(--cardHdH));z-index:15}
+  }
   .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
   .hint{font-size:10px;font-weight:700;color:var(--violet);letter-spacing:.2px;
         background:#F3EEFC;border:1px solid #D6C8F0;border-radius:20px;padding:3px 10px;white-space:nowrap}
@@ -116,8 +128,7 @@
      scrolls, otherwise it has nothing to stick to. */
   th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;
      letter-spacing:.4px;padding:7px 9px;text-align:right;white-space:nowrap;cursor:pointer;
-     position:sticky;top:0;z-index:5;user-select:none;
-     box-shadow:0 1px 0 rgba(0,0,0,.18)}
+     user-select:none;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
   th:first-child,td:first-child{text-align:left}
   th:hover{background:#4A56A0}
   th .ar{font-size:8px;opacity:.95;margin-left:3px}
@@ -133,15 +144,31 @@
   .pill.red{background:var(--red)} .pill.green{background:var(--green)} .pill.blue{background:var(--blue)}
   /* The totals row pins to the bottom of the same box, so you can scroll the
      middle of a long list and still read the header and the total. */
-  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0;
-           position:sticky;bottom:0;z-index:5;box-shadow:0 -1px 0 var(--line)}
-  .tscroll{overflow:auto;max-height:min(70vh,660px);
-           scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
-  .tscroll::-webkit-scrollbar{width:9px;height:9px}
-  .tscroll::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
+  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0}
+  /* Totals stay readable while you scroll the rows above them. */
+  @media(min-width:901px){
+    .tscroll table>tfoot td{position:sticky;bottom:0;z-index:13;
+        box-shadow:0 -1px 0 var(--line)}
+  }
+  /* THIS is what makes the sticky header work. A fixed 660px cap was useless:
+     these tables are only 11 rows tall, so the box never scrolled and the
+     header had nothing to stick to while the PAGE scrolled past it. Sizing the
+     box to whatever viewport is left under the sticky strip and card title
+     means the box itself scrolls, and the header pins inside it. */
+  /* A plain table flows with the PAGE, exactly like fabric.html and
+     daily.html. It is NOT a scroll container, because these tables are only
+     11 rows: a box that never scrolls gives a sticky header nothing to pin
+     to, which is precisely why the first attempt failed. Instead the heading
+     pins to the viewport, below the control strip and the card title bar. */
+  .tscroll{overflow:visible}
+  @media(min-width:901px){
+    .tscroll table>thead th{position:sticky;
+        top:calc(var(--stripH) + var(--cardHdH) + var(--afH,0px));z-index:14}
+  }
 
   /* ---- matrix ---- */
-  .mx{overflow:auto;max-height:min(70vh,660px);
+  .mx{overflow:auto;
+      max-height:calc(100vh - var(--stripH) - var(--cardHdH) - 34px);
       scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
   .mx::-webkit-scrollbar{width:9px;height:9px}
   .mx::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
@@ -150,8 +177,18 @@
        6 corner cell   pinned top AND left, must sit above both
        5 header row    pinned top
        4 floor column  pinned left */
+  /* Floor column is centred: the codes are all two characters, so left
+     alignment left them looking loose against the centred data columns. */
+  /* The matrix MUST be its own scroll box, because the date columns run off
+     the right. So its headings pin inside that box rather than to the page.
+     Three sticky layers, z-index order matters:
+       6 corner cell   pinned top AND left
+       5 header row    pinned top
+       4 floor column  pinned left */
+  .mx thead th{position:sticky;top:0;z-index:5}
+  .mx tfoot td{position:sticky;bottom:0;z-index:5}
   .mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:4;background:var(--navy);
-        color:#fff;font-weight:800;text-align:left;min-width:64px}
+        color:#fff;font-weight:800;text-align:center;min-width:70px}
   .mx thead th:first-child{z-index:6}
   .mx tfoot td:first-child{z-index:6}
   .mx tbody td:first-child{background:#F0F2F8;color:var(--txt);border-right:2px solid var(--line)}
@@ -189,6 +226,7 @@
   #chartsvg text{font-family:'Plus Jakarta Sans',sans-serif}
   #chartsvg .axl{font-size:10.5px;font-weight:600;fill:#7A81A0}
   #chartsvg .axb{font-size:10px;font-weight:800}
+  #chartsvg .axt{font-size:11px;font-weight:800;letter-spacing:.3px}
   .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
        font-weight:700;color:var(--mut);flex-wrap:wrap}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -567,7 +605,7 @@ function chart(byDay, W){
   var n=byDay.length;
   if(!n) return '<div class="empty">No days in range.</div>';
 
-  var H=274,L=52,R=52,T=16,B=44;
+  var H=280,L=68,R=70,T=16,B=44;   /* wider gutters to hold the axis titles */
   var iw=W-L-R, ih=H-T-B, maxW=0;
   byDay.forEach(function(d){ if(d[4]>maxW) maxW=d[4] });
   if(maxW<=0) maxW=1;
@@ -612,6 +650,15 @@ function chart(byDay, W){
     s+='<circle id="pt'+i+'" cx="'+p.x+'" cy="'+p.y+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2"/>';
   });
   s+='<line x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'" stroke="#D6DAE8"/>';
+
+  /* Axis titles, rotated up the left and right gutters so the reader never has
+     to work out which series belongs to which scale. */
+  var midY=T+ih/2;
+  s+='<text transform="translate(16,'+midY+') rotate(-90)" text-anchor="middle" '
+    +'class="axt" fill="#C77700">Waste Yds</text>';
+  s+='<text transform="translate('+(W-16)+','+midY+') rotate(90)" text-anchor="middle" '
+    +'class="axt" fill="#723EC3">Compliance %</text>';
+
   s+='<rect id="chhit" x="'+L+'" y="'+T+'" width="'+iw+'" height="'+ih+'" fill="transparent"/>';
   s+='</svg>';
   return s;
@@ -686,10 +733,10 @@ function matrix(kind){
     return afBar(t,'Floor',total,0)+'<div class="empty">No floor matches that filter.</div>';
 
   var h = afBar(t,'Floor',total,floors.length);
-  var unit = kind==='c' ? '%' : 'Yds';
-  h+='<div class="mx"><table><thead><tr><th>Floor <span style="opacity:.7">('+unit+')</span></th>';
+  var lastHead = kind==='c' ? 'Roll Compliance%' : 'Total Wasted Yds';
+  h+='<div class="mx"><table><thead><tr><th>Floor</th>';
   RANGE.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
-  h+='<th style="background:#4A56A0">Range '+unit+'</th></tr></thead><tbody>';
+  h+='<th style="background:#4A56A0">'+lastHead+'</th></tr></thead><tbody>';
 
   /* one lookup: date -> floor -> row */
   var M={};
@@ -882,6 +929,7 @@ function render(){
 
   h+='</div>';
   $('content').innerHTML=h;
+  syncStickyOffsets();
   drawChart();
   prefetchAhead();
 }
@@ -897,8 +945,28 @@ function drawChart(){
 var _rsz;
 window.addEventListener('resize',function(){
   clearTimeout(_rsz);
-  _rsz=setTimeout(drawChart,180);
+  _rsz=setTimeout(function(){ syncStickyOffsets(); drawChart() },180);
 });
+
+/* ---------- sticky offsets ----------
+   Same approach as fabric.html and daily.html. The control strip and the card
+   title bars are sticky, so every scroll box below them must be told how much
+   viewport is actually left, otherwise it either never scrolls (and the header
+   never pins) or it runs off the bottom of the screen. */
+function boxH(sel){
+  var el=document.querySelector(sel);
+  return el ? el.getBoundingClientRect().height : 0;
+}
+function syncStickyOffsets(){
+  var r=document.documentElement;
+  var strip=boxH('.strip');
+  var hd=boxH('.card>.hd');
+  var af=boxH('.afbar');            /* only present while a filter is active */
+  if(strip>0 && strip<200) r.style.setProperty('--stripH', strip+'px');
+  if(hd>0 && hd<200)       r.style.setProperty('--cardHdH', hd+'px');
+  r.style.setProperty('--afH', (af>0 && af<120 ? af : 0)+'px');
+}
+window.addEventListener('load', syncStickyOffsets);
 
 /* ---------- silent background widening ----------
    Runs after the page is on screen and never touches the UI. It fills the
