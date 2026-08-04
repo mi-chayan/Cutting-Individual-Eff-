@@ -41,7 +41,20 @@
   .mini:hover{background:var(--cream);border-color:var(--peach)}
   .mini svg{width:12px;height:12px;fill:var(--violet)}
   .showing{font-size:11px;color:var(--mut);white-space:nowrap}
-  .acts{display:flex;gap:7px;flex-wrap:wrap}
+  .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+
+  /* Excel and Print are the two things people actually reach for, so they get
+     real colour instead of disappearing into the neutral filter buttons.
+     Tinted at rest, solid on hover, same shape as every other .mini. */
+  .mini.xls{background:#E8F5EE;color:#14663A;border-color:#9FD5B8;font-weight:800}
+  .mini.xls svg{fill:#1E8E4E}
+  .mini.xls:hover{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
+  .mini.xls:hover svg{fill:#fff}
+  .mini.prn{background:#EEF1FA;color:#2B3566;border-color:#B9C2E4;font-weight:800}
+  .mini.prn svg{fill:#333D6D}
+  .mini.prn:hover{background:#333D6D;color:#fff;border-color:#333D6D}
+  .mini.prn:hover svg{fill:#fff}
+
 
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
@@ -364,10 +377,10 @@
   </span>
   <button class="mini" onclick="goLatest()">Latest Day</button>
   <div class="acts">
-    <button class="mini" onclick="exportExcel()" title="Export current view to Excel">
+    <button class="mini xls" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
-    <button class="mini" onclick="doPrint()" title="Print current view, A4 landscape">
+    <button class="mini prn" onclick="doPrint()" title="Print current view, A4 landscape">
       <svg viewBox="0 0 24 24"><path d="M7 3h10v4H7V3zm12 6H5a2 2 0 00-2 2v6h4v4h10v-4h4v-6a2 2 0 00-2-2zm-4 10H9v-4h6v4z"/></svg> Print
     </button>
   </div>
