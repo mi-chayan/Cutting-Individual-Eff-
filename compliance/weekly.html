@@ -239,6 +239,10 @@ var LS_DAY = 'fabwk_d_';        /* one entry per date, survives browser restart 
 var LS_DATES = 'fabwk_dates';   /* the available-dates list + latest */
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
+/* After the page has painted, quietly pull this many recent days in the
+   background. The user sees nothing, but Last 30 Days then opens instantly. */
+var PREFETCH_WINDOW = 30;
+var prefetching = false;
 
 var DATES = [], LATEST = '', DAYS = {}, RANGE = [], D = null;
 var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -594,9 +598,10 @@ function matrix(kind){
     return afBar(t,'Floor',total,0)+'<div class="empty">No floor matches that filter.</div>';
 
   var h = afBar(t,'Floor',total,floors.length);
-  h+='<div class="mx"><table><thead><tr><th>Floor</th>';
+  var unit = kind==='c' ? '%' : 'Yds';
+  h+='<div class="mx"><table><thead><tr><th>Floor <span style="opacity:.7">('+unit+')</span></th>';
   RANGE.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
-  h+='<th style="background:#4A56A0">Range</th></tr></thead><tbody>';
+  h+='<th style="background:#4A56A0">Range '+unit+'</th></tr></thead><tbody>';
 
   /* one lookup: date -> floor -> row */
   var M={};
@@ -620,7 +625,7 @@ function matrix(kind){
       if(kind==='c'){
         var v=rateOf(r), c=pctClass(v);
         h+='<td class="cell" style="color:var(--'+c+')" title="'+f+' on '+esc(prettyDate(ds))+
-           ': '+r[1]+' rolls, '+r[2]+' failed">'+fmt(v,1)+'</td>';
+           ': '+r[1]+' rolls, '+r[2]+' failed">'+fmt(v,1)+'%</td>';
       }else{
         var op=Math.min(0.82,0.10+(r[4]/maxW)*0.72);
         h+='<td class="cell" style="background:rgba(214,69,80,'+(r[4]>0?op:0)+
@@ -631,7 +636,7 @@ function matrix(kind){
     });
     if(kind==='c'){
       var rv=tot[0]?(tot[0]-tot[1])/tot[0]*100:0;
-      h+='<td class="cell" style="background:#F0F2F8"><span class="pill '+pctClass(rv)+'">'+fmt(rv,1)+'</span></td>';
+      h+='<td class="cell" style="background:#F0F2F8"><span class="pill '+pctClass(rv)+'">'+fmt(rv,1)+'%</span></td>';
     }else{
       h+='<td class="cell" style="background:#F0F2F8;font-weight:800">'+fmt(tot[3],1)+'</td>';
     }
@@ -646,12 +651,12 @@ function matrix(kind){
     gt[0]+=a[0]; gt[1]+=a[1]; gt[2]+=a[2]; gt[3]+=a[3];
     if(kind==='c'){
       var v=a[0]?(a[0]-a[1])/a[0]*100:0;
-      h+='<td style="color:var(--'+pctClass(v)+')">'+(a[0]?fmt(v,1):'&ndash;')+'</td>';
+      h+='<td style="color:var(--'+pctClass(v)+')">'+(a[0]?fmt(v,1)+'%':'&ndash;')+'</td>';
     }else h+='<td>'+fmt(a[3],1)+'</td>';
   });
   if(kind==='c'){
     var gv=gt[0]?(gt[0]-gt[1])/gt[0]*100:0;
-    h+='<td><span class="pill '+pctClass(gv)+'">'+fmt(gv,1)+'</span></td>';
+    h+='<td><span class="pill '+pctClass(gv)+'">'+fmt(gv,1)+'%</span></td>';
   }else h+='<td>'+fmt(gt[3],1)+'</td>';
   h+='</tr></tfoot></table></div>';
 
@@ -687,13 +692,15 @@ function tableOf(rows,firstHead,t){
       +'<td>'+num(r[1])+'</td><td>'+num(r[2])+'</td>'
       +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,1)+'%</td>'
       +'<td><span class="pill '+pctClass(rate)+'">'+fmt(rate,2)+'%</span></td>'
-      +'<td>'+num(r[3])+'</td><td>'+fmt(r[4],1)+'</td></tr>';
+      +'<td>'+num(r[3])+' <span style="color:var(--mut);font-size:10px">Yds</span></td>'
+      +'<td>'+fmt(r[4],1)+' <span style="color:var(--mut);font-size:10px">Yds</span></td></tr>';
   });
   var tr=tt.r?(tt.r-tt.f)/tt.r*100:0;
   h+='</tbody><tfoot><tr><td>'+(st.q?'Filtered total':'Total')+'</td><td>'+num(tt.r)+'</td><td>'+num(tt.f)+'</td>'
    +'<td>'+fmt(tt.r?tt.f/tt.r*100:0,1)+'%</td>'
    +'<td><span class="pill '+pctClass(tr)+'">'+fmt(tr,2)+'%</span></td>'
-   +'<td>'+num(tt.u)+'</td><td>'+fmt(tt.w,1)+'</td></tr></tfoot></table></div>';
+   +'<td>'+num(tt.u)+' <span style="font-size:10px">Yds</span></td>'
+   +'<td>'+fmt(tt.w,1)+' <span style="font-size:10px">Yds</span></td></tr></tfoot></table></div>';
   return h;
 }
 
@@ -713,7 +720,7 @@ function barList(rows,t,limit){
       +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+fmt(r[4],1)+' yds waste. Click to filter.">'
       +'<div class="bname">'+esc(r[0])+'</div>'
       +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
-      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' yd</div></div>';
+      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' Yds</div></div>';
   });
   return h+'</div>';
 }
@@ -740,7 +747,7 @@ function render(){
    +kpi('k2','Rolls Checked',num(T.rolls),num(T.markers)+' markers, '+T.floors+' floors','')
    +kpi('k3','Compliance %',fmt(rate,2)+'%','passed rolls / total rolls',pctClass(rate))
    +kpi('k4','Failed Rolls',num(T.fails),fmt(T.fails/T.rolls*100,1)+'% of all rolls','red')
-   +kpi('k5','Waste Yds',fmt(T.waste,1),fmt(wastePct,3)+'% of fabric used','amber')
+   +kpi('k5','Waste Yds',fmt(T.waste,1)+' Yds',fmt(wastePct,3)+'% of fabric used','amber')
    +kpi('k6','Fabric Used',num(T.used)+' yds',num(T.consignments)+' consignments','')
    +'</div>';
 
@@ -783,11 +790,6 @@ function render(){
    +afBar('con','Consignment',D.byConsign.length,applyFilter(D.byConsign,ST.con.q).length)
    +barList(D.byConsign,'con',18)+'</div></div>';
 
-  h+='<div class="card"><div class="hd"><h3>Consignment Detail</h3>'
-   +'<span class="hint">click any name to filter</span>'
-   +'<span class="push" style="font-size:10.5px;color:var(--mut)">click a heading to sort</span></div>'
-   +tableOf(D.byConsign,'Consignment','con')+'</div>';
-
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
    +'the ERP\'s own Floor Roll Compliance Rate exactly. <b>Waste Yds</b> = Used Yds &times; '
    +'(Roll Width &minus; Marker Width &minus; 1.00) &divide; Roll Width, charged on failed rolls only. '
@@ -797,6 +799,38 @@ function render(){
   h+='</div>';
   $('content').innerHTML=h;
   wireChart();
+  prefetchAhead();
+}
+
+/* ---------- silent background widening ----------
+   Runs after the page is on screen and never touches the UI. It fills the
+   local store for the last PREFETCH_WINDOW days so switching presets, or
+   dragging the range back a couple of weeks, needs no network call at all. */
+function prefetchAhead(){
+  if(prefetching || !DATES.length) return;
+  var want = DATES.slice(-PREFETCH_WINDOW);
+  var missing = want.filter(function(d){ return !DAYS[d] && !lsGet(LS_DAY+d) });
+  if(!missing.length) return;
+
+  prefetching = true;
+  var chunks=[];
+  for(var i=0;i<missing.length;i+=FETCH_CHUNK) chunks.push(missing.slice(i,i+FETCH_CHUNK));
+
+  var run = function(){
+    Promise.all(chunks.map(function(c){
+      return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
+        .then(function(r){ return r.ok ? r.json() : null });
+    })).then(function(all){
+      all.forEach(function(res){
+        if(!res || res.error || !res.days) return;
+        for(var k in res.days) if(res.days.hasOwnProperty(k)){
+          DAYS[k]=res.days[k]; lsSet(LS_DAY+k,res.days[k]);
+        }
+      });
+      prefetching=false;
+    }).catch(function(){ prefetching=false });
+  };
+  if(window.requestIdleCallback) requestIdleCallback(run,{timeout:5000}); else setTimeout(run,1200);
 }
 function kpi(cls,k,v,s,vc){
   return '<div class="kpi '+cls+'"><div class="k">'+k+'</div><div class="v '+(vc||'')+'">'+v+
