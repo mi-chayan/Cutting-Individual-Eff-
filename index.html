@@ -362,7 +362,7 @@ function syncTabFromFrame(){
    itself, exactly as it did before.
    ===================================================================== */
 var WARM_DAYS = 7;      /* how far back to pre-load */
-var WARM_SCHEMA = 2;    /* must match DAY_SCHEMA in weekly.html and Code.gs */
+var WARM_SCHEMA = 3;    /* must match DAY_SCHEMA in weekly.html and Code.gs */
 var WARM_KEY  = 'fabwk_d_', WARM_DATES = 'fabwk_dates';
 
 function warmGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
