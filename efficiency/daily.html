@@ -530,20 +530,21 @@ function lossLogin(){
       btn.disabled=false;
       if(!r.ok){ lsay(r.msg||'Login failed.','r'); return; }
 
-      var url = LOSS_PAGE
-        + '?token='  + encodeURIComponent(r.token)
-        + '&central='+ (r.central?'1':'0')
-        + '&floors=' + encodeURIComponent((r.floors||[]).join(','))
-        + '&user='   + encodeURIComponent(r.user||'');
-
-      var w = window.open(url,'_blank');
-      if(w){
-        lsay('Opened in a new tab.','g');
-        setTimeout(closeLoss,900);
-      }else{
-        /* popup blocked, give them a link they can click themselves */
-        lsay('Your browser blocked the new tab. <a href="'+url+'" target="_blank" rel="noopener">Click here to open Loss Time Entry</a>.','i');
+      /* Hand the session over through sessionStorage, never through the URL.
+         The address bar keeps showing the shell's own domain, and the token
+         stays out of history, bookmarks and referrer headers. Navigating this
+         iframe does not change the parent URL. */
+      try{
+        sessionStorage.setItem('sosl_loss_sess', JSON.stringify({
+          token: r.token, central: !!r.central, floors: r.floors||[],
+          user: r.user||'', today: r.today||''
+        }));
+      }catch(e){
+        lsay('This browser is blocking storage, so the session cannot be passed. Allow site data and try again.','r');
+        return;
       }
+      lsay('Opening&hellip;','g');
+      location.href = LOSS_PAGE;
     })
     .catch(function(e){ btn.disabled=false; lsay('Cannot reach the API. '+e.message,'r'); });
 }
