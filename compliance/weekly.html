@@ -366,6 +366,12 @@ var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281
 var LS_DAY = 'fabwk_d_';        /* one entry per date, survives browser restart */
 var LS_DATES = 'fabwk_dates';   /* the available-dates list + latest */
 var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock */
+/* Must match DAYCACHE_VER in Code.gs. The server versions its own cache, but
+   this browser keeps a copy too, and a copy saved before the shape changed
+   will quietly lack the newer fields. That is what produced a Fabric Type list
+   full of zeroes: the day had no floor x fabric cross-tab in it at all. Any
+   locally held day that is not this version is thrown away and refetched. */
+var DAY_SCHEMA = 2;
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
@@ -598,10 +604,12 @@ function load(){
 
   var missing=[];
   RANGE.forEach(function(d){
-    if(!DAYS[d]){
-      var c=lsGet(LS_DAY+d);
-      if(c) DAYS[d]=c; else missing.push(d);
-    }
+    if(DAYS[d] && DAYS[d].v===DAY_SCHEMA) return;          /* already good */
+    var c=lsGet(LS_DAY+d);
+    if(c && c.v===DAY_SCHEMA){ DAYS[d]=c; return; }
+    delete DAYS[d];
+    try{ localStorage.removeItem(LS_DAY+d) }catch(e){}     /* drop the stale copy */
+    missing.push(d);
   });
 
   if(!missing.length){ merge(); render(); return }
@@ -617,12 +625,25 @@ function load(){
     return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
       .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
   })).then(function(all){
+    var oldServer=false;
     all.forEach(function(res){
       if(res.error) throw new Error(res.error);
       var d=res.days||{};
-      for(var k in d) if(d.hasOwnProperty(k)){ DAYS[k]=d[k]; lsSet(LS_DAY+k,d[k]) }
+      for(var k in d) if(d.hasOwnProperty(k)){
+        if(d[k] && d[k].v!==DAY_SCHEMA) oldServer=true;
+        DAYS[k]=d[k]; lsSet(LS_DAY+k,d[k]);
+      }
       if(res.generatedAt) setStamp(res.generatedAt);
     });
+    if(oldServer){
+      $('content').innerHTML='<div class="err"><b>The Apps Script is out of date.</b><br>'
+        +'It is still sending the old day format, which has no floor by fabric '
+        +'breakdown, so the Fabric Type filter cannot work.<br><br>'
+        +'Open the sheet &rarr; Extensions &rarr; Apps Script, paste the current '
+        +'Code.gs, then <b>Deploy &rarr; Manage deployments &rarr; pencil &rarr; '
+        +'Version: New version &rarr; Deploy</b>.</div>';
+      return;
+    }
     merge(); render();
   }).catch(showErr);
 }
@@ -1120,7 +1141,11 @@ window.addEventListener('load', syncStickyOffsets);
 function prefetchAhead(){
   if(prefetching || !DATES.length) return;
   var want = DATES.slice(-PREFETCH_WINDOW);
-  var missing = want.filter(function(d){ return !DAYS[d] && !lsGet(LS_DAY+d) });
+  var missing = want.filter(function(d){
+    if(DAYS[d] && DAYS[d].v===DAY_SCHEMA) return false;
+    var c=lsGet(LS_DAY+d);
+    return !(c && c.v===DAY_SCHEMA);
+  });
   if(!missing.length) return;
 
   prefetching = true;
@@ -1135,6 +1160,7 @@ function prefetchAhead(){
       all.forEach(function(res){
         if(!res || res.error || !res.days) return;
         for(var k in res.days) if(res.days.hasOwnProperty(k)){
+          if(res.days[k] && res.days[k].v!==DAY_SCHEMA) continue;   /* old shape */
           DAYS[k]=res.days[k]; lsSet(LS_DAY+k,res.days[k]);
         }
       });
