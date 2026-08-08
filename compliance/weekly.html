@@ -250,6 +250,8 @@
                  paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
   #chartsvg .vlw{font-size:10px;font-weight:700;fill:#8A5300;
                  paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  /* sitting inside the bar: darker, no halo needed against the amber fill */
+  #chartsvg .vlw.in{fill:#6B4000;stroke:none;font-weight:800}
   #chartsvg .hid{opacity:0}
   .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
        font-weight:700;color:var(--mut);flex-wrap:wrap}
@@ -279,16 +281,15 @@
      grow to match the Fabric Type list beside it, leaving a large empty band
      under 13 rows of data. Each card now takes its natural height. The fabric
      list is capped and scrolls on its own, so it never runs away. */
-  /* The two cards are locked to one shared height so the pair reads as a
-     block. --pairH is measured at runtime from the Floor Ranking table's own
-     natural height, so that table never shows an empty band, and the fabric
-     list scrolls inside whatever is left. */
+  /* align-items:start, NOT stretch. Stretch made BOTH cards grow to the
+     taller one, and since the fabric list has 36 entries it dragged the floor
+     table up with it. Now the Floor Ranking card takes its own natural height
+     and syncPairHeight() caps the fabric list to match, so the pair ends level
+     without either card carrying dead space. */
   .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);
-       align-items:stretch;margin-bottom:0}
-  .two>.card{margin-bottom:var(--gap);display:flex;flex-direction:column;min-height:0}
-  .two>.card>.hd,.two>.card>.chips,.two>.card>.afbar{flex:0 0 auto}
-  .two>.card>.tscroll{flex:1 1 auto;min-height:0}
-  #fabcard>.bars{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
+       align-items:start;margin-bottom:0}
+  .two>.card{margin-bottom:var(--gap)}
+  #fabcard>.bars{overflow-y:auto}
 
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
@@ -721,14 +722,13 @@ function chart(byDay, W){
      shows the same numbers and the two would sit on top of each other. */
   var showLbl = n<=12 || iw/n>=54;
 
+  var geo=[];
   s+='<g id="chbars">';
   byDay.forEach(function(d,i){
-    var cx=L+iw*((i+0.5)/n), bh=(d[4]/maxW)*ih;
-    s+='<rect id="bar'+i+'" x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
+    var cx=L+iw*((i+0.5)/n), bh=(d[4]/maxW)*ih, barTop=T+ih-bh;
+    s+='<rect id="bar'+i+'" x="'+(cx-bw/2)+'" y="'+barTop+'" width="'+bw+'" height="'+Math.max(0,bh)+
        '" rx="2" fill="#C77700" fill-opacity="0.38"/>';
-    if(showLbl)
-      s+='<text id="lw'+i+'" x="'+cx+'" y="'+(T+ih-bh-5)+'" class="vlw" text-anchor="middle">'+
-         fmt(d[4],1)+'</text>';
+    geo.push({cx:cx,bh:bh,barTop:barTop});
     CH.pts.push({x:cx,y:T+ih-(rateOf(d)/100)*ih,rate:rateOf(d),d:d});
     /* label density follows the real width, so labels never collide */
     var every=Math.max(1,Math.ceil(n/Math.max(4,Math.floor(iw/64))));
@@ -742,13 +742,51 @@ function chart(byDay, W){
      CH.pts.map(function(p){return p.x+','+p.y}).join(' ')+'"/>';
   CH.pts.forEach(function(p,i){
     s+='<circle id="pt'+i+'" cx="'+p.x+'" cy="'+p.y+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2"/>';
-    if(showLbl){
-      /* keep the label inside the plot when the point sits near the top */
-      var ly=p.y-11; if(ly<T+11) ly=p.y+18;
-      s+='<text id="lc'+i+'" x="'+p.x+'" y="'+ly+'" class="vlc" text-anchor="middle">'+
-         fmt(p.rate,1)+'%</text>';
-    }
   });
+
+  /* ---- label placement, collision aware ----
+     Two labels share each column: the waste figure belonging to the bar, and
+     the compliance figure belonging to the line. Placing both "above" blindly
+     put them on top of each other whenever a tall bar reached up to the line,
+     which is exactly what happened on 1 Aug. So each pair is resolved:
+       1. compliance sits above its point, or below it near the plot ceiling
+       2. waste sits above its bar
+       3. if the two would land within MINGAP, the waste figure moves INSIDE
+          the bar, which is always free space, provided the bar is tall enough
+       4. a bar too short to hold text pushes the compliance label away instead
+     Both carry a white halo so they stay readable over bars and gridlines. */
+  if(showLbl){
+    var MINGAP=15;
+    geo.forEach(function(g,i){
+      var p=CH.pts[i];
+      var cY=p.y-11;                        /* compliance, above the point   */
+      if(cY < T+11) cY = p.y+18;            /* too near the ceiling, go below */
+      var wY=g.barTop-6, inside=false;      /* waste, above the bar          */
+
+      if(Math.abs(wY-cY) < MINGAP || wY < T+11){
+        if(g.bh > 26){ wY=g.barTop+14; inside=true; }   /* tuck it in the bar */
+        else { cY = (cY <= wY) ? (wY-MINGAP-3) : (wY+MINGAP+3); }
+      }
+      /* Second pass. Tucking the waste figure just under the bar top can land
+         it right back on the compliance label when the point is also high, as
+         happens on a full height bar. Slide it further down the bar, which is
+         still empty space, and only give up if the bar runs out. */
+      if(inside && Math.abs(wY-cY) < MINGAP){
+        var slid = cY + MINGAP + 4;
+        wY = (slid < g.barTop + g.bh - 5) ? slid : Math.max(g.barTop+14, cY-MINGAP-4);
+      }
+      /* never let either label leave the plot */
+      if(cY < T+10) cY = T+10;
+      if(cY > T+ih-3) cY = T+ih-3;
+      if(wY < T+10) wY = T+10;
+      if(wY > T+ih-3) wY = T+ih-3;
+
+      s+='<text id="lw'+i+'" x="'+g.cx+'" y="'+wY+'" class="vlw'+(inside?' in':'')+
+         '" text-anchor="middle">'+fmt(byDay[i][4],1)+'</text>';
+      s+='<text id="lc'+i+'" x="'+p.x+'" y="'+cY+'" class="vlc" text-anchor="middle">'+
+         fmt(p.rate,1)+'%</text>';
+    });
+  }
   s+='<line x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'" stroke="#D6DAE8"/>';
 
   /* Axis titles, rotated up the left and right gutters so the reader never has
@@ -1036,17 +1074,25 @@ function boxH(sel){
   var el=document.querySelector(sel);
   return el ? el.getBoundingClientRect().height : 0;
 }
-/* Lock the Floor Ranking card and the Fabric Type card to one height.
-   The floor table sets the height, because it must never show blank space
-   under its last row. The fabric list then scrolls inside the same box. */
+/* Match the Fabric Type card to the Floor Ranking card.
+   The floor table sets the height because it must never show blank space
+   under its last row. The fabric list is then capped to whatever height is
+   left after its own header and chips, and scrolls inside that. Nothing is
+   stretched, so neither card carries dead space. */
 function syncPairHeight(){
   var fl=document.getElementById('floorcard');
   var fb=document.getElementById('fabcard');
   if(!fl||!fb) return;
-  fl.style.height=''; fb.style.height='';
-  if(window.innerWidth<=1180) return;      /* stacked, let both size naturally */
-  var h=fl.getBoundingClientRect().height;
-  if(h>60){ fl.style.height=h+'px'; fb.style.height=h+'px' }
+  var bars=fb.querySelector('.bars');
+  if(!bars) return;
+
+  bars.style.maxHeight='';                       /* measure unconstrained */
+  if(window.innerWidth<=1180) return;            /* stacked, let it run free */
+
+  var target=fl.getBoundingClientRect().height;  /* the floor card, natural */
+  var chrome=fb.getBoundingClientRect().height - bars.getBoundingClientRect().height;
+  var h=target-chrome;
+  if(h>140) bars.style.maxHeight=h+'px';
 }
 
 function syncStickyOffsets(){
