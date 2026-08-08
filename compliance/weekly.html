@@ -96,6 +96,18 @@
         font-size:11px;width:150px;background:#fff;color:var(--txt)}
   .srch:focus{outline:none;border-color:var(--violet)}
 
+  /* scope chips, only on the Fabric Type card */
+  .chips{display:flex;gap:5px;flex-wrap:wrap;padding:7px 13px;
+         background:#FAFBFE;border-bottom:1px solid var(--line)}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:3px 10px;
+        font-size:10px;font-weight:800;cursor:pointer;color:var(--mut);font-family:inherit}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+  /* factory chips read as a separate tier from the floor chips beside them */
+  .chip.fact{color:var(--navy);border-color:#C3C9E4;background:#F1F3FA;letter-spacing:.3px}
+  .chip.fact:hover{border-color:var(--navy);color:var(--navy);background:#E7EAF6}
+  .chip.fact.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
   #floorcard{border:1px solid var(--peach);border-radius:14px;
         box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
         background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
@@ -192,7 +204,13 @@
   .mx thead th:first-child{z-index:6}
   .mx tfoot td:first-child{z-index:6}
   .mx tbody td:first-child{background:#F0F2F8;color:var(--txt);border-right:2px solid var(--line)}
-  .mx tbody tr:hover td:first-child{background:#E8E5F7}
+  /* Row highlight has to reach EVERY cell, including the shaded waste cells
+     and the Range column, both of which carry an inline background that a
+     plain background rule cannot beat. A huge inset shadow tints straight over
+     whatever colour is already there, and unlike filter: it does not create a
+     containing block, so the sticky first column keeps working. */
+  .mx tbody tr:hover td{box-shadow:inset 0 0 0 2000px rgba(114,62,195,.10)}
+  .mx tbody tr:hover td:first-child{box-shadow:inset 0 0 0 2000px rgba(114,62,195,.16)}
   .mx td{text-align:center;font-size:11.5px;padding:5px 7px;min-width:62px}
   .mx th{text-align:center;font-size:9px;padding:6px 7px}
   .mx td.cell{font-weight:700}
@@ -203,7 +221,7 @@
   .mxlgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 
   /* ---- bar list ---- */
-  .bars{padding:10px 13px 13px;max-height:520px;overflow-y:auto;
+  .bars{padding:10px 13px 13px;overflow-y:auto;
         scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
   .bars::-webkit-scrollbar{width:8px}
   .bars::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
@@ -227,6 +245,12 @@
   #chartsvg .axl{font-size:10.5px;font-weight:600;fill:#7A81A0}
   #chartsvg .axb{font-size:10px;font-weight:800}
   #chartsvg .axt{font-size:11px;font-weight:800;letter-spacing:.3px}
+  /* on-chart value labels */
+  #chartsvg .vlc{font-size:10.5px;font-weight:800;fill:#5B2FA6;
+                 paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  #chartsvg .vlw{font-size:10px;font-weight:700;fill:#8A5300;
+                 paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  #chartsvg .hid{opacity:0}
   .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
        font-weight:700;color:var(--mut);flex-wrap:wrap}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -255,9 +279,16 @@
      grow to match the Fabric Type list beside it, leaving a large empty band
      under 13 rows of data. Each card now takes its natural height. The fabric
      list is capped and scrolls on its own, so it never runs away. */
+  /* The two cards are locked to one shared height so the pair reads as a
+     block. --pairH is measured at runtime from the Floor Ranking table's own
+     natural height, so that table never shows an empty band, and the fabric
+     list scrolls inside whatever is left. */
   .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);
-       align-items:start;margin-bottom:0}
-  .two>.card{margin-bottom:var(--gap)}
+       align-items:stretch;margin-bottom:0}
+  .two>.card{margin-bottom:var(--gap);display:flex;flex-direction:column;min-height:0}
+  .two>.card>.hd,.two>.card>.chips,.two>.card>.afbar{flex:0 0 auto}
+  .two>.card>.tscroll{flex:1 1 auto;min-height:0}
+  #fabcard>.bars{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
 
   @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
   @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
@@ -346,10 +377,42 @@ var FLOOR_ORDER = ['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 var ST = {
   floor: { k:'rate',  d:1,  q:'' },
   fab:   { k:'fails', d:-1, q:'' },
-  con:   { k:'fails', d:-1, q:'' },
-  mxc:   { q:'' },
-  mxw:   { q:'' }
+  con:   { k:'fails', d:-1, q:'' }
 };
+
+/* Fabric Type is the only card that filters, and it filters by WHERE the
+   fabric was used, not by its name. Same two tier idea as the daily report:
+   All Floors | SOL | SSL, then the floors belonging to the chosen factory. */
+var FACTORY = { SOL:['1A','1B','1C','1D','1E','3A'], SSL:['2A','2B','2C','2D','2E'] };
+var fabFact = '';    /* '' | 'SOL' | 'SSL' */
+var fabFloor = '';   /* '' or a single floor code */
+function fabScopeFloors(){ return fabFact ? FACTORY[fabFact] : FLOOR_ORDER }
+function toggleFabFact(f){ fabFact = (fabFact===f) ? '' : f; fabFloor=''; render() }
+function toggleFabFloor(f){ fabFloor = (fabFloor===f) ? '' : f; render() }
+function clearFabScope(){ fabFact=''; fabFloor=''; render() }
+function fabScopeLabel(){
+  return fabFloor ? ('Floor '+fabFloor) : (fabFact ? (fabFact+', all floors') : 'All floors');
+}
+
+/* Rebuild the fabric list for the chosen scope out of the floor x fabric
+   cross-tab the server now sends. With no scope this equals the plain fabric
+   totals, so the unfiltered view is unchanged. */
+function fabricRows(){
+  if(!fabFloor && !fabFact) return D.byFabric;
+  var want = fabFloor ? [fabFloor] : FACTORY[fabFact];
+  var acc = {};
+  RANGE.forEach(function(ds){
+    ((DAYS[ds]||{}).ff||[]).forEach(function(r){
+      if(want.indexOf(r[0])===-1) return;
+      var b = acc[r[1]] || (acc[r[1]]=[r[1],0,0,0,0]);
+      b[1]+=r[2]; b[2]+=r[3]; b[3]+=r[4]; b[4]+=r[5];
+    });
+  });
+  var out=[]; for(var k in acc) if(acc.hasOwnProperty(k)) out.push(acc[k]);
+  out.forEach(function(r){ r[3]=Math.round(r[3]*100)/100; r[4]=Math.round(r[4]*100)/100 });
+  out.sort(function(a,b){ return (b[2]-a[2])||(b[4]-a[4]) });
+  return out;
+}
 
 /* ---------- helpers ---------- */
 function $(id){ return document.getElementById(id) }
@@ -428,7 +491,7 @@ function boot(){
   var cd = lsGet(LS_DATES);
   if(cd && cd.dates && cd.dates.length){
     DATES=cd.dates; LATEST=cd.latest;
-    if(!$('f1').value) preset('d7'); else load();
+    if(!$('f1').value) applyPreset('d7'); else load();
   }else{
     $('content').innerHTML='<div class="loading"><div class="spin"></div><br>First load, fetching dates&hellip;</div>';
   }
@@ -439,16 +502,38 @@ function boot(){
       if(res.error) throw new Error(res.error);
       var changed = !cd || res.latest!==cd.latest || (res.dates||[]).length!==(cd.dates||[]).length;
       DATES=res.dates||[]; LATEST=res.latest||'';
+      _datesAt = Date.now();
       lsSet(LS_DATES,{dates:DATES,latest:LATEST});
       if(res.generatedAt){ setStamp(res.generatedAt) }
       if(!LATEST){
         $('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
         return;
       }
-      if(!cd || !cd.dates || !cd.dates.length) preset('d7');
+      if(!cd || !cd.dates || !cd.dates.length) applyPreset('d7');
       else if(changed) load();          /* a new day landed, refresh silently */
     })
     .catch(function(e){ if(!cd) showErr(e) });
+}
+
+/* Every day the report can show has to be in DATES, because load() filters the
+   requested range against it. If the sheet gained a day after this browser
+   last cached that list, the new day is invisible: the range looks right but
+   pulls nothing. So any deliberate click re-checks the list first. That is one
+   small call, and it is the difference between "no data" and today's data. */
+var _datesAt = 0;
+function refreshDates(force){
+  if(!force && Date.now()-_datesAt < 60000) return Promise.resolve(false);
+  return fetch(API_URL+'?action=dates')
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    .then(function(res){
+      if(res.error) throw new Error(res.error);
+      var before = LATEST+'|'+DATES.length;
+      DATES=res.dates||[]; LATEST=res.latest||'';
+      _datesAt = Date.now();
+      lsSet(LS_DATES,{dates:DATES,latest:LATEST});
+      if(res.generatedAt) setStamp(res.generatedAt);
+      return before !== (LATEST+'|'+DATES.length);
+    });
 }
 
 function setRange(from,to){ $('f1').value=from; $('t1').value=to; syncLabels(); load() }
@@ -457,8 +542,25 @@ function syncLabels(){
   $('t1label').textContent = prettyDate($('t1').value)||'-';
 }
 function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
-function onPick(){ markPreset(''); syncLabels(); load() }
+/* Typing a date is a deliberate act, so re-check what the sheet holds. */
+function onPick(){
+  markPreset(''); syncLabels();
+  busy('Checking the sheet\u2026');
+  refreshDates(true).then(function(){ load() }).catch(function(){ load() });
+}
+
 function preset(which){
+  busy('Checking the sheet\u2026');
+  refreshDates(true)
+    .then(function(){ applyPreset(which) })
+    .catch(function(){ applyPreset(which) });
+}
+
+function busy(msg){
+  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>'+esc(msg)+'</div>';
+}
+
+function applyPreset(which){
   if(!LATEST) return;
   var ws=weekStart(LATEST);
   if(which==='tw'){
@@ -565,11 +667,6 @@ function showErr(e){
 
 /* ---------- sorting and filtering ---------- */
 function rateOf(r){ return r[1] ? (r[1]-r[2])/r[1]*100 : 0 }
-function applyFilter(rows,q){
-  if(!q) return rows;
-  var s=q.toLowerCase();
-  return rows.filter(function(r){ return String(r[0]).toLowerCase().indexOf(s)>-1 });
-}
 function sortRows(rows,st){
   var idx={name:0,rolls:1,fails:2,used:3,waste:4};
   return rows.slice().sort(function(a,b){
@@ -582,19 +679,6 @@ function sortRows(rows,st){
   });
 }
 function setSort(t,k){ var st=ST[t]; st.d=(st.k===k)?-st.d:(k==='name'?1:-1); st.k=k; render() }
-function setQ(t,v){ ST[t].q=v; render(); var el=$('q_'+t); if(el){ el.focus();
-  try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){} } }
-function clearQ(t){ ST[t].q=''; render() }
-
-function afBar(t,label,total,shown){
-  var st=ST[t];
-  if(!st.q) return '';
-  return '<div class="afbar"><span class="aflabel">Filter</span>'
-    +'<span class="afchip">'+label+' contains <b>'+esc(st.q)+'</b>'
-    +'<i onclick="clearQ(\''+t+'\')" title="Remove this filter">&times;</i></span>'
-    +'<span style="font-size:10.5px;color:var(--mut)">showing '+shown+' of '+total+'</span>'
-    +'<button class="afclear" onclick="clearQ(\''+t+'\')">Clear filter</button></div>';
-}
 function ar(t,k){ return ST[t].k===k ? '<span class="ar">'+(ST[t].d>0?'▲':'▼')+'</span>' : '' }
 
 /* ---------- interactive chart ---------- */
@@ -632,11 +716,19 @@ function chart(byDay, W){
 
   CH.pts=[]; CH.L=L; CH.iw=iw; CH.n=n; CH.days=byDay; CH.T=T; CH.ih=ih; CH.H=H; CH.W=W;
 
+  /* Values are printed on the chart so it reads without any interaction.
+     Hovering a day hides that day's two labels, because the tooltip already
+     shows the same numbers and the two would sit on top of each other. */
+  var showLbl = n<=12 || iw/n>=54;
+
   s+='<g id="chbars">';
   byDay.forEach(function(d,i){
     var cx=L+iw*((i+0.5)/n), bh=(d[4]/maxW)*ih;
     s+='<rect id="bar'+i+'" x="'+(cx-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+Math.max(0,bh)+
        '" rx="2" fill="#C77700" fill-opacity="0.38"/>';
+    if(showLbl)
+      s+='<text id="lw'+i+'" x="'+cx+'" y="'+(T+ih-bh-5)+'" class="vlw" text-anchor="middle">'+
+         fmt(d[4],1)+'</text>';
     CH.pts.push({x:cx,y:T+ih-(rateOf(d)/100)*ih,rate:rateOf(d),d:d});
     /* label density follows the real width, so labels never collide */
     var every=Math.max(1,Math.ceil(n/Math.max(4,Math.floor(iw/64))));
@@ -650,6 +742,12 @@ function chart(byDay, W){
      CH.pts.map(function(p){return p.x+','+p.y}).join(' ')+'"/>';
   CH.pts.forEach(function(p,i){
     s+='<circle id="pt'+i+'" cx="'+p.x+'" cy="'+p.y+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2"/>';
+    if(showLbl){
+      /* keep the label inside the plot when the point sits near the top */
+      var ly=p.y-11; if(ly<T+11) ly=p.y+18;
+      s+='<text id="lc'+i+'" x="'+p.x+'" y="'+ly+'" class="vlc" text-anchor="middle">'+
+         fmt(p.rate,1)+'%</text>';
+    }
   });
   s+='<line x1="'+L+'" y1="'+(T+ih)+'" x2="'+(W-R)+'" y2="'+(T+ih)+'" stroke="#D6DAE8"/>';
 
@@ -671,11 +769,17 @@ function wireChart(){
   var box=$('chartwrap'), tip=$('chtip'), hair=$('chair');
   var last=-1;
 
+  function lbl(i,on){
+    var a=$('lc'+i), b=$('lw'+i);
+    if(a) a.classList.toggle('hid',!on);
+    if(b) b.classList.toggle('hid',!on);
+  }
   function hide(){
     tip.classList.remove('on'); hair.setAttribute('opacity','0');
     if(last>=0){ var c=$('pt'+last), b=$('bar'+last);
       if(c){ c.setAttribute('r','3.6'); c.setAttribute('fill','#fff') }
       if(b) b.setAttribute('fill-opacity','0.38');
+      lbl(last,true);          /* put this day's printed values back */
       last=-1; }
   }
   function move(ev){
@@ -693,6 +797,7 @@ function wireChart(){
       var c=$('pt'+i), b=$('bar'+i);
       if(c){ c.setAttribute('r','5.6'); c.setAttribute('fill','#723EC3') }
       if(b) b.setAttribute('fill-opacity','0.85');
+      lbl(i,false);            /* tooltip is showing these numbers already */
       hair.setAttribute('x1',p.x); hair.setAttribute('x2',p.x); hair.setAttribute('opacity','1');
       var cls=pctClass(p.rate);
       tip.innerHTML='<h4>'+esc(prettyDate(d[0]))+'</h4>'
@@ -723,18 +828,11 @@ function wireChart(){
 
 /* ---------- matrix: floors down, dates across ---------- */
 function matrix(kind){
-  var t = kind==='c' ? 'mxc' : 'mxw';
-  var st = ST[t];
   var floors = FLOOR_ORDER.filter(function(f){
     return D.byFloor.some(function(r){ return r[0]===f });
   });
-  var total = floors.length;
-  floors = applyFilter(floors.map(function(f){return [f]}), st.q).map(function(r){return r[0]});
-
-  if(!floors.length)
-    return afBar(t,'Floor',total,0)+'<div class="empty">No floor matches that filter.</div>';
-
-  var h = afBar(t,'Floor',total,floors.length);
+  if(!floors.length) return '<div class="empty">No floors in range.</div>';
+  var h = '';
   var lastHead = kind==='c' ? 'Roll Compliance%' : 'Total Wasted Yds';
   h+='<div class="mx"><table><thead><tr><th>Floor</th>';
   RANGE.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
@@ -807,12 +905,10 @@ function matrix(kind){
 
 /* ---------- plain table ---------- */
 function tableOf(rows,firstHead,t){
-  var st=ST[t], total=rows.length;
-  var view=applyFilter(rows,st.q);
-  var h=afBar(t,firstHead,total,view.length);
-  if(!view.length) return h+'<div class="empty">Nothing matches that filter.</div>';
+  var st=ST[t], view=rows;
+  if(!view.length) return '<div class="empty">Nothing to show.</div>';
 
-  h+='<div class="tscroll"><table><thead><tr>'
+  var h='<div class="tscroll"><table><thead><tr>'
    +'<th onclick="setSort(\''+t+'\',\'name\')">'+firstHead+ar(t,'name')+'</th>'
    +'<th onclick="setSort(\''+t+'\',\'rolls\')">Rolls'+ar(t,'rolls')+'</th>'
    +'<th onclick="setSort(\''+t+'\',\'fails\')">Failed'+ar(t,'fails')+'</th>'
@@ -825,8 +921,7 @@ function tableOf(rows,firstHead,t){
   sortRows(view,st).forEach(function(r){
     var rate=rateOf(r);
     tt.r+=r[1]; tt.f+=r[2]; tt.u+=r[3]; tt.w+=r[4];
-    h+='<tr><td class="f clk" onclick="setQ(\''+t+'\',\''+esc(String(r[0]).replace(/'/g,"")) +'\')" '
-      +'title="Click to filter on this">'+esc(r[0])+'</td>'
+    h+='<tr><td class="f">'+esc(r[0])+'</td>'
       +'<td>'+num(r[1])+'</td><td>'+num(r[2])+'</td>'
       +'<td>'+fmt(r[1]?r[2]/r[1]*100:0,1)+'%</td>'
       +'<td><span class="pill '+pctClass(rate)+'">'+fmt(rate,2)+'%</span></td>'
@@ -834,7 +929,7 @@ function tableOf(rows,firstHead,t){
       +'<td>'+fmt(r[4],1)+' <span style="color:var(--mut);font-size:10px">Yds</span></td></tr>';
   });
   var tr=tt.r?(tt.r-tt.f)/tt.r*100:0;
-  h+='</tbody><tfoot><tr><td>'+(st.q?'Filtered total':'Total')+'</td><td>'+num(tt.r)+'</td><td>'+num(tt.f)+'</td>'
+  h+='</tbody><tfoot><tr><td>Total</td><td>'+num(tt.r)+'</td><td>'+num(tt.f)+'</td>'
    +'<td>'+fmt(tt.r?tt.f/tt.r*100:0,1)+'%</td>'
    +'<td><span class="pill '+pctClass(tr)+'">'+fmt(tr,2)+'%</span></td>'
    +'<td>'+num(tt.u)+' <span style="font-size:10px">Yds</span></td>'
@@ -844,18 +939,15 @@ function tableOf(rows,firstHead,t){
 
 /* ---------- bar list ---------- */
 function barList(rows,t,limit){
-  var st=ST[t];
-  var view=applyFilter(rows,st.q);
-  if(!view.length) return '<div class="empty">Nothing matches that filter.</div>';
-  var use=view.slice(0,limit||view.length);
+  if(!rows.length) return '<div class="empty">No fabric in this scope.</div>';
+  var use=limit ? rows.slice(0,limit) : rows;
   var maxF=0; use.forEach(function(r){ if(r[2]>maxF) maxF=r[2] });
   if(maxF<=0) maxF=1;
   var h='<div class="bars">';
   use.forEach(function(r){
     var rate=rateOf(r), cls=pctClass(rate);
-    h+='<div class="brow'+(st.q&&String(r[0]).toLowerCase().indexOf(st.q.toLowerCase())>-1?' on':'')+'" '
-      +'onclick="setQ(\''+t+'\',\''+esc(String(r[0]).replace(/'/g,"")) +'\')" '
-      +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+fmt(r[4],1)+' yds waste. Click to filter.">'
+    h+='<div class="brow" '
+      +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+fmt(r[4],1)+' yds waste.">'
       +'<div class="bname">'+esc(r[0])+'</div>'
       +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
       +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' Yds</div></div>';
@@ -898,25 +990,16 @@ function render(){
    +'<div id="chhost"></div><div class="tip" id="chtip"></div></div></div>';
 
   h+='<div class="card"><div class="hd"><h3>Compliance % by Floor and Date</h3>'
-   +'<span class="hint">'+RANGE.length+' day(s)</span>'
-   +'<input class="srch push" id="q_mxc" placeholder="Filter floor&hellip;" value="'+esc(ST.mxc.q)+'" '
-   +'oninput="setQ(\'mxc\',this.value)"></div>'+matrix('c')+'</div>';
+   +'<span class="hint">'+RANGE.length+' day(s)</span></div>'+matrix('c')+'</div>';
 
   h+='<div class="card"><div class="hd"><h3>Wasted Fabric (Yds) by Floor and Date</h3>'
-   +'<span class="hint">'+fmt(T.waste,1)+' yds total</span>'
-   +'<input class="srch push" id="q_mxw" placeholder="Filter floor&hellip;" value="'+esc(ST.mxw.q)+'" '
-   +'oninput="setQ(\'mxw\',this.value)"></div>'+matrix('w')+'</div>';
+   +'<span class="hint">'+fmt(T.waste,1)+' Yds total</span></div>'+matrix('w')+'</div>';
 
   h+='<div class="two">'
    +'<div class="card" id="floorcard"><div class="hd"><h3>Floor Ranking</h3>'
-   +'<input class="srch push" id="q_floor" placeholder="Filter floor&hellip;" value="'+esc(ST.floor.q)+'" '
-   +'oninput="setQ(\'floor\',this.value)"></div>'+tableOf(D.byFloor,'Floor','floor')+'</div>'
-   +'<div class="card"><div class="hd"><h3>Fabric Type</h3>'
-   +'<span class="hint">'+D.byFabric.length+' type(s)</span>'
-   +'<input class="srch push" id="q_fab" placeholder="Filter fabric&hellip;" value="'+esc(ST.fab.q)+'" '
-   +'oninput="setQ(\'fab\',this.value)"></div>'
-   +afBar('fab','Fabric type',D.byFabric.length,applyFilter(D.byFabric,ST.fab.q).length)
-   +barList(D.byFabric,'fab',30)+'</div></div>';
+   +'<span class="push" style="font-size:10.5px;color:#FFCF95">click a heading to sort</span>'
+   +'</div>'+tableOf(D.byFloor,'Floor','floor')+'</div>'
+   +fabricCard()+'</div>';
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
    +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. <b>Waste Yds</b> = Used Yds &times; '
@@ -925,6 +1008,7 @@ function render(){
   h+='</div>';
   $('content').innerHTML=h;
   syncStickyOffsets();
+  syncPairHeight();
   drawChart();
   prefetchAhead();
 }
@@ -940,7 +1024,7 @@ function drawChart(){
 var _rsz;
 window.addEventListener('resize',function(){
   clearTimeout(_rsz);
-  _rsz=setTimeout(function(){ syncStickyOffsets(); drawChart() },180);
+  _rsz=setTimeout(function(){ syncStickyOffsets(); syncPairHeight(); drawChart() },180);
 });
 
 /* ---------- sticky offsets ----------
@@ -952,6 +1036,19 @@ function boxH(sel){
   var el=document.querySelector(sel);
   return el ? el.getBoundingClientRect().height : 0;
 }
+/* Lock the Floor Ranking card and the Fabric Type card to one height.
+   The floor table sets the height, because it must never show blank space
+   under its last row. The fabric list then scrolls inside the same box. */
+function syncPairHeight(){
+  var fl=document.getElementById('floorcard');
+  var fb=document.getElementById('fabcard');
+  if(!fl||!fb) return;
+  fl.style.height=''; fb.style.height='';
+  if(window.innerWidth<=1180) return;      /* stacked, let both size naturally */
+  var h=fl.getBoundingClientRect().height;
+  if(h>60){ fl.style.height=h+'px'; fb.style.height=h+'px' }
+}
+
 function syncStickyOffsets(){
   var r=document.documentElement;
   var strip=boxH('.strip');
@@ -993,6 +1090,34 @@ function prefetchAhead(){
   };
   if(window.requestIdleCallback) requestIdleCallback(run,{timeout:5000}); else setTimeout(run,1200);
 }
+function fabricCard(){
+  var rows = fabricRows();
+  var scoped = !!(fabFact||fabFloor);
+
+  var h='<div class="card" id="fabcard"><div class="hd"><h3>Fabric Type</h3>'
+   +'<span class="hint">'+rows.length+' type(s)</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">'+esc(fabScopeLabel())+'</span></div>';
+
+  h+='<div class="chips">'
+   +'<button class="chip'+(!scoped?' on':'')+'" onclick="clearFabScope()">All Floors</button>'
+   +'<button class="chip fact'+(fabFact==='SOL'?' on':'')+'" onclick="toggleFabFact(\'SOL\')">SOL</button>'
+   +'<button class="chip fact'+(fabFact==='SSL'?' on':'')+'" onclick="toggleFabFact(\'SSL\')">SSL</button>';
+  fabScopeFloors().forEach(function(f){
+    h+='<button class="chip'+(fabFloor===f?' on':'')+'" onclick="toggleFabFloor(\''+f+'\')">'+f+'</button>';
+  });
+  h+='</div>';
+
+  if(scoped){
+    h+='<div class="afbar"><span class="aflabel">Showing</span>'
+      +'<span class="afchip"><b>'+esc(fabScopeLabel())+'</b>'
+      +'<i onclick="clearFabScope()" title="Remove this filter">&times;</i></span>'
+      +'<button class="afclear" onclick="clearFabScope()">Clear filter</button></div>';
+  }
+
+  h+=barList(rows,'fab',0)+'</div>';
+  return h;
+}
+
 function kpi(cls,k,v,s,vc){
   return '<div class="kpi '+cls+'"><div class="k">'+k+'</div><div class="v '+(vc||'')+'">'+v+
          '</div><div class="s">'+s+'</div></div>';
