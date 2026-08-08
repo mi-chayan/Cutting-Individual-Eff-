@@ -62,16 +62,37 @@
   .mini.loss:hover{background:#D7263D;color:#fff;border-color:#D7263D}
   .mini.loss:hover svg{fill:#fff}
 
-  /* ---- Loss Time overlay: hosts the Apps Script web app in an iframe ---- */
-  .lossovl{display:none;position:fixed;inset:0;z-index:9000;background:rgba(20,24,40,.55)}
-  .lossovl.on{display:flex;flex-direction:column}
-  .lossbar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#333D6D;color:#fff;
-           font-size:13px;font-weight:800;flex:0 0 auto}
-  .lossbar .gap{flex:1}
-  .lossbar a{color:#fff;font-size:11px;font-weight:600;opacity:.85;text-decoration:underline}
-  .lossbar button{background:#D7263D;color:#fff;border:0;border-radius:7px;padding:6px 13px;
-                  font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
-  .lossovl iframe{flex:1 1 auto;width:100%;border:0;background:#eef1f6}
+  /* ---- Loss Time login modal. Blurs the report behind it, then hands off
+         to loss.html in a new tab. Nothing is rendered inside this modal
+         except the login, so the report stays readable underneath. ---- */
+  .lossovl{display:none;position:fixed;inset:0;z-index:9000;
+           background:rgba(37,42,69,.42);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+  .lossovl.on{display:flex;align-items:center;justify-content:center;padding:20px}
+  .lossmodal{width:100%;max-width:352px;background:#fff;border:1px solid var(--line);
+             border-radius:12px;box-shadow:0 18px 48px rgba(37,42,69,.28);overflow:hidden}
+  .lossmodal .mh{display:flex;align-items:center;gap:10px;padding:11px 14px;
+                 background:var(--navy);color:#fff}
+  .lossmodal .mh b{font-size:12.5px;font-weight:800;letter-spacing:.3px}
+  .lossmodal .mh .gap{flex:1}
+  .lossmodal .mh button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:6px;
+                        width:24px;height:24px;font-family:inherit;font-size:15px;line-height:1;
+                        cursor:pointer;font-weight:700}
+  .lossmodal .mh button:hover{background:var(--red)}
+  .lossmodal .mb{padding:17px}
+  .lossmodal .sub{font-size:10.5px;color:var(--mut);font-weight:700;margin-bottom:12px;line-height:1.5}
+  .lossmodal input{width:100%;margin-bottom:9px;padding:10px 12px;font-family:inherit;font-size:13px;
+                   font-weight:600;color:var(--txt);border:1px solid var(--line);border-radius:8px;background:#fff}
+  .lossmodal input:focus{outline:none;border-color:var(--violet)}
+  .lossmodal .go{width:100%;padding:11px;background:var(--red);color:#fff;border:0;border-radius:8px;
+                 font-family:inherit;font-weight:800;font-size:13.5px;cursor:pointer;
+                 box-shadow:0 3px 10px rgba(214,69,80,.32)}
+  .lossmodal .go:hover{background:#B8323C}
+  .lossmodal .go:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .lossmsg{display:none;padding:9px 11px;border-radius:7px;font-size:11.5px;font-weight:700;margin-bottom:10px}
+  .lossmsg.r{display:block;background:#FBE9EB;color:var(--red)}
+  .lossmsg.i{display:block;background:var(--cream);color:#8A5B12}
+  .lossmsg.g{display:block;background:#E7F4EC;color:var(--green)}
+  .lossmsg a{color:inherit;font-weight:800}
   @media print{.lossovl{display:none !important}}
 
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
@@ -451,13 +472,22 @@
 </div>
 
 <div id="lossovl" class="lossovl">
-  <div class="lossbar">
-    <span>Loss Time Entry</span>
-    <span class="gap"></span>
-    <a id="losstab" href="#" target="_blank" rel="noopener">Open in new tab</a>
-    <button onclick="closeLoss()">Close</button>
+  <div class="lossmodal">
+    <div class="mh">
+      <b>Loss Time Entry</b>
+      <span class="gap"></span>
+      <button onclick="closeLoss()" title="Close" aria-label="Close">&times;</button>
+    </div>
+    <div class="mb">
+      <div class="sub">Sign in with your floor ID. The entry sheet opens in a new tab.</div>
+      <div class="lossmsg" id="lossmsg"></div>
+      <input type="text" id="lossid" placeholder="ID" autocomplete="off"
+             onkeydown="if(event.key==='Enter')document.getElementById('losspw').focus()">
+      <input type="password" id="losspw" placeholder="Password"
+             onkeydown="if(event.key==='Enter')lossLogin()">
+      <button class="go" id="lossgo" onclick="lossLogin()">Sign in</button>
+    </div>
   </div>
-  <iframe id="lossfr" title="Loss Time Entry"></iframe>
 </div>
 
 <div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
@@ -466,20 +496,57 @@
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 
-/* ---------- Loss Time entry panel ----------
-   loss.html is served from this same site, so the domain never changes.
-   It talks to the SOSL Cutting PIB Apps Script JSON API on its own.
-   Login is validated server side against the Users tab, so no credential
-   ever sits in this file. Iframe is created lazily on first open. */
+/* ---------- Loss Time entry ----------
+   The button opens a login modal over a blurred report. Credentials go
+   straight to the SOSL Cutting PIB Apps Script API and are checked against
+   the Users tab, so nothing sensitive lives in this file. On success the
+   entry sheet opens in a new tab, carrying the session token.
+
+   loss.html is served from this same site, so the domain never changes. */
+var LOSS_API  = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
 var LOSS_PAGE = "loss.html";
+
+function lsay(t,c){ var m=document.getElementById('lossmsg'); m.innerHTML=t||''; m.className = t?('lossmsg '+c):'lossmsg'; }
+
 function openLoss(){
-  var f=document.getElementById('lossfr');
-  if(!f.getAttribute('src')) f.setAttribute('src',LOSS_PAGE);
-  document.getElementById('losstab').href=LOSS_PAGE;
   document.getElementById('lossovl').classList.add('on');
+  lsay('','');
+  document.getElementById('losspw').value='';
+  setTimeout(function(){ document.getElementById('lossid').focus(); },60);
 }
 function closeLoss(){ document.getElementById('lossovl').classList.remove('on'); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeLoss(); });
+
+function lossLogin(){
+  var id=document.getElementById('lossid').value.trim();
+  var pw=document.getElementById('losspw').value.trim();
+  if(!id||!pw){ lsay('Enter both ID and password.','r'); return; }
+  var btn=document.getElementById('lossgo');
+  btn.disabled=true; lsay('Checking&hellip;','i');
+
+  fetch(LOSS_API+'?action=login&id='+encodeURIComponent(id)+'&pw='+encodeURIComponent(pw))
+    .then(function(r){return r.json()})
+    .then(function(r){
+      btn.disabled=false;
+      if(!r.ok){ lsay(r.msg||'Login failed.','r'); return; }
+
+      var url = LOSS_PAGE
+        + '?token='  + encodeURIComponent(r.token)
+        + '&central='+ (r.central?'1':'0')
+        + '&floors=' + encodeURIComponent((r.floors||[]).join(','))
+        + '&user='   + encodeURIComponent(r.user||'');
+
+      var w = window.open(url,'_blank');
+      if(w){
+        lsay('Opened in a new tab.','g');
+        setTimeout(closeLoss,900);
+      }else{
+        /* popup blocked, give them a link they can click themselves */
+        lsay('Your browser blocked the new tab. <a href="'+url+'" target="_blank" rel="noopener">Click here to open Loss Time Entry</a>.','i');
+      }
+    })
+    .catch(function(e){ btn.disabled=false; lsay('Cannot reach the API. '+e.message,'r'); });
+}
 
 var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', sortKey='eff', sortDir=1, query='';
