@@ -55,7 +55,24 @@
   .mini.prn svg{fill:#333D6D}
   .mini.prn:hover{background:#333D6D;color:#fff;border-color:#333D6D}
   .mini.prn:hover svg{fill:#fff}
+  /* Loss Time sits left of Excel and Print. Red family, because it is a data
+     entry action that writes to the sheet, not a read-only export. */
+  .mini.loss{background:#FDECEE;color:#8E1B2A;border-color:#F0B4BD;font-weight:800}
+  .mini.loss svg{fill:#D7263D}
+  .mini.loss:hover{background:#D7263D;color:#fff;border-color:#D7263D}
+  .mini.loss:hover svg{fill:#fff}
 
+  /* ---- Loss Time overlay: hosts the Apps Script web app in an iframe ---- */
+  .lossovl{display:none;position:fixed;inset:0;z-index:9000;background:rgba(20,24,40,.55)}
+  .lossovl.on{display:flex;flex-direction:column}
+  .lossbar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#333D6D;color:#fff;
+           font-size:13px;font-weight:800;flex:0 0 auto}
+  .lossbar .gap{flex:1}
+  .lossbar a{color:#fff;font-size:11px;font-weight:600;opacity:.85;text-decoration:underline}
+  .lossbar button{background:#D7263D;color:#fff;border:0;border-radius:7px;padding:6px 13px;
+                  font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
+  .lossovl iframe{flex:1 1 auto;width:100%;border:0;background:#eef1f6}
+  @media print{.lossovl{display:none !important}}
 
   .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
 
@@ -421,6 +438,9 @@
   <button class="mini" onclick="goLatest()">Latest Day</button>
   <span class="showing" id="showing"></span>
   <div class="acts">
+    <button class="mini loss" onclick="openLoss()" title="Enter today's loss time, view previous days">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 10.6V6h-2v7.4l5.2 3.1 1-1.7-4.2-2.2z"/></svg> Loss Time
+    </button>
     <button class="mini xls" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
@@ -430,11 +450,35 @@
   </div>
 </div>
 
+<div id="lossovl" class="lossovl">
+  <div class="lossbar">
+    <span>Loss Time Entry</span>
+    <span class="gap"></span>
+    <a id="losstab" href="#" target="_blank" rel="noopener">Open in new tab</a>
+    <button onclick="closeLoss()">Close</button>
+  </div>
+  <iframe id="lossfr" title="Loss Time Entry"></iframe>
+</div>
+
 <div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
 
 <script>
 var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
+
+/* ---------- Loss Time entry panel ----------
+   Separate Apps Script web app, bound to the SOSL Cutting PIB sheet.
+   Login is validated server side against the Users tab, so no credential
+   ever sits in this file. Iframe is created lazily on first open. */
+var LOSS_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
+function openLoss(){
+  var f=document.getElementById('lossfr');
+  if(!f.getAttribute('src')) f.setAttribute('src',LOSS_API);
+  document.getElementById('losstab').href=LOSS_API;
+  document.getElementById('lossovl').classList.add('on');
+}
+function closeLoss(){ document.getElementById('lossovl').classList.remove('on'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeLoss(); });
 
 var DATA=[], DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', sortKey='eff', sortDir=1, query='';
