@@ -10,111 +10,130 @@
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0;
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#B8730B;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
-       font-size:13px;-webkit-text-size-adjust:100%}
+       font-size:13px;-webkit-text-size-adjust:100%;display:flex;flex-direction:column}
 
-  /* ---- control strip, same shape as the other reports ---- */
-  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
-         display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
-  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
-  .sep{width:1px;height:22px;background:var(--line)}
+  /* ---- control strip ---- */
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:9px 18px;
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20;flex:0 0 auto}
+  .strip h2{font-size:14px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .sep{width:1px;height:24px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
   .dpick{position:relative;display:inline-flex;align-items:center;gap:7px;
-         border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:#fff;
-         font-size:12px;font-weight:700;color:var(--txt);white-space:nowrap;cursor:pointer}
+         border:1px solid var(--line);border-radius:7px;padding:7px 11px;background:#fff;
+         font-size:12.5px;font-weight:700;color:var(--txt);white-space:nowrap;cursor:pointer}
   .dpick:hover{border-color:var(--violet)}
   .dpick svg{width:13px;height:13px;fill:var(--violet);flex:0 0 auto}
   .dpick input[type=date]{position:absolute;inset:0;width:100%;height:100%;
          opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
-        padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        padding:6px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .mini:hover{background:var(--cream);border-color:var(--peach)}
   .mini svg{width:12px;height:12px;fill:var(--violet)}
-  .mini.save{background:#FDECEE;color:#8E1B2A;border-color:#F0B4BD;font-weight:800}
-  .mini.save svg{fill:var(--red)}
-  .mini.save:hover{background:var(--red);color:#fff;border-color:var(--red)}
-  .mini.save:hover svg{fill:#fff}
-  .mini:disabled{opacity:.45;cursor:not-allowed}
-  .mini:disabled:hover{background:#fff;border-color:var(--line)}
-  .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
-  select,input[type=text],input[type=password],input[type=number]{
-        font-family:inherit;font-size:12px;font-weight:600;color:var(--txt);
-        padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:#fff}
+
+  /* The two actions people actually press. Deliberately oversized. */
+  .big{padding:11px 24px;font-size:14px;font-weight:800;border-radius:9px;
+       display:inline-flex;align-items:center;gap:8px;border:2px solid transparent;
+       font-family:inherit;cursor:pointer;letter-spacing:.2px;line-height:1}
+  .big svg{width:17px;height:17px}
+  .big.reload{background:#fff;color:var(--navy);border-color:#C8CDE4}
+  .big.reload svg{fill:var(--navy)}
+  .big.reload:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .big.reload:hover svg{fill:#fff}
+  .big.submit{background:var(--red);color:#fff;border-color:var(--red);
+              box-shadow:0 3px 10px rgba(214,69,80,.35)}
+  .big.submit svg{fill:#fff}
+  .big.submit:hover{background:#B8323C;border-color:#B8323C;box-shadow:0 4px 14px rgba(214,69,80,.45)}
+  .big:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+  .acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  select,input[type=text],input[type=password]{
+        font-family:inherit;font-size:12.5px;font-weight:600;color:var(--txt);
+        padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff}
   select:focus,input:focus{outline:none;border-color:var(--violet)}
+  /* no spinners anywhere, values are typed */
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
 
-  .pill{padding:3px 9px;border-radius:99px;font-size:10px;font-weight:800;
-        text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-  .pill.live{background:#E7F4EC;color:var(--green)}
-  .pill.ro{background:#FBE9EB;color:var(--red)}
+  .pill{padding:3px 10px;border-radius:99px;font-size:10px;font-weight:800;
+        text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;display:inline-block}
   .pill.fl{background:#EFE8FB;color:var(--violet)}
+  .pill.sv{background:#E7F4EC;color:var(--green)}
+  .pill.no{background:#F1F2F7;color:var(--mut)}
+  .pill.un{background:#FBE9EB;color:var(--red)}
 
-  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
-        box-shadow:0 1px 2px rgba(37,42,69,.05);margin-bottom:14px}
-  .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);
-            font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px}
-  .card .bd{padding:13px}
+  /* ---- body fills the rest of the window ---- */
+  .wrap{flex:1 1 auto;display:flex;flex-direction:column;padding:14px 18px 18px;min-height:0}
 
-  /* ---- KPI row ---- */
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-bottom:14px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:13px;flex:0 0 auto}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;
        position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)} .kpi.k4:before{background:var(--blue)}
+  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
+  .kpi.k4:before{background:var(--blue)}  .kpi.k5:before{background:var(--green)}
   .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .kpi .v{font-size:22px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px}
 
-  /* ---- table: header stays pinned, always ---- */
-  .scroll{max-height:calc(100vh - 300px);min-height:220px;overflow:auto;
-          border:1px solid var(--line);border-radius:9px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        box-shadow:0 1px 2px rgba(37,42,69,.05);flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+  .card .hd{padding:10px 14px;border-bottom:1px solid var(--line);flex:0 0 auto;
+            font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;
+            display:flex;align-items:center;gap:10px}
+  .card .bd{padding:13px;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+
+  .scroll{flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:9px}
   table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
   thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:#fff;
-           padding:8px 9px;text-align:left;font-weight:700;font-size:10.5px;
+           padding:9px;text-align:left;font-weight:700;font-size:10.5px;
            text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
   tbody td{padding:5px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
   tbody tr:nth-child(even) td{background:#F6F7FB}
   tbody tr.has td{background:#FFF7F8}
+  tbody tr.warn td{background:#FFF6E6}
+  tbody tr.unav td{background:#F4EDFB}
   .mono{font-variant-numeric:tabular-nums}
-  .num{width:74px;text-align:right}
-  .rsn{min-width:170px}
+  .sl{color:var(--mut);font-weight:700;text-align:right;width:44px}
+  .num{width:82px;text-align:right;font-weight:700}
+  .rsn{min-width:175px;width:100%}
   .mins{font-weight:800;color:var(--red)}
+  .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
+  .ctr{text-align:center}
 
-  .msg{padding:9px 12px;border-radius:8px;margin-bottom:11px;font-size:12px;font-weight:700;display:none}
+  .msg{padding:10px 13px;border-radius:8px;margin-bottom:11px;font-size:12px;font-weight:700;display:none;flex:0 0 auto}
   .msg.g{background:#E7F4EC;color:var(--green);display:block}
   .msg.r{background:#FBE9EB;color:var(--red);display:block}
   .msg.i{background:var(--cream);color:#8A5B12;display:block}
 
-  /* ---- login ---- */
-  .login{max-width:340px;margin:7vh auto}
-  .login .bd{padding:18px}
-  .login h3{font-size:14px;font-weight:800;color:var(--navy);margin-bottom:13px}
-  .login input{width:100%;margin-bottom:9px;padding:9px 11px;font-size:13px}
-  .login button{width:100%;padding:9px;font-size:12.5px;justify-content:center}
-  .hide{display:none}
-  .foot{text-align:center;font-size:10px;color:var(--mut);padding:14px 0 4px}
-  .loading{text-align:center;padding:40px;color:var(--mut);font-size:12px}
+  .login{max-width:350px;margin:8vh auto}
+  .login .bd{padding:20px;display:block}
+  .login h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:14px}
+  .login input{width:100%;margin-bottom:10px;padding:10px 12px;font-size:13px}
+  .login .big{width:100%;justify-content:center}
+  .hide{display:none !important}
+  .loading{text-align:center;padding:44px;color:var(--mut);font-size:12px}
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div id="loginBox" class="card login">
+<!-- ============ LOGIN (only shown if the page is opened without a token) ============ -->
+<div id="loginBox" class="card login hide">
   <div class="bd">
     <h3>Floor Login</h3>
     <div class="msg" id="lmsg"></div>
     <input type="text" id="uid" placeholder="ID" autocomplete="off">
     <input type="password" id="pwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="mini save" onclick="doLogin()">Sign in</button>
+    <button class="big submit" onclick="doLogin()">Sign in</button>
   </div>
 </div>
 
 <!-- ============ APP ============ -->
-<div id="app" class="hide">
+<div id="app" class="hide" style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0">
 
   <div class="strip">
     <h2>Loss Time Entry</h2>
@@ -133,13 +152,17 @@
       <input type="date" id="dt" onchange="loadDay()" onclick="openPicker(this)" aria-label="Entry date">
     </span>
     <button class="mini" onclick="goToday()">Today</button>
-    <span id="mode" class="pill live">Editable</span>
+    <input type="text" id="q" placeholder="Search operator" oninput="render()" style="width:170px">
 
     <div class="acts">
-      <input type="text" id="q" placeholder="Search operator" oninput="render()" style="width:165px">
-      <button class="mini" onclick="loadDay()">Reload</button>
-      <button class="mini save" id="saveBtn" onclick="doSave()">
-        <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg> Save
+      <span id="who" style="font-size:11px;color:var(--mut);font-weight:700"></span>
+      <button class="big reload" id="reloadBtn" onclick="loadDay()">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+        Reload
+      </button>
+      <button class="big submit" id="saveBtn" onclick="doSave()">
+        <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
+        Submit
       </button>
     </div>
   </div>
@@ -150,58 +173,65 @@
       <div class="kpi k2"><div class="k">With Loss</div><div class="v" id="k2">0</div><div class="s">operators affected</div></div>
       <div class="kpi k3"><div class="k">Total Loss</div><div class="v" id="k3">0</div><div class="s">minutes</div></div>
       <div class="kpi k4"><div class="k">Equivalent</div><div class="v" id="k4">0.0</div><div class="s">hours</div></div>
+      <div class="kpi k5"><div class="k">Already Saved</div><div class="v" id="k5">0</div><div class="s">records in sheet</div></div>
     </div>
 
     <div class="card">
-      <div class="hd">Operator Loss Entry</div>
+      <div class="hd"><span>Operator Loss Entry</span><span id="hdDate" class="pill no"></span></div>
       <div class="bd">
         <div class="msg" id="smsg"></div>
         <div class="scroll">
           <table>
             <thead><tr>
-              <th style="width:120px">Op ID</th>
+              <th class="sl">#</th>
+              <th style="width:125px">Op ID</th>
               <th>Name</th>
-              <th style="width:150px">Designation</th>
-              <th style="width:90px">Loss</th>
-              <th style="width:80px">Unit</th>
-              <th style="width:80px">Minutes</th>
-              <th style="width:190px">Reason</th>
+              <th style="width:160px">Process</th>
+              <th style="width:100px" class="ctr">Unavailable</th>
+              <th style="width:95px">Loss</th>
+              <th style="width:85px">Unit</th>
+              <th style="width:85px">Minutes</th>
+              <th style="width:195px">Reason</th>
+              <th style="width:150px">Sheet Status</th>
             </tr></thead>
-            <tbody id="tb"><tr><td colspan="7" class="loading">Loading&hellip;</td></tr></tbody>
+            <tbody id="tb"><tr><td colspan="10" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
     </div>
-
-    <div class="foot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>
   </div>
 </div>
 
 <script>
 /* ------------------------------------------------------------------
    Loss Time Entry
-   Reads and writes the SOSL Cutting PIB sheet through its Apps Script
-   JSON API. Reads are plain GET. The save is POST with Content-Type
-   text/plain, which is what keeps the browser from firing a CORS
-   preflight that Apps Script cannot answer.
+   Reads and writes SOSL Cutting PIB through its Apps Script JSON API.
+   Reads are plain GET. The save is POST with Content-Type text/plain,
+   which is what stops the browser firing a CORS preflight that Apps
+   Script cannot answer.
+
+   The token normally arrives in the URL from daily.html. If the page is
+   opened directly with no token, the login card is shown instead.
    ------------------------------------------------------------------ */
 
 var LOSS_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
 
+var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
+
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
-var OPS=[], RSN=[], DAY=null, VAL={}, TODAY='';
+var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='';
 
 function el(i){return document.getElementById(i)}
 function say(id,t,c){var m=el(id); m.textContent=t||''; m.className = t ? ('msg '+c) : 'msg';}
 function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
 
-/* House date format, matching the other reports: 1 Aug, 2026 */
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function pretty(iso){
   if(!iso) return '–';
-  var p=iso.split('-'); if(p.length!==3) return iso;
+  var p=String(iso).split('-'); if(p.length!==3) return iso;
   return Number(p[2])+' '+MON[Number(p[1])-1]+', '+p[0];
 }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function api(params){
   var q=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
@@ -215,7 +245,23 @@ function apiPost(body){
   }).then(function(r){return r.json()});
 }
 
-/* ---------- login ---------- */
+/* ---------- start ---------- */
+
+window.addEventListener('load',function(){
+  var qs=new URLSearchParams(location.search);
+  var t=qs.get('token');
+  if(t){
+    TOKEN=t;
+    CENTRAL = qs.get('central')==='1';
+    FLOORS  = (qs.get('floors')||'').split(',').filter(Boolean);
+    USER    = qs.get('user')||'';
+    FLOOR   = FLOORS[0]||qs.get('floor')||'';
+    startApp();
+  }else{
+    el('loginBox').classList.remove('hide');
+    el('uid').focus();
+  }
+});
 
 function doLogin(){
   var id=el('uid').value.trim(), pw=el('pwd').value.trim();
@@ -227,11 +273,15 @@ function doLogin(){
     FLOOR=FLOORS[0]||'';
     if(!FLOOR){ say('lmsg','No floor is mapped to this login. Check the Users tab.','r'); return; }
     el('loginBox').classList.add('hide');
-    el('app').classList.remove('hide');
-    setupFloorControl();
-    el('dt').value=TODAY; el('dt').max=TODAY; el('dlabel').textContent=pretty(TODAY);
-    boot();
+    startApp();
   }).catch(function(e){ say('lmsg','Cannot reach the API. '+e.message,'r'); });
+}
+
+function startApp(){
+  el('app').classList.remove('hide');
+  el('who').textContent = USER ? (USER+'  ·') : '';
+  setupFloorControl();
+  boot();
 }
 
 function setupFloorControl(){
@@ -250,87 +300,114 @@ function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
 /* ---------- load ---------- */
 
 function boot(){
-  el('tb').innerHTML='<tr><td colspan="7" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="10" class="loading">Loading…</td></tr>';
   api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
-    OPS=r.operators; RSN=r.reasons; DAY=r.day; TODAY=r.today;
-    el('dt').max=TODAY;
-    apply(); render();
+    OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
+    if(!el('dt').value){ el('dt').value=TODAY; }
+    el('dlabel').textContent=pretty(el('dt').value);
+    apply(r.day); render();
   }).catch(function(e){ fail(e.message) });
 }
 
 function loadDay(){
-  var d=el('dt').value; el('dlabel').textContent=pretty(d);
+  var d=el('dt').value||TODAY;
+  el('dlabel').textContent=pretty(d);
   say('smsg','','');
+  el('tb').innerHTML='<tr><td colspan="10" class="loading">Loading…</td></tr>';
   api({action:'day',token:TOKEN,floor:FLOOR,date:d}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
-    DAY=r.day; apply(); render();
+    apply(r.day); render();
   }).catch(function(e){ fail(e.message) });
 }
 
 function goToday(){
-  api({action:'ping'}).then(function(r){
-    TODAY=r.today; el('dt').value=TODAY; el('dt').max=TODAY; loadDay();
-  });
+  api({action:'ping'}).then(function(r){ TODAY=r.today; el('dt').value=TODAY; loadDay(); });
 }
 
 function fail(m){
+  el('tb').innerHTML='<tr><td colspan="10" class="loading">–</td></tr>';
   say('smsg',m||'Something went wrong.','r');
   if(String(m||'').indexOf('Session expired')>=0){
-    el('app').classList.add('hide'); el('loginBox').classList.remove('hide');
+    el('app').classList.add('hide');
+    el('loginBox').classList.remove('hide');
     say('lmsg','Session expired. Please log in again.','r');
   }
 }
 
 /* ---------- state ---------- */
 
-function apply(){
-  VAL={};
-  OPS.forEach(function(o){ VAL[o.id]={min:'',unit:'Min',reason:''} });
-  (DAY.entries||[]).forEach(function(e){
+function apply(day){
+  VAL={}; SAVED={};
+  OPS.forEach(function(o){ VAL[o.id]={min:'',unit:'Min',reason:'',unav:false} });
+  (day.entries||[]).forEach(function(e){
+    SAVED[e.opId]=e;
     if(!VAL[e.opId]) VAL[e.opId]={unit:'Min'};
-    VAL[e.opId].min=e.min; VAL[e.opId].unit='Min'; VAL[e.opId].reason=e.reason;
+    VAL[e.opId].min    = e.min || '';
+    VAL[e.opId].unit   = 'Min';
+    VAL[e.opId].reason = e.reason;
+    VAL[e.opId].unav   = !!e.unav;
   });
-  el('mode').textContent = DAY.editable ? 'Editable' : 'View only';
-  el('mode').className   = 'pill '+(DAY.editable?'live':'ro');
-  el('saveBtn').disabled = !DAY.editable;
-  if(!DAY.editable) say('smsg','Past date. Previous entries are visible but cannot be changed.','i');
+  el('hdDate').textContent = pretty(day.dateStr);
 }
 
-function toMin(v){ return Math.round(v.unit==='Hr' ? (Number(v.min)||0)*60 : (Number(v.min)||0)); }
+function toMin(v){
+  var n=parseFloat(String(v.min).replace(/[^0-9.]/g,''));
+  if(isNaN(n)||n<0) n=0;
+  return Math.round(v.unit==='Hr' ? n*60 : n);
+}
+
+/* ---------- render ---------- */
 
 function render(){
-  var q=(el('q').value||'').toLowerCase(), h='', tot=0, cnt=0;
+  var q=(el('q').value||'').toLowerCase(), h='', tot=0, cnt=0, sl=0, warn=[];
   OPS.forEach(function(o){
-    var v=VAL[o.id]||{min:'',unit:'Min',reason:''};
+    var v=VAL[o.id]||{min:'',unit:'Min',reason:'',unav:false};
     var m=toMin(v);
     if(m>0){ tot+=m; cnt++; }
-    if(q && (o.id+' '+o.name+' '+o.desig).toLowerCase().indexOf(q)<0) return;
-    var dis = DAY.editable ? '' : 'disabled';
-    h+='<tr class="'+(m>0?'has':'')+'">'
-     + '<td class="mono">'+o.id+'</td>'
-     + '<td>'+o.name+'</td>'
-     + '<td style="color:var(--mut)">'+o.desig+'</td>'
-     + '<td><input class="num" type="number" min="0" step="any" value="'+(v.min===''?'':v.min)+'" '+dis
+    if(m>WARN_MIN) warn.push(o.name+' ('+m+' min)');
+    if(q && (o.id+' '+o.name+' '+o.process).toLowerCase().indexOf(q)<0) return;
+    sl++;
+
+    var cls = v.unav ? 'unav' : (m>WARN_MIN ? 'warn' : (m>0 ? 'has' : ''));
+    var s   = SAVED[o.id];
+    var stat = s
+      ? '<span class="pill sv">Saved '+s.min+' min</span>'+(s.unav?' <span class="pill un">Unav</span>':'')
+      : '<span class="pill no">Not submitted</span>';
+
+    h+='<tr class="'+cls+'">'
+     + '<td class="sl">'+sl+'</td>'
+     + '<td class="mono">'+esc(o.id)+'</td>'
+     + '<td>'+esc(o.name)+'</td>'
+     + '<td style="color:var(--mut)">'+esc(o.process)+'</td>'
+     + '<td class="ctr"><input class="chk" type="checkbox" '+(v.unav?'checked':'')
+     +   ' onchange="setv(\''+o.id+'\',\'unav\',this.checked)"></td>'
+     + '<td><input class="num" type="text" inputmode="decimal" value="'+esc(v.min)+'"'
      +   ' oninput="setv(\''+o.id+'\',\'min\',this.value)"></td>'
-     + '<td><select '+dis+' onchange="setv(\''+o.id+'\',\'unit\',this.value)">'
+     + '<td><select onchange="setv(\''+o.id+'\',\'unit\',this.value)">'
      +   '<option'+(v.unit==='Min'?' selected':'')+'>Min</option>'
      +   '<option'+(v.unit==='Hr'?' selected':'')+'>Hr</option></select></td>'
      + '<td class="mono mins">'+(m||'')+'</td>'
-     + '<td><select class="rsn" '+dis+' onchange="setv(\''+o.id+'\',\'reason\',this.value)">'
+     + '<td><select class="rsn" onchange="setv(\''+o.id+'\',\'reason\',this.value)">'
      +   '<option value="">&ndash;</option>'
-     +   RSN.map(function(r){return '<option'+(v.reason===r?' selected':'')+'>'+r+'</option>'}).join('')
-     +   '</select></td></tr>';
+     +   RSN.map(function(r){return '<option'+(v.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
+     +   '</select></td>'
+     + '<td>'+stat+'</td></tr>';
   });
-  el('tb').innerHTML = h || '<tr><td colspan="7" class="loading">No operators match.</td></tr>';
+
+  el('tb').innerHTML = h || '<tr><td colspan="10" class="loading">No operators match.</td></tr>';
   el('k1').textContent=OPS.length;
   el('k2').textContent=cnt;
   el('k3').textContent=tot;
   el('k4').textContent=(tot/60).toFixed(1);
+  el('k5').textContent=Object.keys(SAVED).length;
+
+  if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
+  else if(el('smsg').className.indexOf(' i')>=0) say('smsg','','');
 }
 
 function setv(id,k,v){
-  if(!VAL[id]) VAL[id]={min:'',unit:'Min',reason:''};
+  if(!VAL[id]) VAL[id]={min:'',unit:'Min',reason:'',unav:false};
   VAL[id][k]=v;
   render();
 }
@@ -341,26 +418,24 @@ function doSave(){
   var rows=[], bad=[];
   OPS.forEach(function(o){
     var v=VAL[o.id]||{}; var m=toMin(v);
-    if(m<=0) return;
+    if(m<=0 && !v.unav) return;
     if(!v.reason){ bad.push(o.name); return; }
-    rows.push({opId:o.id,min:m,reason:v.reason});
+    rows.push({opId:o.id,min:m,reason:v.reason,unav:!!v.unav});
   });
   if(bad.length){ say('smsg','Reason missing for: '+bad.join(', '),'r'); return; }
 
-  el('saveBtn').disabled=true; say('smsg','Saving…','i');
+  el('saveBtn').disabled=true; el('reloadBtn').disabled=true;
+  say('smsg','Submitting…','i');
   apiPost({action:'save',token:TOKEN,floor:FLOOR,date:el('dt').value,rows:rows}).then(function(r){
-    el('saveBtn').disabled = !DAY.editable;
+    el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
     if(!r.ok){ fail(r.msg); return; }
+    if(r.day){ apply(r.day); render(); }
     say('smsg',r.msg,'g');
-    if(r.day){ DAY=r.day; apply(); render(); }
   }).catch(function(e){
-    el('saveBtn').disabled=false;
-    say('smsg','Save failed. '+e.message,'r');
+    el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
+    say('smsg','Submit failed. '+e.message,'r');
   });
 }
-
-/* focus the ID box on open */
-window.addEventListener('load',function(){ el('uid').focus(); });
 </script>
 </body>
 </html>
