@@ -398,7 +398,8 @@
      floor compliance %   -> Summary tab
    Calculated in Code.gs because the sheet does not hold it:
      Excess    = Roll Width - MW
-     Waste Yds = Used Yds x (Excess - 1.00) / Roll Width, failed rolls only
+     Waste Yds = Used Yds x (Excess - Allowance) / Roll Width, failed rolls only
+     Allowance   = 1.50 in for padding, quilting, fleece, sherpa; 1.00 otherwise
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
@@ -416,7 +417,18 @@ var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']}
 var factFilter='';
 function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
 function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
-var TOLERANCE=1.00;
+/* Width allowance, mirrored from Code.gs. The server prices the waste, but
+   this page still decides which Excess figures to flag red, so it has to use
+   the same rule or the two would disagree on screen.
+   Matched on a name FRAGMENT, so "Fleece Check Match" also gets 1.50. */
+var TOLERANCE=1.00, TOLERANCE_WIDE=1.50;
+var WIDE_WORDS=['padding','quilting','fleece','sherpa'];
+function allowanceFor(fab){
+  var f=String(fab||'').toLowerCase();
+  for(var i=0;i<WIDE_WORDS.length;i++) if(f.indexOf(WIDE_WORDS[i])>-1) return TOLERANCE_WIDE;
+  return TOLERANCE;
+}
+var ALLOW_TEXT='1.50&Prime; for padding, quilting, fleece and sherpa, 1.00&Prime; otherwise';
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
 /* Compliance bands: red below 90, green 90 to 98, blue above 98. */
@@ -762,7 +774,7 @@ function render(){
     +'<div class="kpi k3"><div class="k">Roll Compliance %</div><div class="v '+pctClass(tot.comp)+'">'+fmt(tot.comp,1)+'%</div>'
       +'<div class="s">passed rolls &divide; total rolls</div></div>'
     +'<div class="kpi k4"><div class="k">Failed Rolls</div><div class="v '+(tot.fails>0?'red':'')+'">'+tot.fails+'</div>'
-      +'<div class="s">'+fmt(tot.rolls?tot.fails/tot.rolls*100:0,1)+'% of rolls, width over '+fmt(TOLERANCE,2)+'&Prime;</div></div>'
+      +'<div class="s">'+fmt(tot.rolls?tot.fails/tot.rolls*100:0,1)+'% of rolls, width over allowance</div></div>'
     +'<div class="kpi k5"><div class="k">Wasted Fabric</div><div class="v '+(tot.waste>0?'amber':'')+'">'+fmt(tot.waste,1)+'</div>'
       +'<div class="s">yds, '+fmt(tot.used?tot.waste/tot.used*100:0,2)+'% of consumption</div></div>'
     +'</div>';
@@ -853,8 +865,8 @@ function render(){
     if(isOpen) h+=detailBlock(m,11);
   });
   h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
-    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than '+fmt(TOLERANCE,2)+'&Prime; &bull; '
-    +'Wasted Yds = Used Yds &times; (Excess &minus; '+fmt(TOLERANCE,2)+') &divide; Roll Width, failed rolls only</div></div>';
+    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+ALLOW_TEXT+' &bull; '
+    +'Wasted Yds = Used Yds &times; (Excess &minus; Allowance) &divide; Roll Width, failed rolls only</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
   h+='</div>';
@@ -916,7 +928,7 @@ function detailBlock(m,colspan){
       +'<td>'+fmt(r[11],2)+'</td>'
       +'<td>'+fmt(r[12],2)+'</td>'
       +'<td>'+fmt(r[3],2)+'</td>'
-      +'<td class="'+(r[19]>TOLERANCE?'bad':'')+'">'+fmt(r[19],2)+'</td>'
+      +'<td class="'+(r[19]>allowanceFor(r[2])?'bad':'')+'">'+fmt(r[19],2)+'</td>'
       +'<td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[14],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td>'
@@ -1033,8 +1045,8 @@ function exportExcel(){
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
-  t+='<tr><td colspan="11">Fail rule: Roll Width &minus; MW &gt; '+fmt(TOLERANCE,2)+' inch'
-    +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; '+fmt(TOLERANCE,2)+') / Roll Width, failed rolls only</td></tr>';
+  t+='<tr><td colspan="11">Fail rule: Roll Width &minus; MW &gt; allowance (1.50 in for padding, quilting, fleece, sherpa; 1.00 in otherwise)'
+    +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; Allowance) / Roll Width, failed rolls only</td></tr>';
   t+='<tr><td></td></tr></table>';
 
   /* KPI block */
