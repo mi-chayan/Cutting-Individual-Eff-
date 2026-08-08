@@ -10,7 +10,7 @@
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
-    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#B8730B;
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -19,7 +19,7 @@
 
   /* ---- control strip ---- */
   .strip{background:#fff;border-bottom:1px solid var(--line);padding:9px 18px;
-         display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20;flex:0 0 auto}
+         display:flex;align-items:center;gap:11px;flex-wrap:wrap;position:sticky;top:0;z-index:20;flex:0 0 auto}
   .strip h2{font-size:14px;font-weight:800;color:var(--navy);white-space:nowrap}
   .sep{width:1px;height:24px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
@@ -34,9 +34,8 @@
         padding:6px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .mini:hover{background:var(--cream);border-color:var(--peach)}
-  .mini svg{width:12px;height:12px;fill:var(--violet)}
 
-  /* The two actions people actually press. Deliberately oversized. */
+  /* the two actions people actually press, deliberately oversized */
   .big{padding:11px 24px;font-size:14px;font-weight:800;border-radius:9px;
        display:inline-flex;align-items:center;gap:8px;border:2px solid transparent;
        font-family:inherit;cursor:pointer;letter-spacing:.2px;line-height:1}
@@ -45,8 +44,7 @@
   .big.reload svg{fill:var(--navy)}
   .big.reload:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
   .big.reload:hover svg{fill:#fff}
-  .big.submit{background:var(--red);color:#fff;border-color:var(--red);
-              box-shadow:0 3px 10px rgba(214,69,80,.35)}
+  .big.submit{background:var(--red);color:#fff;border-color:var(--red);box-shadow:0 3px 10px rgba(214,69,80,.35)}
   .big.submit svg{fill:#fff}
   .big.submit:hover{background:#B8323C;border-color:#B8323C;box-shadow:0 4px 14px rgba(214,69,80,.45)}
   .big:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
@@ -56,19 +54,20 @@
         font-family:inherit;font-size:12.5px;font-weight:600;color:var(--txt);
         padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff}
   select:focus,input:focus{outline:none;border-color:var(--violet)}
-  /* no spinners anywhere, values are typed */
+  select:disabled,input:disabled{background:#F1F2F7;color:#B2B7C9;cursor:not-allowed}
   input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  input[type=number]{-moz-appearance:textfield}
 
   .pill{padding:3px 10px;border-radius:99px;font-size:10px;font-weight:800;
         text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;display:inline-block}
   .pill.fl{background:#EFE8FB;color:var(--violet)}
   .pill.sv{background:#E7F4EC;color:var(--green)}
   .pill.no{background:#F1F2F7;color:var(--mut)}
-  .pill.un{background:#FBE9EB;color:var(--red)}
+  .pill.un{background:#EFE8FB;color:var(--violet)}
+  .pill.dt{background:#F1F2F7;color:var(--mut)}
 
-  /* ---- body fills the rest of the window ---- */
-  .wrap{flex:1 1 auto;display:flex;flex-direction:column;padding:14px 18px 18px;min-height:0}
+  /* ---- body ---- */
+  .wrap{flex:1 1 auto;display:flex;flex-direction:column;padding:14px 18px 18px;min-height:0;
+        width:100%;max-width:1400px;margin:0 auto}
 
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:13px;flex:0 0 auto}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;
@@ -88,19 +87,20 @@
   .card .bd{padding:13px;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 
   .scroll{flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:9px}
-  table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
+  table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;font-size:12px}
   thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:#fff;
            padding:9px;text-align:left;font-weight:700;font-size:10.5px;
            text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-  tbody td{padding:5px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody td{padding:5px 9px;border-bottom:1px solid var(--line);vertical-align:middle;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   tbody tr:nth-child(even) td{background:#F6F7FB}
   tbody tr.has td{background:#FFF7F8}
   tbody tr.warn td{background:#FFF6E6}
   tbody tr.unav td{background:#F4EDFB}
   .mono{font-variant-numeric:tabular-nums}
-  .sl{color:var(--mut);font-weight:700;text-align:right;width:44px}
-  .num{width:82px;text-align:right;font-weight:700}
-  .rsn{min-width:175px;width:100%}
+  .sl{color:var(--mut);font-weight:700;text-align:right}
+  .num{width:100%;text-align:right;font-weight:700}
+  .rsn{width:100%}
   .mins{font-weight:800;color:var(--red)}
   .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
   .ctr{text-align:center}
@@ -116,12 +116,12 @@
   .login input{width:100%;margin-bottom:10px;padding:10px 12px;font-size:13px}
   .login .big{width:100%;justify-content:center}
   .hide{display:none !important}
-  .loading{text-align:center;padding:44px;color:var(--mut);font-size:12px}
+  .loading{text-align:center;padding:44px;color:var(--mut);font-size:12px;white-space:normal}
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN (only shown if the page is opened without a token) ============ -->
+<!-- ===== LOGIN, only if the page was opened without a live session ===== -->
 <div id="loginBox" class="card login hide">
   <div class="bd">
     <h3>Floor Login</h3>
@@ -132,10 +132,11 @@
   </div>
 </div>
 
-<!-- ============ APP ============ -->
+<!-- ===== APP ===== -->
 <div id="app" class="hide" style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0">
 
   <div class="strip">
+    <button class="mini" onclick="goBack()" title="Back to the report">&larr; Report</button>
     <h2>Loss Time Entry</h2>
     <div class="sep"></div>
 
@@ -152,7 +153,7 @@
       <input type="date" id="dt" onchange="loadDay()" onclick="openPicker(this)" aria-label="Entry date">
     </span>
     <button class="mini" onclick="goToday()">Today</button>
-    <input type="text" id="q" placeholder="Search operator" oninput="render()" style="width:170px">
+    <input type="text" id="q" placeholder="Search operator" oninput="render()" style="width:160px">
 
     <div class="acts">
       <span id="who" style="font-size:11px;color:var(--mut);font-weight:700"></span>
@@ -177,22 +178,28 @@
     </div>
 
     <div class="card">
-      <div class="hd"><span>Operator Loss Entry</span><span id="hdDate" class="pill no"></span></div>
+      <div class="hd"><span>Operator Loss Entry</span><span id="hdDate" class="pill dt"></span></div>
       <div class="bd">
         <div class="msg" id="smsg"></div>
         <div class="scroll">
           <table>
+            <colgroup>
+              <col style="width:46px"><col style="width:118px"><col style="width:200px">
+              <col style="width:148px"><col style="width:98px"><col style="width:86px">
+              <col style="width:74px"><col style="width:86px"><col style="width:186px">
+              <col style="width:148px">
+            </colgroup>
             <thead><tr>
               <th class="sl">#</th>
-              <th style="width:125px">Op ID</th>
+              <th>Op ID</th>
               <th>Name</th>
-              <th style="width:160px">Process</th>
-              <th style="width:100px" class="ctr">Unavailable</th>
-              <th style="width:95px">Loss</th>
-              <th style="width:85px">Unit</th>
-              <th style="width:85px">Minutes</th>
-              <th style="width:195px">Reason</th>
-              <th style="width:150px">Sheet Status</th>
+              <th>Process</th>
+              <th class="ctr">Unavailable</th>
+              <th>Loss</th>
+              <th>Unit</th>
+              <th>Minutes</th>
+              <th>Reason</th>
+              <th>Sheet Status</th>
             </tr></thead>
             <tbody id="tb"><tr><td colspan="10" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
@@ -205,25 +212,27 @@
 <script>
 /* ------------------------------------------------------------------
    Loss Time Entry
-   Reads and writes SOSL Cutting PIB through its Apps Script JSON API.
+
+   The session is handed over by daily.html through sessionStorage, never
+   through the URL. That keeps the address bar on the shell's own domain
+   and keeps the token out of history, bookmarks and referrer headers.
+
    Reads are plain GET. The save is POST with Content-Type text/plain,
    which is what stops the browser firing a CORS preflight that Apps
    Script cannot answer.
-
-   The token normally arrives in the URL from daily.html. If the page is
-   opened directly with no token, the login card is shown instead.
    ------------------------------------------------------------------ */
 
 var LOSS_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
-
+var SESS_KEY = 'sosl_loss_sess';
 var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
 
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
-var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='';
+var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
 
 function el(i){return document.getElementById(i)}
-function say(id,t,c){var m=el(id); m.textContent=t||''; m.className = t ? ('msg '+c) : 'msg';}
+function say(id,t,c){var m=el(id); m.innerHTML=t||''; m.className = t ? ('msg '+c) : 'msg';}
 function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
+function goBack(){ location.href='daily.html'; }
 
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function pretty(iso){
@@ -232,6 +241,7 @@ function pretty(iso){
   return Number(p[2])+' '+MON[Number(p[1])-1]+', '+p[0];
 }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function blank(){ return {min:'',unit:'Min',reason:'',unav:false}; }
 
 function api(params){
   var q=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
@@ -248,14 +258,11 @@ function apiPost(body){
 /* ---------- start ---------- */
 
 window.addEventListener('load',function(){
-  var qs=new URLSearchParams(location.search);
-  var t=qs.get('token');
-  if(t){
-    TOKEN=t;
-    CENTRAL = qs.get('central')==='1';
-    FLOORS  = (qs.get('floors')||'').split(',').filter(Boolean);
-    USER    = qs.get('user')||'';
-    FLOOR   = FLOORS[0]||qs.get('floor')||'';
+  var s=null;
+  try{ s=JSON.parse(sessionStorage.getItem(SESS_KEY)||'null'); }catch(e){ s=null; }
+  if(s && s.token){
+    TOKEN=s.token; CENTRAL=!!s.central; FLOORS=s.floors||[]; USER=s.user||'';
+    FLOOR=FLOORS[0]||''; TODAY=s.today||'';
     startApp();
   }else{
     el('loginBox').classList.remove('hide');
@@ -272,6 +279,7 @@ function doLogin(){
     TOKEN=r.token; CENTRAL=r.central; FLOORS=r.floors||[]; USER=r.user; TODAY=r.today;
     FLOOR=FLOORS[0]||'';
     if(!FLOOR){ say('lmsg','No floor is mapped to this login. Check the Users tab.','r'); return; }
+    try{ sessionStorage.setItem(SESS_KEY,JSON.stringify({token:TOKEN,central:CENTRAL,floors:FLOORS,user:USER,today:TODAY})); }catch(e){}
     el('loginBox').classList.add('hide');
     startApp();
   }).catch(function(e){ say('lmsg','Cannot reach the API. '+e.message,'r'); });
@@ -286,7 +294,7 @@ function startApp(){
 
 function setupFloorControl(){
   if(CENTRAL && FLOORS.length>1){
-    el('floorSel').innerHTML=FLOORS.map(function(f){return '<option'+(f===FLOOR?' selected':'')+'>'+f+'</option>'}).join('');
+    el('floorSel').innerHTML=FLOORS.map(function(f){return '<option'+(f===FLOOR?' selected':'')+'>'+esc(f)+'</option>'}).join('');
     el('floorWrap').classList.remove('hide');
     el('floorPill').classList.add('hide');
   }else{
@@ -304,7 +312,7 @@ function boot(){
   api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
-    if(!el('dt').value){ el('dt').value=TODAY; }
+    if(!el('dt').value) el('dt').value=TODAY;
     el('dlabel').textContent=pretty(el('dt').value);
     apply(r.day); render();
   }).catch(function(e){ fail(e.message) });
@@ -327,8 +335,9 @@ function goToday(){
 
 function fail(m){
   el('tb').innerHTML='<tr><td colspan="10" class="loading">–</td></tr>';
-  say('smsg',m||'Something went wrong.','r');
+  say('smsg',esc(m||'Something went wrong.'),'r');
   if(String(m||'').indexOf('Session expired')>=0){
+    try{ sessionStorage.removeItem(SESS_KEY); }catch(e){}
     el('app').classList.add('hide');
     el('loginBox').classList.remove('hide');
     say('lmsg','Session expired. Please log in again.','r');
@@ -339,77 +348,117 @@ function fail(m){
 
 function apply(day){
   VAL={}; SAVED={};
-  OPS.forEach(function(o){ VAL[o.id]={min:'',unit:'Min',reason:'',unav:false} });
+  OPS.forEach(function(o){ VAL[o.id]=blank(); });
   (day.entries||[]).forEach(function(e){
     SAVED[e.opId]=e;
-    if(!VAL[e.opId]) VAL[e.opId]={unit:'Min'};
-    VAL[e.opId].min    = e.min || '';
+    if(!VAL[e.opId]) VAL[e.opId]=blank();
+    VAL[e.opId].unav   = !!e.unav;
+    VAL[e.opId].min    = e.unav ? '' : (e.min || '');
     VAL[e.opId].unit   = 'Min';
     VAL[e.opId].reason = e.reason;
-    VAL[e.opId].unav   = !!e.unav;
   });
   el('hdDate').textContent = pretty(day.dateStr);
 }
 
 function toMin(v){
+  if(!v || v.unav) return 0;
   var n=parseFloat(String(v.min).replace(/[^0-9.]/g,''));
   if(isNaN(n)||n<0) n=0;
   return Math.round(v.unit==='Hr' ? n*60 : n);
 }
 
-/* ---------- render ---------- */
+/* ---------- render ----------
+   render() rebuilds the whole tbody and is called only on load, floor change
+   and search. Typing must NEVER call it: rebuilding the row while the caret is
+   in the box destroys the input and you lose focus after a single digit.
+   Keystrokes go through setv() -> touch(), which edits only the derived cells. */
 
 function render(){
-  var q=(el('q').value||'').toLowerCase(), h='', tot=0, cnt=0, sl=0, warn=[];
+  var q=(el('q').value||'').toLowerCase(), h='', sl=0;
+  VIEW=[];
   OPS.forEach(function(o){
-    var v=VAL[o.id]||{min:'',unit:'Min',reason:'',unav:false};
-    var m=toMin(v);
-    if(m>0){ tot+=m; cnt++; }
-    if(m>WARN_MIN) warn.push(o.name+' ('+m+' min)');
     if(q && (o.id+' '+o.name+' '+o.process).toLowerCase().indexOf(q)<0) return;
-    sl++;
+    VIEW.push(o.id); sl++;
+    var v=VAL[o.id]||blank();
+    var m=toMin(v);
+    var s=SAVED[o.id];
 
-    var cls = v.unav ? 'unav' : (m>WARN_MIN ? 'warn' : (m>0 ? 'has' : ''));
-    var s   = SAVED[o.id];
-    var stat = s
-      ? '<span class="pill sv">Saved '+s.min+' min</span>'+(s.unav?' <span class="pill un">Unav</span>':'')
-      : '<span class="pill no">Not submitted</span>';
-
-    h+='<tr class="'+cls+'">'
+    h+='<tr id="tr_'+o.id+'" class="'+rowCls(v,m)+'">'
      + '<td class="sl">'+sl+'</td>'
      + '<td class="mono">'+esc(o.id)+'</td>'
-     + '<td>'+esc(o.name)+'</td>'
-     + '<td style="color:var(--mut)">'+esc(o.process)+'</td>'
-     + '<td class="ctr"><input class="chk" type="checkbox" '+(v.unav?'checked':'')
+     + '<td title="'+esc(o.name)+'">'+esc(o.name)+'</td>'
+     + '<td style="color:var(--mut)" title="'+esc(o.process)+'">'+esc(o.process)+'</td>'
+     + '<td class="ctr"><input class="chk" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
      +   ' onchange="setv(\''+o.id+'\',\'unav\',this.checked)"></td>'
-     + '<td><input class="num" type="text" inputmode="decimal" value="'+esc(v.min)+'"'
-     +   ' oninput="setv(\''+o.id+'\',\'min\',this.value)"></td>'
-     + '<td><select onchange="setv(\''+o.id+'\',\'unit\',this.value)">'
+     + '<td><input class="num" type="text" inputmode="decimal" id="i_'+o.id+'" value="'+esc(v.min)+'"'
+     +   (v.unav?' disabled':'')+' oninput="setv(\''+o.id+'\',\'min\',this.value)"></td>'
+     + '<td><select id="u_'+o.id+'" '+(v.unav?'disabled':'')+' onchange="setv(\''+o.id+'\',\'unit\',this.value)">'
      +   '<option'+(v.unit==='Min'?' selected':'')+'>Min</option>'
      +   '<option'+(v.unit==='Hr'?' selected':'')+'>Hr</option></select></td>'
-     + '<td class="mono mins">'+(m||'')+'</td>'
+     + '<td class="mono mins" id="m_'+o.id+'">'+minsCell(v,m)+'</td>'
      + '<td><select class="rsn" onchange="setv(\''+o.id+'\',\'reason\',this.value)">'
      +   '<option value="">&ndash;</option>'
      +   RSN.map(function(r){return '<option'+(v.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
      +   '</select></td>'
-     + '<td>'+stat+'</td></tr>';
+     + '<td>'+statCell(s)+'</td></tr>';
   });
-
   el('tb').innerHTML = h || '<tr><td colspan="10" class="loading">No operators match.</td></tr>';
+  updateKpis();
+}
+
+function rowCls(v,m){ return v.unav ? 'unav' : (m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '')); }
+function minsCell(v,m){ return v.unav ? '<span class="pill un">PIB N/A</span>' : (m||''); }
+function statCell(s){
+  if(!s) return '<span class="pill no">Not submitted</span>';
+  if(s.unav) return '<span class="pill un">Saved &middot; PIB N/A</span>';
+  return '<span class="pill sv">Saved '+s.min+' min</span>';
+}
+
+/* ---------- edits, no rebuild ---------- */
+
+function setv(id,k,v){
+  if(!VAL[id]) VAL[id]=blank();
+  VAL[id][k]=v;
+
+  if(k==='unav'){
+    /* Unavailable means the whole working day is out. No loss figure is
+       taken, and the operator's individual PIB does not apply that day. */
+    var inp=el('i_'+id), un=el('u_'+id);
+    if(v){
+      VAL[id].min='';
+      if(inp){ inp.value=''; inp.disabled=true; }
+      if(un) un.disabled=true;
+    }else{
+      if(inp) inp.disabled=false;
+      if(un) un.disabled=false;
+    }
+  }
+  touch(id);
+  updateKpis();
+}
+
+function touch(id){
+  var v=VAL[id]||blank(), m=toMin(v);
+  var mc=el('m_'+id); if(mc) mc.innerHTML=minsCell(v,m);
+  var tr=el('tr_'+id); if(tr) tr.className=rowCls(v,m);
+}
+
+function updateKpis(){
+  var tot=0, cnt=0, warn=[];
+  OPS.forEach(function(o){
+    var v=VAL[o.id]||blank(), m=toMin(v);
+    if(m>0){ tot+=m; cnt++; }
+    if(m>WARN_MIN) warn.push(esc(o.name)+' ('+m+' min)');
+  });
   el('k1').textContent=OPS.length;
   el('k2').textContent=cnt;
   el('k3').textContent=tot;
   el('k4').textContent=(tot/60).toFixed(1);
   el('k5').textContent=Object.keys(SAVED).length;
 
+  var m=el('smsg');
   if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
-  else if(el('smsg').className.indexOf(' i')>=0) say('smsg','','');
-}
-
-function setv(id,k,v){
-  if(!VAL[id]) VAL[id]={min:'',unit:'Min',reason:'',unav:false};
-  VAL[id][k]=v;
-  render();
+  else if(m.className.indexOf('i')>=0) say('smsg','','');
 }
 
 /* ---------- save ---------- */
@@ -417,12 +466,12 @@ function setv(id,k,v){
 function doSave(){
   var rows=[], bad=[];
   OPS.forEach(function(o){
-    var v=VAL[o.id]||{}; var m=toMin(v);
+    var v=VAL[o.id]||blank(), m=toMin(v);
     if(m<=0 && !v.unav) return;
     if(!v.reason){ bad.push(o.name); return; }
     rows.push({opId:o.id,min:m,reason:v.reason,unav:!!v.unav});
   });
-  if(bad.length){ say('smsg','Reason missing for: '+bad.join(', '),'r'); return; }
+  if(bad.length){ say('smsg','Reason missing for: '+esc(bad.join(', ')),'r'); return; }
 
   el('saveBtn').disabled=true; el('reloadBtn').disabled=true;
   say('smsg','Submitting…','i');
@@ -430,10 +479,10 @@ function doSave(){
     el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
     if(!r.ok){ fail(r.msg); return; }
     if(r.day){ apply(r.day); render(); }
-    say('smsg',r.msg,'g');
+    say('smsg',esc(r.msg),'g');
   }).catch(function(e){
     el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
-    say('smsg','Submit failed. '+e.message,'r');
+    say('smsg','Submit failed. '+esc(e.message),'r');
   });
 }
 </script>
