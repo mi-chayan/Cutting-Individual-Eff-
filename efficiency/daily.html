@@ -495,13 +495,20 @@ function tellParent(s){ if(window.parent!==window) window.parent.postMessage({ty
 /* ---------- boot: cache first, network only if empty ---------- */
 function boot(){
   var snap=cacheGet(SNAP_KEY);
-  if(snap){ applySnapshot(snap); return; }
+  if(snap) applySnapshot(snap);          /* paint instantly, may be stale */
+
+  /* Always re-check the server, even when the cache painted. If the sheet has
+     a newer day than the cache, the page moves to it on its own. This is what
+     fixes "I pushed this morning but still see yesterday". */
   fetch(API_URL+'?action=snapshot')
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
-      cacheSet(SNAP_KEY,res); applySnapshot(res);
-    }).catch(showErr);
+      cacheSet(SNAP_KEY,res);
+      if(!snap || res.latest!==snap.latest || res.generatedAt!==snap.generatedAt){
+        applySnapshot(res);
+      }
+    }).catch(function(e){ if(!snap) showErr(e); });
 }
 
 function applySnapshot(res){
@@ -523,10 +530,35 @@ window.addEventListener('message',function(ev){
   }
 });
 
+/* Latest Day must mean "the newest date in the Google Sheet", not "the newest
+   date this browser tab happens to remember". The old version trusted LATEST
+   from the sessionStorage snapshot, so after the morning push it kept showing
+   yesterday until the tab was closed. Now it asks the server to rebuild and
+   re-read, and clears the local caches first so nothing stale can win. */
 function goLatest(){
-  if(!LATEST){boot();return}
-  document.getElementById('d1').value=LATEST;
-  pickDate();
+  document.getElementById('content').innerHTML=
+    '<div class="loading"><div class="spin"></div><br>Checking the sheet for the latest day&hellip;</div>';
+  clearCaches();
+  fetch(API_URL+'?action=snapshot&fresh=1')
+    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error)throw new Error(res.error);
+      cacheSet(SNAP_KEY,res);
+      applySnapshot(res);
+    }).catch(showErr);
+}
+
+/* Drop every cached snapshot, day and detail this page owns. */
+function clearCaches(){
+  try{
+    var kill=[];
+    for(var i=0;i<sessionStorage.length;i++){
+      var k=sessionStorage.key(i);
+      if(k===SNAP_KEY || k.indexOf(DAYPFX)===0 || k.indexOf('sosl_det')===0) kill.push(k);
+    }
+    kill.forEach(function(k){sessionStorage.removeItem(k)});
+  }catch(e){}
+  DETAIL={}; DETLOADING={};
 }
 
 function pickDate(){
