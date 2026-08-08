@@ -248,10 +248,14 @@
   /* on-chart value labels */
   #chartsvg .vlc{font-size:10.5px;font-weight:800;fill:#5B2FA6;
                  paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
-  #chartsvg .vlw{font-size:10px;font-weight:700;fill:#8A5300;
-                 paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
-  /* sitting inside the bar: darker, no halo needed against the amber fill */
-  #chartsvg .vlw.in{fill:#6B4000;stroke:none;font-weight:800}
+  /* waste block: value on top, unit beneath in a smaller weight */
+  #chartsvg .vlw .vn{font-size:10.5px;font-weight:800;fill:#8A5300;
+                     paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  #chartsvg .vlw .vu{font-size:8px;font-weight:700;fill:#A9761F;letter-spacing:.4px;
+                     paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  /* centred in the bar: darker, no halo needed against the amber fill */
+  #chartsvg .vlw.in .vn{fill:#6B4000;stroke:none}
+  #chartsvg .vlw.in .vu{fill:#8A5A12;stroke:none}
   #chartsvg .hid{opacity:0}
   .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
        font-weight:700;color:var(--mut);flex-wrap:wrap}
@@ -755,34 +759,37 @@ function chart(byDay, W){
           the bar, which is always free space, provided the bar is tall enough
        4. a bar too short to hold text pushes the compliance label away instead
      Both carry a white halo so they stay readable over bars and gridlines. */
+  /* ---- label placement ----
+     The waste figure sits in the MIDDLE of its bar with a small "Yds" beneath
+     it. Middle is the safest place on the whole chart: the compliance line
+     runs across the top of the plot, so a centred label can almost never reach
+     it, and it reads as belonging to the bar rather than floating above it.
+     A bar too short to hold two lines puts the block above itself instead, and
+     only then can it argue with the compliance label, which is nudged clear. */
   if(showLbl){
-    var MINGAP=15;
+    var MINGAP=14, BLOCK=11;   /* half height of the two line waste block */
     geo.forEach(function(g,i){
       var p=CH.pts[i];
-      var cY=p.y-11;                        /* compliance, above the point   */
-      if(cY < T+11) cY = p.y+18;            /* too near the ceiling, go below */
-      var wY=g.barTop-6, inside=false;      /* waste, above the bar          */
+      var cY=p.y-11;                       /* compliance, above its point */
+      if(cY < T+11) cY = p.y+18;           /* near the ceiling, drop below */
 
-      if(Math.abs(wY-cY) < MINGAP || wY < T+11){
-        if(g.bh > 26){ wY=g.barTop+14; inside=true; }   /* tuck it in the bar */
-        else { cY = (cY <= wY) ? (wY-MINGAP-3) : (wY+MINGAP+3); }
+      var inside = g.bh >= 34, wY, uY;
+      if(inside){
+        var mid = g.barTop + g.bh/2;
+        wY = mid - 1;  uY = mid + 10;      /* value, then the unit under it */
+      }else{
+        wY = g.barTop - 15; uY = g.barTop - 5;
+        /* short bar: the block is above the bar, so it can meet the line */
+        if(Math.abs(wY-cY) < MINGAP+BLOCK)
+          cY = (cY <= wY) ? (wY - MINGAP - BLOCK) : (uY + MINGAP);
       }
-      /* Second pass. Tucking the waste figure just under the bar top can land
-         it right back on the compliance label when the point is also high, as
-         happens on a full height bar. Slide it further down the bar, which is
-         still empty space, and only give up if the bar runs out. */
-      if(inside && Math.abs(wY-cY) < MINGAP){
-        var slid = cY + MINGAP + 4;
-        wY = (slid < g.barTop + g.bh - 5) ? slid : Math.max(g.barTop+14, cY-MINGAP-4);
-      }
-      /* never let either label leave the plot */
+
       if(cY < T+10) cY = T+10;
-      if(cY > T+ih-3) cY = T+ih-3;
-      if(wY < T+10) wY = T+10;
-      if(wY > T+ih-3) wY = T+ih-3;
+      if(cY > T+ih-4) cY = T+ih-4;
 
-      s+='<text id="lw'+i+'" x="'+g.cx+'" y="'+wY+'" class="vlw'+(inside?' in':'')+
-         '" text-anchor="middle">'+fmt(byDay[i][4],1)+'</text>';
+      s+='<g id="lw'+i+'" class="vlw'+(inside?' in':'')+'">'
+        +'<text x="'+g.cx+'" y="'+wY+'" class="vn" text-anchor="middle">'+fmt(byDay[i][4],1)+'</text>'
+        +'<text x="'+g.cx+'" y="'+uY+'" class="vu" text-anchor="middle">Yds</text></g>';
       s+='<text id="lc'+i+'" x="'+p.x+'" y="'+cY+'" class="vlc" text-anchor="middle">'+
          fmt(p.rate,1)+'%</text>';
     });
