@@ -225,16 +225,27 @@
         scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
   .bars::-webkit-scrollbar{width:8px}
   .bars::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
-  .brow{display:grid;grid-template-columns:118px 1fr 96px;align-items:center;gap:9px;
-        padding:4px 5px;margin:0 -5px;border-radius:6px;cursor:pointer}
+  .brow{display:grid;grid-template-columns:118px 1fr 196px;align-items:center;gap:9px;
+        padding:4px 5px;margin:0 -5px;border-radius:6px}
   .brow:hover{background:#F2F4FA}
-  .brow.on{background:#EFE7FB;box-shadow:inset 2px 0 0 var(--violet)}
   .bname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .btrack{height:12px;background:#EDEFF6;border-radius:3px;overflow:hidden}
-  .bfill{height:100%;border-radius:3px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
-  .bfill.red{background:var(--red)} .bfill.green{background:var(--green)} .bfill.blue{background:var(--blue)}
-  .bval{font-size:10.5px;font-weight:800;text-align:right;color:var(--mut)}
-  .bval b.red{color:var(--red)} .bval b.green{color:var(--green)} .bval b.blue{color:var(--blue)}
+  .bfill{height:100%;border-radius:3px;background:var(--red);
+         transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  /* three fixed columns so the numbers line up down the whole list */
+  .bval{display:grid;grid-template-columns:60px 62px 74px;align-items:baseline;
+        font-variant-numeric:tabular-nums}
+  .bval span{text-align:right;white-space:nowrap}
+  .bval b{font-size:11.5px;font-weight:800;color:var(--txt)}
+  .bval b.bad{color:var(--red)} .bval b.wst{color:var(--amber)}
+  .bval i{font-style:normal;font-size:8.5px;font-weight:700;color:var(--mut);
+          margin-left:3px;letter-spacing:.2px}
+  .barhd{display:grid;grid-template-columns:118px 1fr 196px;gap:9px;
+         padding:6px 18px 5px 18px;border-bottom:1px solid var(--line);background:#FAFBFE}
+  .barhd .h3c{display:grid;grid-template-columns:60px 62px 74px}
+  .barhd span{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;
+              letter-spacing:.5px;text-align:right;white-space:nowrap}
+  .barhd .lft{text-align:left}
 
   /* ---- chart ---- */
   .chartbox{padding:12px 13px 8px;position:relative}
@@ -421,7 +432,7 @@ function fabricRows(){
   });
   var out=[]; for(var k in acc) if(acc.hasOwnProperty(k)) out.push(acc[k]);
   out.forEach(function(r){ r[3]=Math.round(r[3]*100)/100; r[4]=Math.round(r[4]*100)/100 });
-  out.sort(function(a,b){ return (b[2]-a[2])||(b[4]-a[4]) });
+  out.sort(function(a,b){ return (b[4]-a[4])||(b[2]-a[2]) });   /* worst waste first */
   return out;
 }
 
@@ -676,7 +687,7 @@ function merge(){
     from:$('f1').value, to:$('t1').value,
     byDay: byDay,
     byFloor: pack(f,function(a,b){ return FLOOR_ORDER.indexOf(a[0])-FLOOR_ORDER.indexOf(b[0]) }),
-    byFabric: pack(fb,function(a,b){ return b[2]-a[2] }),
+    byFabric: pack(fb,function(a,b){ return (b[4]-a[4])||(b[2]-a[2]) }),
     byConsign: pack(c,function(a,b){ return (b[2]-a[2])||(b[4]-a[4]) }),
     totals: { rolls:t[0], fails:t[1], used:Math.round(t[2]*100)/100,
               waste:Math.round(t[3]*100)/100, markers:t[4],
@@ -1004,19 +1015,26 @@ function tableOf(rows,firstHead,t){
 }
 
 /* ---------- bar list ---------- */
+/* One bar, one meaning: its LENGTH is wasted yards, measured against the
+   worst fabric in the current scope. Colour carries nothing, so every bar is
+   red. The three numbers that matter sit to the right in fixed columns:
+   total rolls, failed rolls, wasted yards. */
 function barList(rows,t,limit){
   if(!rows.length) return '<div class="empty">No fabric in this scope.</div>';
   var use=limit ? rows.slice(0,limit) : rows;
-  var maxF=0; use.forEach(function(r){ if(r[2]>maxF) maxF=r[2] });
-  if(maxF<=0) maxF=1;
+  var maxW=0; use.forEach(function(r){ if(r[4]>maxW) maxW=r[4] });
+  if(maxW<=0) maxW=1;
   var h='<div class="bars">';
   use.forEach(function(r){
-    var rate=rateOf(r), cls=pctClass(rate);
     h+='<div class="brow" '
-      +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+r[2]+' failed, '+fmt(r[4],1)+' yds waste.">'
+      +'title="'+esc(r[0])+': '+num(r[1])+' rolls, '+num(r[2])+' failed, '+fmt(r[4],1)+' Yds wasted.">'
       +'<div class="bname">'+esc(r[0])+'</div>'
-      +'<div class="btrack"><div class="bfill '+cls+'" style="width:'+(r[2]/maxF*100)+'%"></div></div>'
-      +'<div class="bval"><b class="'+cls+'">'+r[2]+'</b> fail &middot; '+fmt(r[4],1)+' Yds</div></div>';
+      +'<div class="btrack"><div class="bfill" style="width:'+(r[4]/maxW*100)+'%"></div></div>'
+      +'<div class="bval">'
+        +'<span><b>'+num(r[1])+'</b><i>rolls</i></span>'
+        +'<span><b class="bad">'+num(r[2])+'</b><i>failed</i></span>'
+        +'<span><b class="wst">'+fmt(r[4],1)+'</b><i>Yds</i></span>'
+      +'</div></div>';
   });
   return h+'</div>';
 }
@@ -1074,7 +1092,7 @@ function render(){
   h+='</div>';
   $('content').innerHTML=h;
   syncStickyOffsets();
-  syncPairHeight();
+  syncPairHeightSoon();
   drawChart();
   prefetchAhead();
 }
@@ -1091,6 +1109,7 @@ var _rsz;
 window.addEventListener('resize',function(){
   clearTimeout(_rsz);
   _rsz=setTimeout(function(){ syncStickyOffsets(); syncPairHeight(); drawChart() },180);
+window.addEventListener('load', syncPairHeightSoon);
 });
 
 /* ---------- sticky offsets ----------
@@ -1118,10 +1137,24 @@ function syncPairHeight(){
   if(window.innerWidth<=1180) return;            /* stacked, let it run free */
 
   var target=fl.getBoundingClientRect().height;  /* the floor card, natural */
+  /* everything in the fabric card that is NOT the scrolling list: title bar,
+     the floor chips, the active filter bar, and the column header strip */
   var chrome=fb.getBoundingClientRect().height - bars.getBoundingClientRect().height;
   var h=target-chrome;
-  if(h>140) bars.style.maxHeight=h+'px';
+  if(h>120) bars.style.maxHeight=h+'px';
 }
+
+/* Measuring straight after innerHTML can read a stale layout, and a late web
+   font can change the floor table's height after the first pass. Re-run on the
+   next frame, and once more when the font has settled, so the two cards end
+   level whatever the timing. */
+function syncPairHeightSoon(){
+  if(window.requestAnimationFrame) requestAnimationFrame(syncPairHeight);
+  else syncPairHeight();
+  setTimeout(syncPairHeight,120);
+  setTimeout(syncPairHeight,400);
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(syncPairHeight);
 
 function syncStickyOffsets(){
   var r=document.documentElement;
@@ -1173,7 +1206,7 @@ function fabricCard(){
   var rows = fabricRows();
   var scoped = !!(fabFact||fabFloor);
 
-  var h='<div class="card" id="fabcard"><div class="hd"><h3>Fabric Type</h3>'
+  var h='<div class="card" id="fabcard"><div class="hd"><h3>Fabric Type Wise Wastage Yards</h3>'
    +'<span class="hint">'+rows.length+' type(s)</span>'
    +'<span class="push" style="font-size:10.5px;color:var(--mut)">'+esc(fabScopeLabel())+'</span></div>';
 
@@ -1193,6 +1226,9 @@ function fabricCard(){
       +'<button class="afclear" onclick="clearFabScope()">Clear filter</button></div>';
   }
 
+  h+='<div class="barhd"><span class="lft">Fabric</span>'
+   +'<span class="lft" style="text-align:left">Wasted Yards</span>'
+   +'<span class="h3c"><span>Rolls</span><span>Failed</span><span>Waste Yds</span></span></div>';
   h+=barList(rows,'fab',0)+'</div>';
   return h;
 }
