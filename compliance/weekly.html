@@ -382,7 +382,7 @@ var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock *
    will quietly lack the newer fields. That is what produced a Fabric Type list
    full of zeroes: the day had no floor x fabric cross-tab in it at all. Any
    locally held day that is not this version is thrown away and refetched. */
-var DAY_SCHEMA = 2;
+var DAY_SCHEMA = 3;
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
@@ -1087,7 +1087,7 @@ function render(){
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
    +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. <b>Waste Yds</b> = Used Yds &times; '
-   +'(Roll Width &minus; Marker Width &minus; 1.00) &divide; Roll Width, charged on failed rolls only.</div>';
+   +'(Roll Width &minus; Marker Width &minus; allowance) &divide; Roll Width, charged on failed rolls only. Allowance is 1.50 in for padding, quilting, fleece and sherpa, 1.00 in for every other fabric.</div>';
 
   h+='</div>';
   $('content').innerHTML=h;
@@ -1277,7 +1277,7 @@ function exportExcel(){
   var t='<table><tr><td colspan="7" style="font-size:15pt;font-weight:bold;color:#333D6D">'
    +'SOSL Cutting Section &ndash; Weekly Fabric Roll Compliance Report</td></tr>'
    +'<tr><td colspan="7">'+prettyDate(D.from)+' to '+prettyDate(D.to)+'</td></tr>'
-   +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. Waste tolerance 1.00 inch.</td></tr>'
+   +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. Allowance 1.50 in for padding, quilting, fleece and sherpa, else 1.00 in.</td></tr>'
    +'<tr><td colspan="7"></td></tr>'
    +'<tr><td><b>Rolls</b></td><td>'+T.rolls+'</td><td><b>Failed</b></td><td>'+T.fails+'</td>'
    +'<td><b>Compliance %</b></td><td>'+fmt(rate,2)+'</td><td></td></tr>'
