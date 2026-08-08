@@ -362,6 +362,7 @@ function syncTabFromFrame(){
    itself, exactly as it did before.
    ===================================================================== */
 var WARM_DAYS = 7;      /* how far back to pre-load */
+var WARM_SCHEMA = 2;    /* must match DAY_SCHEMA in weekly.html and Code.gs */
 var WARM_KEY  = 'fabwk_d_', WARM_DATES = 'fabwk_dates';
 
 function warmGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
@@ -376,14 +377,20 @@ function warmWeekly(){
 
       /* the most recent WARM_DAYS days that actually have data */
       var want = res.dates.slice(-WARM_DAYS);
-      var missing = want.filter(function(d){ return !warmGet(WARM_KEY+d) });
+      var missing = want.filter(function(d){
+        var c=warmGet(WARM_KEY+d);
+        return !(c && c.v===WARM_SCHEMA);      /* refetch anything older */
+      });
       if(!missing.length) return;                 /* already warm, nothing to do */
 
       return fetch(FAB_API+'?action=days&dates='+encodeURIComponent(missing.join(',')))
         .then(function(r){ return r.ok ? r.json() : null })
         .then(function(dres){
           if(!dres || dres.error || !dres.days) return;
-          for(var k in dres.days) if(dres.days.hasOwnProperty(k)) warmSet(WARM_KEY+k,dres.days[k]);
+          for(var k in dres.days) if(dres.days.hasOwnProperty(k)){
+            if(dres.days[k] && dres.days[k].v!==WARM_SCHEMA) continue;
+            warmSet(WARM_KEY+k,dres.days[k]);
+          }
         });
     })
     .catch(function(){});                          /* stay silent, never block the UI */
