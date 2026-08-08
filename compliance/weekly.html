@@ -1086,8 +1086,11 @@ function render(){
    +fabricCard()+'</div>';
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
-   +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. <b>Waste Yds</b> = Used Yds &times; '
-   +'(Roll Width &minus; Marker Width &minus; allowance) &divide; Roll Width, charged on failed rolls only. Allowance is 1.50 in for padding, quilting, fleece and sherpa, 1.00 in for every other fabric.</div>';
+   +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. '
+   +'<b>Waste Yds</b> = Used Yds &times; (Roll Width &minus; Marker Width &minus; Allowance) &divide; '
+   +'Roll Width, charged on failed rolls only. '
+   +'<b>Allowance</b> is 1.50&Prime; for Padding, Quilting, Fleece and Sherpa, and 1.00&Prime; for all '
+   +'other fabrics.</div>';
 
   h+='</div>';
   $('content').innerHTML=h;
