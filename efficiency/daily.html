@@ -467,14 +467,15 @@ var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2Cw
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 
 /* ---------- Loss Time entry panel ----------
-   Separate Apps Script web app, bound to the SOSL Cutting PIB sheet.
+   loss.html is served from this same site, so the domain never changes.
+   It talks to the SOSL Cutting PIB Apps Script JSON API on its own.
    Login is validated server side against the Users tab, so no credential
    ever sits in this file. Iframe is created lazily on first open. */
-var LOSS_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
+var LOSS_PAGE = "loss.html";
 function openLoss(){
   var f=document.getElementById('lossfr');
-  if(!f.getAttribute('src')) f.setAttribute('src',LOSS_API);
-  document.getElementById('losstab').href=LOSS_API;
+  if(!f.getAttribute('src')) f.setAttribute('src',LOSS_PAGE);
+  document.getElementById('losstab').href=LOSS_PAGE;
   document.getElementById('lossovl').classList.add('on');
 }
 function closeLoss(){ document.getElementById('lossovl').classList.remove('on'); }
