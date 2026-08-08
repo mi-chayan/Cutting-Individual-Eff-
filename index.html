@@ -313,6 +313,39 @@ window.addEventListener('message', function(ev){
   if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
 });
 
+/* ---------- keep the menu in step with what is actually on screen ----------
+   curTab was only ever set by go(). If the iframe ended up on a different
+   report by any other route (a reload restoring the previous src, a back or
+   forward navigation, or an error path), the menu kept highlighting the old
+   entry and the header stamp belonged to the wrong report. Reading the
+   iframe's real src after every load makes the menu follow the content
+   instead of assuming it. */
+function tabFromSrc(src){
+  if(!src) return null;
+  var path = String(src).split('?')[0].split('#')[0];
+  for(var k in REPORTS){
+    if(REPORTS.hasOwnProperty(k) && path.indexOf(REPORTS[k].page) > -1) return k;
+  }
+  return null;
+}
+function syncTabFromFrame(){
+  var f=document.getElementById('frame');
+  if(!f) return;
+  var which = tabFromSrc(f.getAttribute('src')) ||
+              (function(){ try{ return tabFromSrc(f.contentWindow.location.pathname) }catch(e){ return null } })();
+  if(!which || which===curTab) return;
+  curTab = which;
+  TABS.forEach(function(t){
+    var b=document.getElementById('t_'+t);
+    if(b) b.classList.toggle('on', t===which);
+  });
+}
+(function(){
+  var f=document.getElementById('frame');
+  if(f) f.addEventListener('load', syncTabFromFrame);
+  syncTabFromFrame();
+})();
+
 /* =====================================================================
    Background warm-up for the Weekly Fabric Roll Compliance report
    ---------------------------------------------------------------------
