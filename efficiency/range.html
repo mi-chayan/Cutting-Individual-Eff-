@@ -102,6 +102,10 @@
   tr.totalrow td{background:var(--navy) !important;color:#fff;font-weight:800;
                  position:sticky;bottom:0;z-index:5}
   tbody tr.totalrow:hover td{background:var(--navy) !important}
+  /* factory subtotal rows in the Summary view */
+  tbody tr.grp td{background:#EEF1FA !important;font-weight:800;
+                  border-top:2px solid var(--navy);border-bottom:2px solid var(--navy)}
+  tbody tr.grp:hover td{background:#E2E8F7 !important}
   .mono{font-variant-numeric:tabular-nums}
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
@@ -221,6 +225,7 @@
   <span class="seg">
     <button id="vMat" class="on" onclick="setView('mat')">Score Matrix</button>
     <button id="vTbl" onclick="setView('tbl')">Full Table</button>
+    <button id="vSum" onclick="setView('sum')">Summary</button>
   </span>
 
   <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:150px">
@@ -420,7 +425,7 @@ function buildChips(){
   /* The metric picker only means anything in the matrix, where it decides which
      number fills the date columns. The Full Table shows every column already,
      so the buttons are hidden there rather than sitting dead on the bar. */
-  if(view==='mat'){
+  if(view==='mat'||view==='sum'){
     h+='<span class="fsep"></span>';
     ['final','indv','floor'].forEach(function(m){
       h+='<span class="mchip'+(metric===m?' on':'')+'" onclick="setMetric(\''+m+'\')">'
@@ -436,9 +441,10 @@ function setView(v){
   view=v;
   el('vMat').classList.toggle('on', v==='mat');
   el('vTbl').classList.toggle('on', v==='tbl');
-  el('lgd').classList.toggle('hide', v!=='mat');
+  el('vSum').classList.toggle('on', v==='sum');
+  el('lgd').classList.toggle('hide', v==='tbl');
   hideTip();
-  buildChips();     /* the metric chips only exist in the matrix view */
+  buildChips();     /* the metric chips mean nothing in the Full Table */
   render();
 }
 
@@ -510,17 +516,107 @@ function render(){
   el('ph2').textContent=scopeLabel();
   el('ph4').textContent=STAMP;
   el('ph5').textContent=M.label;
-  el('lgdNote').textContent=M.note;
+  el('lgdNote').textContent = (view==='sum')
+    ? (M.note+'. Band counts are per operator, using each man’s average over the period')
+    : M.note;
 
   if(view==='mat'){
     el('tblTitle').textContent='Score Matrix — '+M.label;
     el('phTitle').textContent='SOSL Cutting Section – PIB Score Matrix ('+M.label+')';
     renderMatrix(list);
+  }else if(view==='sum'){
+    el('tblTitle').textContent='Summary — '+M.label;
+    el('phTitle').textContent='SOSL Cutting Section – PIB Summary ('+M.label+')';
+    renderSummary(list);
   }else{
     el('tblTitle').textContent='Database PIB';
     el('phTitle').textContent='SOSL Cutting Section – Individual PIB Report';
     renderTable(list);
   }
+}
+
+/* ---------- view: summary ----------
+   Floor by floor, then a SOL and an SSL subtotal, then SOSL overall.
+
+   Two different averages appear here on purpose:
+     Avg Score  is the mean across operator-days, the true weighted average
+     the band counts are per OPERATOR, using each man's own average over the
+     period, because payout is decided per man and not per man-day.
+   Counting operator-days into bands would let one bad Tuesday drag a man into
+   the low band while his week was fine. */
+
+function statsOf(rows){
+  var mk=METRICS[metric].k, max=METRICS[metric].max;
+  var ops={}, days=0, inM=0, outM=0, tot=0, unav=0;
+  rows.forEach(function(r){
+    var k=r.floor+'|'+r.opId, v=Number(r[mk])||0;
+    if(!ops[k]) ops[k]={n:0,s:0};
+    ops[k].n++; ops[k].s+=v;
+    days++; inM+=r.inMin; outM+=r.outMin; tot+=v;
+    if(r.unav) unav++;
+  });
+  var avgs=Object.keys(ops).map(function(k){ return ops[k].n?ops[k].s/ops[k].n:0; });
+  var b={top:0,hi:0,mid:0,lo:0};
+  avgs.forEach(function(v){ b[scClass(v,max)]++; });
+  return {
+    nOps:avgs.length, days:days, inM:inM, outM:outM,
+    eff:(inM>0?outM/inM:0), avg:(days?tot/days:0),
+    best:(avgs.length?Math.max.apply(null,avgs):0),
+    worst:(avgs.length?Math.min.apply(null,avgs):0),
+    b:b, unav:unav
+  };
+}
+
+function renderSummary(list){
+  var MX=METRICS[metric], max=MX.max;
+
+  var present={}; list.forEach(function(r){ present[r.floor]=true; });
+  var sol=SOL_FLOORS.filter(function(f){return present[f]});
+  var ssl=SSL_FLOORS.filter(function(f){return present[f]});
+  var other=Object.keys(present).filter(function(f){
+    return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0;
+  }).sort();
+
+  el('ph3').textContent=sol.length+ssl.length+other.length;
+
+  el('th').innerHTML='<tr>'
+    + '<th class="l">Floor</th><th>Operators</th><th>Op-Days</th>'
+    + '<th>Input Min</th><th>Output Min</th><th>Eff%</th>'
+    + '<th>Avg '+esc(MX.label)+'</th><th>Best</th><th>Worst</th>'
+    + '<th class="c">&ge;90%</th><th class="c">75&ndash;89%</th><th class="c">50&ndash;74%</th><th class="c">&lt;50%</th>'
+    + '<th class="wr">Indv N/C Days</th></tr>';
+
+  function line(label,rows,kind){
+    var s=statsOf(rows);
+    if(!s.days && kind==='floor') return '';
+    return '<tr class="'+(kind||'')+'">'
+     + '<td class="l"><b>'+esc(label)+'</b></td>'
+     + '<td class="mono">'+s.nOps+'</td>'
+     + '<td class="mono">'+s.days+'</td>'
+     + '<td class="mono">'+fmt(s.inM,0)+'</td>'
+     + '<td class="mono">'+fmt(s.outM,0)+'</td>'
+     + '<td class="mono">'+fmt(s.eff*100,1)+'%</td>'
+     + '<td class="mono sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
+     + '<td class="mono">'+fmt(s.best,1)+'</td>'
+     + '<td class="mono">'+fmt(s.worst,1)+'</td>'
+     + '<td class="c mono">'+(s.b.top||'')+'</td>'
+     + '<td class="c mono">'+(s.b.hi||'')+'</td>'
+     + '<td class="c mono">'+(s.b.mid||'')+'</td>'
+     + '<td class="c mono">'+(s.b.lo||'')+'</td>'
+     + '<td class="c mono wr">'+(s.unav||'')+'</td></tr>';
+  }
+  function pick(fl){ return list.filter(function(r){ return fl.indexOf(r.floor)>=0; }); }
+
+  var h='';
+  sol.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
+  if(sol.length) h+=line('SOL total', pick(sol), 'grp');
+  ssl.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
+  if(ssl.length) h+=line('SSL total', pick(ssl), 'grp');
+  other.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
+
+  if(!h){ el('tb').innerHTML='<tr><td colspan="14" class="loading">No rows for this selection.</td></tr>'; return; }
+  h+=line('SOSL overall', list, 'totalrow');
+  el('tb').innerHTML=h;
 }
 
 /* ---------- view: full table ---------- */
@@ -842,7 +938,8 @@ function exportGrid(){
 
 function exportExcel(){
   var list=inScope(), MX=METRICS[metric];
-  var viewTxt = view==='mat' ? ('Score Matrix - '+MX.label) : 'Full Table';
+  var viewTxt = view==='mat' ? ('Score Matrix - '+MX.label)
+              : view==='sum' ? ('Summary - '+MX.label) : 'Full Table';
 
   var t='<table><tr><td colspan="20" style="font-size:15pt;font-weight:bold;color:#333D6D">'
       + 'SOSL Cutting Section &ndash; Individual PIB '+(view==='mat'?'Score Matrix':'Report')+'</td></tr>'
@@ -868,6 +965,36 @@ function exportExcel(){
       t+='<td>'+o.days+'</td><td>'+(Math.round(o.total*10)/10)+'</td>'
        + '<td>'+(Math.round(o.avg*10)/10)+'</td><td>'+(o.unav||0)+'</td></tr>';
     });
+    t+='</table>';
+  }else if(view==='sum'){
+    var present={}; list.forEach(function(r){ present[r.floor]=true; });
+    var sol=SOL_FLOORS.filter(function(f){return present[f]});
+    var ssl=SSL_FLOORS.filter(function(f){return present[f]});
+    var oth=Object.keys(present).filter(function(f){
+      return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0; }).sort();
+
+    t+='<table border="1"><tr>'+th2('Floor')+th2('Operators')+th2('Op-Days')
+     + th2('Input Min')+th2('Output Min')+th2('Eff%')+th2('Avg '+MX.label)
+     + th2('Best')+th2('Worst')+th2('>=90%')+th2('75-89%')+th2('50-74%')+th2('<50%')
+     + th2('Indv Not Counted (days)')+'</tr>';
+
+    var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
+    var row=function(label,rows,bold){
+      var s=statsOf(rows), st=bold?' style="font-weight:bold"':'';
+      return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td><td>'+s.days+'</td>'
+       + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
+       + '<td style="mso-number-format:\'0.0%\'">'+s.eff+'</td>'
+       + '<td>'+(Math.round(s.avg*10)/10)+'</td><td>'+(Math.round(s.best*10)/10)+'</td>'
+       + '<td>'+(Math.round(s.worst*10)/10)+'</td>'
+       + '<td>'+s.b.top+'</td><td>'+s.b.hi+'</td><td>'+s.b.mid+'</td><td>'+s.b.lo+'</td>'
+       + '<td>'+s.unav+'</td></tr>';
+    };
+    sol.forEach(function(f){ t+=row(f,pick([f])); });
+    if(sol.length) t+=row('SOL total',pick(sol),true);
+    ssl.forEach(function(f){ t+=row(f,pick([f])); });
+    if(ssl.length) t+=row('SSL total',pick(ssl),true);
+    oth.forEach(function(f){ t+=row(f,pick([f])); });
+    t+=row('SOSL overall',list,true);
     t+='</table>';
   }else{
     t+='<table border="1"><tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
