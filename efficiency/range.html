@@ -13,11 +13,14 @@
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  /* The whole page is one vertical flex column so the table stretches to the
+     bottom of the window instead of stopping short and leaving dead space. */
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
-       font-size:13px;-webkit-text-size-adjust:100%}
+       font-size:13px;-webkit-text-size-adjust:100%;display:flex;flex-direction:column}
 
   .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
-         display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+         display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:30;flex:0 0 auto}
   .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
   .sep{width:1px;height:22px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
@@ -48,35 +51,74 @@
          opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .hide{display:none !important}
 
-  .wrap{padding:13px 16px 24px;max-width:1560px;margin:0 auto}
+  /* view switch */
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:#fff;color:var(--navy);font-family:inherit;font-weight:800;
+              font-size:11.5px;padding:6px 14px;cursor:pointer;white-space:nowrap}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--violet);color:#fff}
+
+  /* floor chips */
+  .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:9px 16px 0;flex:0 0 auto}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 13px;
+        font-size:11.5px;font-weight:800;color:var(--navy);cursor:pointer;white-space:nowrap}
+  .chip:hover{border-color:var(--violet)}
+  .chip.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+
+  .wrap{padding:11px 16px 12px;max-width:1560px;margin:0 auto;width:100%;
+        flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
-        box-shadow:0 1px 2px rgba(37,42,69,.05);overflow:hidden}
+        box-shadow:0 1px 2px rgba(37,42,69,.05);overflow:hidden;
+        flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
   .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
-            font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px}
-  .scroll{max-height:calc(100vh - 190px);min-height:260px;overflow:auto}
+            font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;
+            flex:0 0 auto}
+  .scroll{flex:1 1 auto;min-height:0;overflow:auto}
   table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
   thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:#fff;
            padding:8px;text-align:right;font-weight:700;font-size:10.5px;
            text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;cursor:pointer;user-select:none}
   thead th.l{text-align:left}
+  thead th.c{text-align:center}
   thead th:hover{background:#2B3566}
   thead th .arr{font-size:8px;margin-left:3px}
+  thead th .d2{display:block;font-size:8.5px;font-weight:600;opacity:.7;letter-spacing:0}
+  /* Narrow columns whose heading is long. The heading wraps onto two or three
+     lines instead of stretching the column to fit one line of text. */
+  thead th.wr{white-space:normal;width:58px;min-width:58px;line-height:1.15}
+  tbody td.wr{width:58px;min-width:58px}
   tbody td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   tbody td.l{text-align:left}
+  tbody td.c{text-align:center}
   tbody tr:nth-child(even) td{background:#F6F7FB}
   tbody tr:hover td{background:var(--cream)}
+  tr.totalrow td{background:var(--navy) !important;color:#fff;font-weight:800;
+                 position:sticky;bottom:0;z-index:5}
   .mono{font-variant-numeric:tabular-nums}
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
+
+  /* score cells in the matrix */
+  .sc{font-weight:800}
+  .sc.lo{background:#FBE9EB;color:#A3252F}
+  .sc.mid{background:#FFF6E6;color:#8A5B12}
+  .sc.hi{background:#E7F4EC;color:#12653A}
+  .sc.top{background:#E8F0FC;color:#14509E}
+  .sc.na{color:#C2C6D6}
+  td.tot{background:#EFE8FB !important;color:#4B2A85;font-weight:800}
+  .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
+       font-weight:700;padding:8px 13px;border-top:1px solid var(--line);flex:0 0 auto}
+  .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 
   .printhead{display:none}
   .printfoot{display:none}
   @media print{
     @page{size:A4 landscape;margin:9mm 8mm}
     body{background:#fff;font-size:8pt}
-    .strip{display:none !important}
-    .wrap{padding:0;max-width:none}
-    .card{border:0;box-shadow:none;border-radius:0}
+    .strip,.chips,.lgd{display:none !important}
+    html,body{height:auto;display:block}
+    .wrap{padding:0;max-width:none;display:block}
+    .card{border:0;box-shadow:none;border-radius:0;display:block}
     .card .hd{display:none}
     .scroll{max-height:none;min-height:0;overflow:visible}
     .printhead{display:flex;align-items:center;gap:5mm;margin-bottom:4mm;
@@ -90,12 +132,15 @@
     tbody td{font-size:6.8pt;padding:1.1mm}
     tbody tr:nth-child(even) td{background:#F6F7FB !important;
              -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    tr.totalrow td{background:#333D6D !important;color:#fff !important;position:static;
+             -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sc,td.tot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tbody tr{page-break-inside:avoid}
     thead{display:table-header-group}
     .printfoot{display:block !important;margin-top:4mm;font-size:6.5pt;color:#666;text-align:center;
                border-top:.3mm solid #ccc;padding-top:2mm}
   }
-  @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} }
+  @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} .chips{padding:8px 9px 0} }
 </style>
 </head>
 <body>
@@ -121,7 +166,13 @@
     </span>
   </span>
 
-  <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:170px">
+  <div class="sep"></div>
+  <span class="seg">
+    <button id="vTbl" class="on" onclick="setView('tbl')">Full Table</button>
+    <button id="vMat" onclick="setView('mat')">Score Matrix</button>
+  </span>
+
+  <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:160px">
   <span class="showing" id="showing"></span>
 
   <div class="acts">
@@ -134,25 +185,35 @@
   </div>
 </div>
 
+<div class="chips" id="chips"></div>
+
 <div class="wrap">
   <div class="printhead">
     <img src="../logo.jpg" alt="">
     <div>
-      <h1>SOSL Cutting Section &ndash; Individual PIB Report</h1>
+      <h1 id="phTitle">SOSL Cutting Section &ndash; Individual PIB Report</h1>
       <div class="meta">
         <span>Period: <b id="ph1">&ndash;</b></span>
-        <span>Rows: <b id="ph2">&ndash;</b></span>
-        <span>Generated: <b id="ph3">&ndash;</b></span>
+        <span>Scope: <b id="ph2">&ndash;</b></span>
+        <span>Rows: <b id="ph3">&ndash;</b></span>
+        <span>Generated: <b id="ph4">&ndash;</b></span>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="hd"><span>Database PIB</span><span class="showing" id="stamp"></span></div>
+    <div class="hd"><span id="tblTitle">Database PIB</span><span class="showing" id="stamp"></span></div>
     <div class="scroll"><table>
       <thead id="th"></thead>
       <tbody id="tb"><tr><td class="loading" colspan="15">Loading&hellip;</td></tr></tbody>
     </table></div>
+    <div class="lgd hide" id="lgd">
+      <span><i style="background:#FBE9EB"></i>Below 50</span>
+      <span><i style="background:#FFF6E6"></i>50 to 74</span>
+      <span><i style="background:#E7F4EC"></i>75 to 89</span>
+      <span><i style="background:#E8F0FC"></i>90 and above</span>
+      <span style="margin-left:auto">Blank cell means no record for that operator on that date</span>
+    </div>
   </div>
 
   <div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>
@@ -160,22 +221,27 @@
 
 <script>
 /* ------------------------------------------------------------------
-   A plain mirror of Database_PIB in the Cutting Individual PIB sheet.
-   Same 15 columns, same order, same values. Period selector, search,
-   column sorting, Excel and Print. Nothing else on purpose.
+   Two views over the same Database_PIB rows.
+
+   Full Table   the sheet mirrored, all 15 columns, nothing added
+   Score Matrix operator on the left, one column per date carrying the
+                Final KPI Score, then Days, Total and Average
+
+   The matrix is built from the same rows as the table, so the two can
+   never disagree. Its date columns come from the dates actually present
+   in the data, not from a calendar, so a Friday the factory worked shows
+   up and a day it did not simply is not there.
    ------------------------------------------------------------------ */
 
 var PIB_API = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
 
-var RAW=[], SNAP=null, STAMP='', query='';
+var RAW=[], SNAP=null, STAMP='', query='', floorFilter='', view='tbl';
 var sortKey='', sortDir=1;
+var mSortKey='total', mSortDir=-1;
 
-/* Column map: sheet order, exactly as Database_PIB holds it.
-   k  = key in the API row object
-   t  = n number, p percent, d date, s text
-   a  = left aligned when true */
+/* Full Table columns: Database_PIB order, exactly as the sheet holds it. */
 var COLS=[
-  {k:'week',   h:'Week',                 t:'n', d:0, a:false},
+  {k:'week',   h:'Week',                 t:'n', d:0},
   {k:'floor',  h:'Floor',                t:'s', a:true},
   {k:'date',   h:'Date',                 t:'d', a:true},
   {k:'opId',   h:'Op ID',                t:'s', a:true},
@@ -188,7 +254,7 @@ var COLS=[
   {k:'type',   h:'Type',                 t:'s', a:true},
   {k:'tScore', h:'Type Score',           t:'p', d:2},
   {k:'kpiTyp', h:'KPI on Type',          t:'n', d:1},
-  {k:'unav',   h:'Not Considering Indv', t:'y', a:true},
+  {k:'unav',   h:'Not Considering Indv', t:'y', c:true, w:true},
   {k:'final',  h:'Final KPI Score',      t:'n', d:1}
 ];
 
@@ -197,18 +263,26 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
 
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function prettyDate(iso){
   if(!iso) return '';
   var p=String(iso).split('-'); if(p.length!==3) return iso;
   return Number(p[2])+'-'+MON[Number(p[1])-1]+'-'+p[0].slice(2);
 }
+function shortDate(iso){
+  var p=String(iso).split('-'); if(p.length!==3) return iso;
+  return Number(p[2])+' '+MON[Number(p[1])-1];
+}
+function dowOf(iso){
+  var p=String(iso).split('-'); if(p.length!==3) return '';
+  return DOW[new Date(Number(p[0]),Number(p[1])-1,Number(p[2])).getDay()];
+}
 function fmt(v,d){
   var n=Number(v); if(isNaN(n)) n=0;
   return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
-/* Op IDs are 11 characters in the source. Numeric ones arrive stripped of the
-   leading zero, so pad them back rather than showing a 10 digit ID. */
 function padId(id){ var s=String(id||''); return s.length&&s.length<11 ? ('00000000000'+s).slice(-11) : s; }
+function scClass(v){ return v<50?'lo':(v<75?'mid':(v<90?'hi':'top')); }
 
 function cellText(c,r){
   var v=r[c.k];
@@ -225,7 +299,7 @@ function cellText(c,r){
 window.addEventListener('load', function(){
   fetch(PIB_API+'?action=snapshot').then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ fail(s.msg); return; }
-    SNAP=s; buildPeriod(); load();
+    SNAP=s; buildPeriod(); buildChips(); load();
   }).catch(fail);
 });
 
@@ -245,6 +319,23 @@ function buildPeriod(){
   el('f1').value=SNAP.minDate||''; el('f2').value=SNAP.maxDate||'';
   el('f1label').textContent=prettyDate(SNAP.minDate);
   el('f2label').textContent=prettyDate(SNAP.maxDate);
+}
+
+function buildChips(){
+  var h='<span class="chip'+(floorFilter===''?' on':'')+'" onclick="setFloor(\'\')">All Floors</span>';
+  (SNAP.floors||[]).forEach(function(f){
+    h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="setFloor(\''+esc(f)+'\')">'+esc(f)+'</span>';
+  });
+  el('chips').innerHTML=h;
+}
+function setFloor(f){ floorFilter=(floorFilter===f&&f!=='')?'':f; buildChips(); render(); }
+
+function setView(v){
+  view=v;
+  el('vTbl').classList.toggle('on', v==='tbl');
+  el('vMat').classList.toggle('on', v==='mat');
+  el('lgd').classList.toggle('hide', v!=='mat');
+  render();
 }
 
 function periodChanged(){
@@ -275,25 +366,46 @@ function load(){
   }).catch(fail);
 }
 
-/* ---------- render ---------- */
+/* ---------- scope ---------- */
 
-function setSort(k){
-  if(sortKey===k) sortDir*=-1;
-  else { sortKey=k; sortDir=1; }
-  render();
+function inScope(){
+  return RAW.filter(function(r){
+    if(floorFilter && r.floor!==floorFilter) return false;
+    if(!query) return true;
+    var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
+    return hay.indexOf(query)>=0;
+  });
 }
+
+function setSort(k){ if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=1;} render(); }
+function setMSort(k){ if(mSortKey===k) mSortDir*=-1; else {mSortKey=k; mSortDir=(k==='floor'||k==='name'||k==='opId'||k==='desig'||k==='type')?1:-1;} render(); }
 function renderKeepFocus(){
   query=(el('q').value||'').toLowerCase(); render();
   var q=el('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length);
 }
 
 function render(){
-  var list=RAW.filter(function(r){
-    if(!query) return true;
-    var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
-    return hay.indexOf(query)>=0;
-  });
+  var list=inScope();
+  el('showing').textContent=periodLabel()+' · '+(floorFilter?('Floor '+floorFilter):'All Floors')+' · '+list.length+' rows';
+  el('stamp').textContent=STAMP?('Last updated '+STAMP):'';
+  el('ph1').textContent=periodLabel();
+  el('ph2').textContent=floorFilter?('Floor '+floorFilter):'All Floors';
+  el('ph4').textContent=STAMP;
+  if(view==='mat'){
+    el('tblTitle').textContent='Score Matrix';
+    el('phTitle').textContent='SOSL Cutting Section – Individual PIB Score Matrix';
+    renderMatrix(list);
+  }else{
+    el('tblTitle').textContent='Database PIB';
+    el('phTitle').textContent='SOSL Cutting Section – Individual PIB Report';
+    renderTable(list);
+  }
+}
 
+/* ---------- view 1: the sheet, mirrored ---------- */
+
+function renderTable(list){
+  el('ph3').textContent=list.length;
   if(sortKey){
     var d=sortDir;
     list=list.slice().sort(function(a,b){
@@ -308,58 +420,160 @@ function render(){
 
   el('th').innerHTML='<tr>'+COLS.map(function(c){
     var arr=sortKey===c.k?(sortDir===1?'&#9650;':'&#9660;'):'';
-    return '<th class="'+(c.a?'l':'')+'" onclick="setSort(\''+c.k+'\')">'+esc(c.h)+'<span class="arr">'+arr+'</span></th>';
+    var cls=(c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr':'');
+    return '<th class="'+cls.trim()+'" onclick="setSort(\''+c.k+'\')">'+esc(c.h)+'<span class="arr">'+arr+'</span></th>';
   }).join('')+'</tr>';
 
   var h='';
   list.forEach(function(r){
     h+='<tr>'+COLS.map(function(c){
       var v = c.k==='opId' ? esc(padId(r.opId)) : cellText(c,r);
-      return '<td class="'+(c.a?'l ':'')+'mono">'+v+'</td>';
+      var cls=(c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr ':'')+'mono';
+      return '<td class="'+cls+'">'+v+'</td>';
     }).join('')+'</tr>';
   });
   el('tb').innerHTML = h || '<tr><td colspan="15" class="loading">No rows for this selection.</td></tr>';
+}
 
-  el('showing').textContent=periodLabel()+' · '+list.length+' rows';
-  el('stamp').textContent=STAMP?('Last updated '+STAMP):'';
-  el('ph1').textContent=periodLabel();
-  el('ph2').textContent=list.length;
-  el('ph3').textContent=STAMP;
+/* ---------- view 2: score matrix ---------- */
+
+function buildMatrix(list){
+  var dates={}, m={};
+  list.forEach(function(r){
+    dates[r.date]=true;
+    var k=r.floor+'|'+r.opId;
+    if(!m[k]) m[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,type:r.type,
+                    s:{},days:0,total:0,unav:0};
+    var o=m[k];
+    o.s[r.date]=r.final;
+    o.days++; o.total+=Number(r.final)||0;
+    if(r.unav) o.unav++;
+    if(r.desig) o.desig=r.desig;
+    if(r.type)  o.type=r.type;
+  });
+  var ds=Object.keys(dates).sort();
+  var rows=Object.keys(m).map(function(k){
+    var o=m[k]; o.avg = o.days ? o.total/o.days : 0; return o;
+  });
+  return {dates:ds, rows:rows};
+}
+
+function renderMatrix(list){
+  var M=buildMatrix(list);
+  el('ph3').textContent=M.rows.length;
+
+  var rows=M.rows.slice().sort(function(a,b){
+    var d=mSortDir, x=a[mSortKey], y=b[mSortKey];
+    if(typeof x==='string'||typeof y==='string'){
+      x=String(x||'').toLowerCase(); y=String(y||'').toLowerCase();
+      return x<y?-d:(x>y?d:0);
+    }
+    return ((x||0)-(y||0))*d;
+  });
+
+  var mth=function(k,label,cls){
+    var arr=mSortKey===k?(mSortDir===1?'&#9650;':'&#9660;'):'';
+    return '<th class="'+(cls||'')+'" onclick="setMSort(\''+k+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
+  };
+
+  var h='<tr><th class="l">#</th>'
+      + mth('floor','Floor','l') + mth('opId','Op ID','l') + mth('name','Op Name','l')
+      + mth('desig','Designation','l') + mth('type','Type','l');
+  M.dates.forEach(function(d){
+    h+='<th class="c">'+shortDate(d)+'<span class="d2">'+dowOf(d)+'</span></th>';
+  });
+  h+= mth('days','Days') + mth('total','Total') + mth('avg','Average') + mth('unav','Indv N/C');
+  el('th').innerHTML=h+'</tr>';
+
+  var b='', colDay=[], colSum=[], tTot=0, tDays=0, tUn=0;
+  rows.forEach(function(o,i){
+    tTot+=o.total; tDays+=o.days; tUn+=o.unav;
+    b+='<tr><td class="l mono">'+(i+1)+'</td>'
+     + '<td class="l">'+esc(o.floor)+'</td>'
+     + '<td class="l mono">'+esc(padId(o.opId))+'</td>'
+     + '<td class="l">'+esc(o.name)+'</td>'
+     + '<td class="l">'+esc(o.desig)+'</td>'
+     + '<td class="l">'+esc(o.type||'')+'</td>';
+    M.dates.forEach(function(d,j){
+      var v=o.s[d];
+      if(v===undefined||v===null||v===''){ b+='<td class="c sc na">&ndash;</td>'; }
+      else{
+        var n=Number(v)||0;
+        colSum[j]=(colSum[j]||0)+n; colDay[j]=(colDay[j]||0)+1;
+        b+='<td class="c sc '+scClass(n)+'">'+fmt(n,1)+'</td>';
+      }
+    });
+    b+='<td class="mono">'+o.days+'</td>'
+     + '<td class="mono tot">'+fmt(o.total,1)+'</td>'
+     + '<td class="mono tot">'+fmt(o.avg,1)+'</td>'
+     + '<td class="mono">'+(o.unav||'')+'</td></tr>';
+  });
+
+  if(!rows.length){
+    b='<tr><td class="loading" colspan="'+(M.dates.length+10)+'">No rows for this selection.</td></tr>';
+  }else{
+    b+='<tr class="totalrow"><td class="l" colspan="6">Average &bull; '+rows.length+' operators</td>';
+    M.dates.forEach(function(d,j){
+      b+= colDay[j] ? '<td class="c">'+fmt(colSum[j]/colDay[j],1)+'</td>' : '<td class="c">&ndash;</td>';
+    });
+    b+='<td class="mono">'+tDays+'</td><td class="mono">'+fmt(tTot,1)+'</td>'
+     + '<td class="mono">'+(tDays?fmt(tTot/tDays,1):'0.0')+'</td>'
+     + '<td class="mono">'+(tUn||'')+'</td></tr>';
+  }
+  el('tb').innerHTML=b;
 }
 
 /* ---------- print ---------- */
 function doPrint(){ window.focus(); window.print(); }
 
 /* ---------- Excel ---------- */
-function exportExcel(){
-  var list=RAW.filter(function(r){
-    if(!query) return true;
-    var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
-    return hay.indexOf(query)>=0;
-  });
+function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
 
-  var t='<table><tr><td colspan="15" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; Individual PIB Report</td></tr>'
-      + '<tr><td colspan="15">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Rows: '+list.length
+function exportExcel(){
+  var list=inScope();
+  var scopeTxt=floorFilter?('Floor '+floorFilter):'All Floors';
+  var viewTxt = view==='mat' ? 'Score Matrix' : 'Full Table';
+
+  var t='<table><tr><td colspan="20" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      + 'SOSL Cutting Section &ndash; Individual PIB '+(view==='mat'?'Score Matrix':'Report')+'</td></tr>'
+      + '<tr><td colspan="20">Period: '+esc(periodLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeTxt)
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;View: '+viewTxt
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
 
-  t+='<table border="1"><tr>'+COLS.map(function(c){
-    return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(c.h)+'</th>';
-  }).join('')+'</tr>';
-
-  list.forEach(function(r){
-    t+='<tr>'+COLS.map(function(c){
-      var v=r[c.k];
-      if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
-      if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
-      if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
-      if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
-      if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
-      return '<td>'+(Number(v)||0)+'</td>';
-    }).join('')+'</tr>';
-  });
-  t+='</table><table><tr><td></td></tr><tr><td colspan="15">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  if(view==='mat'){
+    var M=buildMatrix(list);
+    t+='<table border="1"><tr>'+th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('Type');
+    M.dates.forEach(function(d){ t+=th2(prettyDate(d)); });
+    t+=th2('Days')+th2('Total')+th2('Average')+th2('Indv Not Counted')+'</tr>';
+    M.rows.forEach(function(o){
+      t+='<tr><td>'+esc(o.floor)+'</td>'
+       + '<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
+       + '<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+esc(o.type||'')+'</td>';
+      M.dates.forEach(function(d){
+        var v=o.s[d];
+        t+= (v===undefined||v===null||v==='') ? '<td></td>' : '<td>'+(Number(v)||0)+'</td>';
+      });
+      t+='<td>'+o.days+'</td><td>'+(Math.round(o.total*10)/10)+'</td>'
+       + '<td>'+(Math.round(o.avg*10)/10)+'</td><td>'+(o.unav||0)+'</td></tr>';
+    });
+    t+='</table>';
+  }else{
+    t+='<table border="1"><tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
+    list.forEach(function(r){
+      t+='<tr>'+COLS.map(function(c){
+        var v=r[c.k];
+        if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
+        if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
+        if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
+        if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
+        if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
+        return '<td>'+(Number(v)||0)+'</td>';
+      }).join('')+'</tr>';
+    });
+    t+='</table>';
+  }
+  t+='<table><tr><td></td></tr><tr><td colspan="20">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
 
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
@@ -367,7 +581,8 @@ function exportExcel(){
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
     +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
 
-  var name='SOSL_PIB_'+String(periodLabel()).replace(/[^A-Za-z0-9]+/g,'_')+'.xls';
+  var name='SOSL_PIB_'+viewTxt.replace(/\s+/g,'_')+'_'+String(periodLabel()).replace(/[^A-Za-z0-9]+/g,'_')
+          +'_'+(floorFilter||'AllFloors')+'.xls';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=name;
