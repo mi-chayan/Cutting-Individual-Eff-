@@ -261,7 +261,7 @@
   </div>
 
   <div class="card">
-    <div class="hd"><span id="tblTitle">Score Matrix</span><span class="showing" id="stamp"></span></div>
+    <div class="hd"><span id="tblTitle">Score Matrix</span></div>
     <div class="scroll"><table>
       <thead id="th"></thead>
       <tbody id="tb"><tr><td class="loading" colspan="15">Loading&hellip;</td></tr></tbody>
@@ -326,7 +326,7 @@ var METRICS={
 };
 
 var RAW=[], EFFG={cols:[],rows:[]}, OEEG={cols:[],rows:[]};
-var SNAP=null, STAMP='', THROUGH='', query='', scopeSel='', view='mat', metric='final', gridKind='eff';
+var SNAP=null, STAMP='', THROUGH='', query='', scopeSel='', dateSel='', view='mat', metric='final', gridKind='eff';
 var sortKey='', sortDir=1;
 var mSortKey='total', mSortDir=-1;
 var MROWS={};   /* floor|opId -> matrix row, used by the hover breakdown */
@@ -414,17 +414,34 @@ function buildPeriod(){
   el('f2label').textContent=prettyDate(SNAP.maxDate);
 }
 
+function datesInData(){
+  var d={}; RAW.forEach(function(r){ if(r.date) d[r.date]=true; });
+  return Object.keys(d).sort();
+}
+
 function buildChips(){
-  var h='<span class="chip'+(scopeSel===''?' on':'')+'" onclick="setScope(\'\')">All</span>'
-      + '<span class="chip fact'+(scopeSel==='SOL'?' on':'')+'" onclick="setScope(\'SOL\')">SOL</span>'
-      + '<span class="chip fact'+(scopeSel==='SSL'?' on':'')+'" onclick="setScope(\'SSL\')">SSL</span>'
-      + '<span class="fsep"></span>';
-  (SNAP.floors||[]).forEach(function(f){
-    h+='<span class="chip'+(scopeSel===f?' on':'')+'" onclick="setScope(\''+esc(f)+'\')">'+esc(f)+'</span>';
-  });
-  /* The metric picker only means anything in the matrix, where it decides which
-     number fills the date columns. The Full Table shows every column already,
-     so the buttons are hidden there rather than sitting dead on the bar. */
+  var h='';
+  if(view==='sum'){
+    /* Summary is already broken out floor by floor, so floor chips would be
+       redundant there. Date chips are what is missing: pick one day to see only
+       that day, All Dates to return to the whole period. */
+    h+='<span class="chip'+(dateSel===''?' on':'')+'" onclick="setDate(\'\')">All Dates</span>'
+     + '<span class="fsep"></span>';
+    datesInData().forEach(function(d){
+      h+='<span class="chip'+(dateSel===d?' on':'')+'" onclick="setDate(\''+d+'\')">'
+       + shortDate(d)+' <span style="opacity:.55;font-weight:600">'+dowOf(d)+'</span></span>';
+    });
+  }else{
+    h+='<span class="chip'+(scopeSel===''?' on':'')+'" onclick="setScope(\'\')">All</span>'
+     + '<span class="chip fact'+(scopeSel==='SOL'?' on':'')+'" onclick="setScope(\'SOL\')">SOL</span>'
+     + '<span class="chip fact'+(scopeSel==='SSL'?' on':'')+'" onclick="setScope(\'SSL\')">SSL</span>'
+     + '<span class="fsep"></span>';
+    (SNAP.floors||[]).forEach(function(f){
+      h+='<span class="chip'+(scopeSel===f?' on':'')+'" onclick="setScope(\''+esc(f)+'\')">'+esc(f)+'</span>';
+    });
+  }
+  /* The metric picker decides which score is being matrixed or summarised.
+     The Full Table shows every column already, so it is hidden there. */
   if(view==='mat'||view==='sum'){
     h+='<span class="fsep"></span>';
     ['final','indv','floor'].forEach(function(m){
@@ -435,6 +452,7 @@ function buildChips(){
   el('chips').innerHTML=h;
 }
 function setScope(s){ scopeSel=(scopeSel===s&&s!=='')?'':s; buildChips(); render(); }
+function setDate(d){ dateSel=(dateSel===d&&d!=='')?'':d; buildChips(); render(); }
 function setMetric(m){ metric=m; buildChips(); render(); }
 
 function setView(v){
@@ -443,8 +461,11 @@ function setView(v){
   el('vTbl').classList.toggle('on', v==='tbl');
   el('vSum').classList.toggle('on', v==='sum');
   el('lgd').classList.toggle('hide', v==='tbl');
+  /* The single-date filter belongs to Summary. Clearing it on the way out stops
+     an invisible filter silently trimming the other two views. */
+  if(v!=='sum') dateSel='';
   hideTip();
-  buildChips();     /* the metric chips mean nothing in the Full Table */
+  buildChips();
   render();
 }
 
@@ -489,6 +510,7 @@ function inScope(){
   var fl=floorsInScope();
   return RAW.filter(function(r){
     if(fl && fl.indexOf(r.floor)<0) return false;
+    if(dateSel && r.date!==dateSel) return false;
     if(!query) return true;
     var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
     return hay.indexOf(query)>=0;
@@ -505,13 +527,12 @@ function renderKeepFocus(){
 function render(){
   var list=inScope();
   var M=METRICS[metric];
-  el('showing').textContent=periodLabel()+' · '+scopeLabel()+' · '+list.length+' rows';
-  /* Two separate facts, deliberately. "Data through" is how current the numbers
-     are, "sheet updated" is when anyone last touched the file. */
-  var st=[];
-  if(THROUGH) st.push('Data through '+prettyDate(THROUGH));
-  if(STAMP)   st.push('Sheet updated '+STAMP);
-  el('stamp').textContent=st.join('  ·  ');
+  var when = dateSel ? prettyDate(dateSel) : periodLabel();
+  el('showing').textContent=when+' · '+scopeLabel()+' · '+list.length+' rows';
+  /* The shell owns the Last updated display beside its Refresh button. Post the
+     sheet's real modified time up to it; without this the shell has nothing to
+     show for this tab and the label sits on a dash. */
+  try{ parent.postMessage({type:'stamp', value: STAMP || prettyDate(THROUGH)}, '*'); }catch(e){}
   el('ph1').textContent=periodLabel();
   el('ph2').textContent=scopeLabel();
   el('ph4').textContent=STAMP;
@@ -545,22 +566,29 @@ function render(){
    Counting operator-days into bands would let one bad Tuesday drag a man into
    the low band while his week was fine. */
 
+/* Each operator is averaged over the days he actually has a record, never over
+   the calendar. Absence neither rewards nor punishes him here, it is already
+   handled by loss time. The floor figure is then the mean of those operator
+   averages, so every man counts once regardless of how many days he worked. */
 function statsOf(rows){
   var mk=METRICS[metric].k, max=METRICS[metric].max;
-  var ops={}, days=0, inM=0, outM=0, tot=0, unav=0;
+  var ops={}, inM=0, outM=0, unav=0;
   rows.forEach(function(r){
     var k=r.floor+'|'+r.opId, v=Number(r[mk])||0;
     if(!ops[k]) ops[k]={n:0,s:0};
     ops[k].n++; ops[k].s+=v;
-    days++; inM+=r.inMin; outM+=r.outMin; tot+=v;
+    inM+=r.inMin; outM+=r.outMin;
     if(r.unav) unav++;
   });
-  var avgs=Object.keys(ops).map(function(k){ return ops[k].n?ops[k].s/ops[k].n:0; });
+  var keys=Object.keys(ops);
+  var avgs=keys.map(function(k){ return ops[k].n?ops[k].s/ops[k].n:0; });
+  var dayc=keys.map(function(k){ return ops[k].n; });
   var b={top:0,hi:0,mid:0,lo:0};
   avgs.forEach(function(v){ b[scClass(v,max)]++; });
+  var mean=function(a){ return a.length ? a.reduce(function(x,y){return x+y},0)/a.length : 0; };
   return {
-    nOps:avgs.length, days:days, inM:inM, outM:outM,
-    eff:(inM>0?outM/inM:0), avg:(days?tot/days:0),
+    nOps:keys.length, avgDays:mean(dayc), inM:inM, outM:outM,
+    eff:(inM>0?outM/inM:0), avg:mean(avgs),
     best:(avgs.length?Math.max.apply(null,avgs):0),
     worst:(avgs.length?Math.min.apply(null,avgs):0),
     b:b, unav:unav
@@ -580,29 +608,38 @@ function renderSummary(list){
   el('ph3').textContent=sol.length+ssl.length+other.length;
 
   el('th').innerHTML='<tr>'
-    + '<th class="l">Floor</th><th>Operators</th><th>Op-Days</th>'
-    + '<th>Input Min</th><th>Output Min</th><th>Eff%</th>'
-    + '<th>Avg '+esc(MX.label)+'</th><th>Best</th><th>Worst</th>'
-    + '<th class="c">&ge;90%</th><th class="c">75&ndash;89%</th><th class="c">50&ndash;74%</th><th class="c">&lt;50%</th>'
-    + '<th class="wr">Indv N/C Days</th></tr>';
+    + '<th class="l">Floor</th>'
+    + '<th class="wr">Operators (count)</th>'
+    + '<th class="wr">Avg Days Worked (count)</th>'
+    + '<th>Input (min)</th>'
+    + '<th>Output (min)</th>'
+    + '<th>Efficiency (%)</th>'
+    + '<th class="wr">Avg '+esc(MX.label)+' (points)</th>'
+    + '<th class="wr">Best Operator (points)</th>'
+    + '<th class="wr">Lowest Operator (points)</th>'
+    + '<th class="c wr">&ge;90% (operators)</th>'
+    + '<th class="c wr">75&ndash;89% (operators)</th>'
+    + '<th class="c wr">50&ndash;74% (operators)</th>'
+    + '<th class="c wr">&lt;50% (operators)</th>'
+    + '<th class="c wr">Indv Not Counted (days)</th></tr>';
 
   function line(label,rows,kind){
     var s=statsOf(rows);
-    if(!s.days && kind==='floor') return '';
+    if(!s.nOps && kind==='floor') return '';
     return '<tr class="'+(kind||'')+'">'
      + '<td class="l"><b>'+esc(label)+'</b></td>'
-     + '<td class="mono">'+s.nOps+'</td>'
-     + '<td class="mono">'+s.days+'</td>'
+     + '<td class="mono wr">'+s.nOps+'</td>'
+     + '<td class="mono wr">'+fmt(s.avgDays,1)+'</td>'
      + '<td class="mono">'+fmt(s.inM,0)+'</td>'
      + '<td class="mono">'+fmt(s.outM,0)+'</td>'
      + '<td class="mono">'+fmt(s.eff*100,1)+'%</td>'
-     + '<td class="mono sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
-     + '<td class="mono">'+fmt(s.best,1)+'</td>'
-     + '<td class="mono">'+fmt(s.worst,1)+'</td>'
-     + '<td class="c mono">'+(s.b.top||'')+'</td>'
-     + '<td class="c mono">'+(s.b.hi||'')+'</td>'
-     + '<td class="c mono">'+(s.b.mid||'')+'</td>'
-     + '<td class="c mono">'+(s.b.lo||'')+'</td>'
+     + '<td class="mono wr sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
+     + '<td class="mono wr">'+fmt(s.best,1)+'</td>'
+     + '<td class="mono wr">'+fmt(s.worst,1)+'</td>'
+     + '<td class="c mono wr">'+(s.b.top||'')+'</td>'
+     + '<td class="c mono wr">'+(s.b.hi||'')+'</td>'
+     + '<td class="c mono wr">'+(s.b.mid||'')+'</td>'
+     + '<td class="c mono wr">'+(s.b.lo||'')+'</td>'
      + '<td class="c mono wr">'+(s.unav||'')+'</td></tr>';
   }
   function pick(fl){ return list.filter(function(r){ return fl.indexOf(r.floor)>=0; }); }
@@ -973,15 +1010,17 @@ function exportExcel(){
     var oth=Object.keys(present).filter(function(f){
       return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0; }).sort();
 
-    t+='<table border="1"><tr>'+th2('Floor')+th2('Operators')+th2('Op-Days')
-     + th2('Input Min')+th2('Output Min')+th2('Eff%')+th2('Avg '+MX.label)
-     + th2('Best')+th2('Worst')+th2('>=90%')+th2('75-89%')+th2('50-74%')+th2('<50%')
+    t+='<table border="1"><tr>'+th2('Floor')+th2('Operators (count)')+th2('Avg Days Worked (count)')
+     + th2('Input (min)')+th2('Output (min)')+th2('Efficiency (%)')
+     + th2('Avg '+MX.label+' (points)')+th2('Best Operator (points)')+th2('Lowest Operator (points)')
+     + th2('>=90% (operators)')+th2('75-89% (operators)')+th2('50-74% (operators)')+th2('<50% (operators)')
      + th2('Indv Not Counted (days)')+'</tr>';
 
     var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
     var row=function(label,rows,bold){
       var s=statsOf(rows), st=bold?' style="font-weight:bold"':'';
-      return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td><td>'+s.days+'</td>'
+      return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td>'
+       + '<td>'+(Math.round(s.avgDays*10)/10)+'</td>'
        + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
        + '<td style="mso-number-format:\'0.0%\'">'+s.eff+'</td>'
        + '<td>'+(Math.round(s.avg*10)/10)+'</td><td>'+(Math.round(s.best*10)/10)+'</td>'
