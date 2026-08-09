@@ -139,7 +139,7 @@
     <div class="menu" id="menu">
       <div class="menuhd">Efficiency</div>
       <button class="mi on" id="t_daily" onclick="go('daily')">Daily Individual Eff% Report</button>
-      <button class="mi" id="t_range" onclick="go('range')">Weekly Individual Eff% Report</button>
+      <button class="mi" id="t_range" onclick="go('range')">Weekly Individual PIB Report</button>
       <div class="menuhd">Compliance</div>
       <button class="mi" id="t_fabric" onclick="go('fabric')">Daily Fabric Roll Compliance Report</button>
       <button class="mi" id="t_fabweek" onclick="go('fabweek')">Weekly Fabric Roll Compliance Report</button>
@@ -204,12 +204,18 @@ if (window.self !== window.top) {
    Each system's Code.gs lives with its own downloader, not in this repo. */
 var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var FAB_API = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+/* Third system. The weekly PIB report reads reviewed rows from the Cutting
+   Individual PIB sheet, which is a different spreadsheet with its own script.
+   Paste its /exec link here AND into PIB_API in efficiency/range.html. */
+var PIB_API = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
 
 var REPORTS = {
   daily:  { page:'efficiency/daily.html',  url:EFF_API,
             key:'sosl_snapshot_v1',   drop:['sosl_day_','sosl_det'] },
-  range:  { page:'efficiency/range.html',  url:EFF_API,
-            key:'sosl_snapshot_v1',   drop:['sosl_day_','sosl_det'] },
+  /* range.html fetches on its own and parks nothing, so Refresh only needs to
+     warm the snapshot. No cache keys to drop. */
+  range:  { page:'efficiency/range.html',  url:PIB_API,
+            key:'sosl_pib_snapshot_v1', drop:[] },
   fabric: { page:'compliance/fabric.html', url:FAB_API,
             key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] },
   /* The weekly report aggregates server side and parks nothing, so it has no
