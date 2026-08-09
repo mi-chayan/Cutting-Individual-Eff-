@@ -16,7 +16,6 @@
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
        font-size:13px;-webkit-text-size-adjust:100%}
 
-  /* ---- control strip ---- */
   .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
          display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
   .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
@@ -29,16 +28,6 @@
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .mini:hover{background:var(--cream);border-color:var(--peach)}
   .mini svg{width:12px;height:12px;fill:var(--violet)}
-  .mini.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-  .mini.on svg{fill:#fff}
-  .mini.eff{background:#EFE8FB;color:#4B2A85;border-color:#CBB6EE;font-weight:800}
-  .mini.eff svg{fill:var(--violet)}
-  .mini.eff:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
-  .mini.eff:hover svg{fill:#fff}
-  .mini.oee{background:#FFF0D9;color:#8A5B12;border-color:#F2D0A0;font-weight:800}
-  .mini.oee svg{fill:#B8730B}
-  .mini.oee:hover{background:#B8730B;color:#fff;border-color:#B8730B}
-  .mini.oee:hover svg{fill:#fff}
   .mini.xls{background:#E8F5EE;color:#14663A;border-color:#9FD5B8;font-weight:800}
   .mini.xls svg{fill:#1E8E4E}
   .mini.xls:hover{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
@@ -59,41 +48,12 @@
          opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .hide{display:none !important}
 
-  /* segmented view switch */
-  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
-  .seg button{border:0;background:#fff;color:var(--navy);font-family:inherit;font-weight:800;
-              font-size:11.5px;padding:6px 14px;cursor:pointer;white-space:nowrap}
-  .seg button+button{border-left:1px solid var(--line)}
-  .seg button.on{background:var(--violet);color:#fff}
-
-  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
-
-  /* ---- KPI cards ---- */
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;
-       position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
-  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--blue)}
-  .kpi.k4:before{background:var(--green)} .kpi.k5:before{background:var(--red)}
-  .kpi.k6:before{background:#B8730B}
-  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
-  .kpi .v{font-size:21px;font-weight:800;margin-top:1px;line-height:1.05}
-  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
-  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:#B8730B}
-
-  /* ---- filter row ---- */
-  .frow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-  .chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 13px;
-        font-size:11.5px;font-weight:800;color:var(--navy);cursor:pointer;white-space:nowrap}
-  .chip:hover{border-color:var(--violet)}
-  .chip.on{background:var(--violet);color:#fff;border-color:var(--violet)}
-
-  /* ---- tables ---- */
+  .wrap{padding:13px 16px 24px;max-width:1560px;margin:0 auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
         box-shadow:0 1px 2px rgba(37,42,69,.05);overflow:hidden}
   .card .hd{padding:9px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;
             font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px}
-  .scroll{max-height:calc(100vh - 330px);min-height:240px;overflow:auto}
+  .scroll{max-height:calc(100vh - 190px);min-height:260px;overflow:auto}
   table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
   thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:#fff;
            padding:8px;text-align:right;font-weight:700;font-size:10.5px;
@@ -104,55 +64,17 @@
   tbody td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   tbody td.l{text-align:left}
   tbody tr:nth-child(even) td{background:#F6F7FB}
-  tbody tr.unav td{background:#F4EDFB}
   tbody tr:hover td{background:var(--cream)}
-  tr.totalrow td{background:var(--navy) !important;color:#fff;font-weight:800;
-                 position:sticky;bottom:0;z-index:5}
   .mono{font-variant-numeric:tabular-nums}
-  .pct.lo{color:var(--red);font-weight:800}
-  .pct.mid{color:var(--green);font-weight:800}
-  .pct.hi{color:var(--blue);font-weight:800}
-  .badge{padding:2px 8px;border-radius:99px;font-size:9.5px;font-weight:800;letter-spacing:.3px}
-  .badge.eff{background:#EFE8FB;color:var(--violet)}
-  .badge.oee{background:#FFF0D9;color:#8A5B12}
-  .final{font-weight:800}
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
 
-  /* ---- modal ---- */
-  .ovl{display:none;position:fixed;inset:0;z-index:9000;background:rgba(37,42,69,.45);
-       backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:22px}
-  .ovl.on{display:flex;align-items:center;justify-content:center}
-  .modal{background:#fff;border-radius:12px;width:100%;max-width:1240px;max-height:90vh;
-         display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 54px rgba(37,42,69,.3)}
-  .modal .mh{display:flex;align-items:center;gap:10px;padding:11px 15px;background:var(--navy);color:#fff;flex:0 0 auto}
-  .modal .mh b{font-size:12.5px;font-weight:800}
-  .modal .mh .sub{font-size:10.5px;opacity:.75;font-weight:600}
-  .modal .mh .gap{flex:1}
-  .modal .mh .mini{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.25)}
-  .modal .mh .mini svg{fill:#fff}
-  .modal .mh .mini:hover{background:#fff;color:var(--navy)}
-  .modal .mh .mini:hover svg{fill:var(--navy)}
-  .modal .mh .x{background:var(--red);border:0;color:#fff;border-radius:6px;width:26px;height:26px;
-                font-family:inherit;font-size:16px;line-height:1;cursor:pointer;font-weight:700}
-  .modal .mb{flex:1 1 auto;overflow:auto;padding:0}
-  .modal table thead th{cursor:default}
-  .modal table thead th:hover{background:var(--navy)}
-  .gcell{font-weight:700}
-  .g.lo{background:#FBE9EB;color:#A3252F}
-  .g.mid{background:#E7F4EC;color:#12653A}
-  .g.hi{background:#E8F0FC;color:#14509E}
-  .lgd{display:flex;gap:12px;align-items:center;font-size:10px;color:var(--mut);
-       font-weight:700;padding:8px 15px;border-top:1px solid var(--line);flex:0 0 auto}
-  .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-
-  /* ---- print ---- */
   .printhead{display:none}
   .printfoot{display:none}
   @media print{
     @page{size:A4 landscape;margin:9mm 8mm}
     body{background:#fff;font-size:8pt}
-    .strip,.frow,.acts,.kpis,.ovl{display:none !important}
+    .strip{display:none !important}
     .wrap{padding:0;max-width:none}
     .card{border:0;box-shadow:none;border-radius:0}
     .card .hd{display:none}
@@ -163,35 +85,17 @@
     .printhead h1{font-size:11pt;font-weight:800;color:#333D6D;margin:0 0 1.5mm 0}
     .printhead .meta{display:flex;gap:6mm;font-size:7pt;color:#555;flex-wrap:wrap}
     .printhead .meta b{color:#111}
-    thead th{background:#333D6D !important;color:#fff !important;font-size:6.6pt;padding:1.6mm 1.2mm;
+    thead th{background:#333D6D !important;color:#fff !important;font-size:6.4pt;padding:1.5mm 1mm;
              -webkit-print-color-adjust:exact;print-color-adjust:exact}
-    tbody td{font-size:7pt;padding:1.2mm}
+    tbody td{font-size:6.8pt;padding:1.1mm}
     tbody tr:nth-child(even) td{background:#F6F7FB !important;
-             -webkit-print-color-adjust:exact;print-color-adjust:exact}
-    tr.totalrow td{background:#333D6D !important;color:#fff !important;position:static;
              -webkit-print-color-adjust:exact;print-color-adjust:exact}
     tbody tr{page-break-inside:avoid}
     thead{display:table-header-group}
     .printfoot{display:block !important;margin-top:4mm;font-size:6.5pt;color:#666;text-align:center;
                border-top:.3mm solid #ccc;padding-top:2mm}
-
-    /* printing a modal instead of the page */
-    body.pmodal .printhead,body.pmodal .printfoot,body.pmodal .wrap>.card{display:none !important}
-    body.pmodal .ovl{display:block !important;position:static;background:none;padding:0;backdrop-filter:none}
-    body.pmodal .modal{max-width:none;max-height:none;box-shadow:none;border-radius:0}
-    body.pmodal .modal .mh{background:#fff !important;color:#333D6D !important;
-                           border-bottom:.6mm solid #333D6D;padding:0 0 2.5mm 0}
-    body.pmodal .modal .mh .mini,body.pmodal .modal .mh .x{display:none !important}
-    body.pmodal .modal .mb{overflow:visible}
-    body.pmodal .g{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
-
-  @media(max-width:1100px){ .kpis{grid-template-columns:repeat(3,1fr)} }
-  @media(max-width:700px){
-    .kpis{grid-template-columns:repeat(2,1fr)}
-    .strip{padding:6px 9px;gap:7px}
-    .wrap{padding:10px 9px 20px}
-  }
+  @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} }
 </style>
 </head>
 <body>
@@ -217,24 +121,10 @@
     </span>
   </span>
 
-  <div class="sep"></div>
-  <span class="seg">
-    <button id="vOp"  class="on" onclick="setView('op')">Operators</button>
-    <button id="vFl"  onclick="setView('fl')">Floor Performance</button>
-  </span>
-
+  <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:170px">
   <span class="showing" id="showing"></span>
 
   <div class="acts">
-    <button class="mini eff" onclick="openGrid('eff')" title="Day by day floor efficiency">
-      <svg viewBox="0 0 24 24"><path d="M3 3h2v18H3V3zm4 12h3v6H7v-6zm5-8h3v14h-3V7zm5 4h3v10h-3V11z"/></svg> Floor Eff%
-    </button>
-    <button class="mini oee" onclick="openGrid('oee')" title="Day by day floor OEE">
-      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20zm0 3a7 7 0 100 14 7 7 0 000-14zm0 3a4 4 0 110 8 4 4 0 010-8z"/></svg> Floor OEE
-    </button>
-    <button class="mini" id="detBtn" onclick="toggleDetail()" title="Switch between weekly summary and day by day rows">
-      <svg viewBox="0 0 24 24"><path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/></svg><span id="detTxt">Daily Detail</span>
-    </button>
     <button class="mini xls" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
@@ -248,94 +138,59 @@
   <div class="printhead">
     <img src="../logo.jpg" alt="">
     <div>
-      <h1 id="phTitle">SOSL Cutting Section &ndash; Weekly Individual PIB Report</h1>
+      <h1>SOSL Cutting Section &ndash; Individual PIB Report</h1>
       <div class="meta">
         <span>Period: <b id="ph1">&ndash;</b></span>
-        <span>Scope: <b id="ph2">&ndash;</b></span>
-        <span>Operators: <b id="ph3">&ndash;</b></span>
-        <span>Generated: <b id="ph4">&ndash;</b></span>
+        <span>Rows: <b id="ph2">&ndash;</b></span>
+        <span>Generated: <b id="ph3">&ndash;</b></span>
       </div>
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="kpi"><div class="k">Operators</div><div class="v" id="k1">&ndash;</div><div class="s">in this period</div></div>
-    <div class="kpi k2"><div class="k">Working Days</div><div class="v" id="k2">&ndash;</div><div class="s">distinct dates</div></div>
-    <div class="kpi k3"><div class="k">Overall Eff%</div><div class="v blue" id="k3">&ndash;</div><div class="s">output / input</div></div>
-    <div class="kpi k4"><div class="k">Avg Final KPI</div><div class="v green" id="k4">&ndash;</div><div class="s">out of 100</div></div>
-    <div class="kpi k6"><div class="k">Below 50 KPI</div><div class="v amber" id="k6">&ndash;</div><div class="s">operators</div></div>
-    <div class="kpi k5"><div class="k">Indv Not Counted</div><div class="v red" id="k5">&ndash;</div><div class="s">operator days</div></div>
-  </div>
-
-  <div class="frow">
-    <span id="chips"></span>
-    <span class="sep"></span>
-    <label>Type</label>
-    <select id="fType" onchange="render()">
-      <option value="">All</option><option>Efficiency</option><option>OEE</option>
-    </select>
-    <label>KPI Band</label>
-    <select id="fBand" onchange="render()">
-      <option value="">All</option>
-      <option value="lo">Below 50</option>
-      <option value="mid">50 to 74</option>
-      <option value="hi">75 and above</option>
-    </select>
-    <input type="text" id="q" placeholder="Search operator" oninput="renderKeepFocus()" style="width:165px">
-  </div>
-
   <div class="card">
-    <div class="hd"><span id="tblTitle">Weekly Summary</span><span class="showing" id="stamp"></span></div>
+    <div class="hd"><span>Database PIB</span><span class="showing" id="stamp"></span></div>
     <div class="scroll"><table>
       <thead id="th"></thead>
-      <tbody id="tb"><tr><td class="loading" colspan="14">Loading&hellip;</td></tr></tbody>
+      <tbody id="tb"><tr><td class="loading" colspan="15">Loading&hellip;</td></tr></tbody>
     </table></div>
   </div>
 
   <div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>
 </div>
 
-<!-- ===== floor grid modal ===== -->
-<div class="ovl" id="ovl">
-  <div class="modal">
-    <div class="mh">
-      <b id="mTitle">Floor Efficiency</b>
-      <span class="sub" id="mSub"></span>
-      <span class="gap"></span>
-      <button class="mini" onclick="exportGrid()">Excel</button>
-      <button class="mini" onclick="printGrid()">Print</button>
-      <button class="x" onclick="closeGrid()" aria-label="Close">&times;</button>
-    </div>
-    <div class="mb"><table><thead id="mth"></thead><tbody id="mtb"></tbody></table></div>
-    <div class="lgd" id="mlgd"></div>
-  </div>
-</div>
-
 <script>
-/* ==================================================================
-   Weekly Individual PIB Report
-
-   Source: Database_PIB in the Cutting Individual PIB sheet, which holds
-   only rows that have been reviewed and pasted. Nothing unapproved
-   appears here. The Efficiency and OEE tabs supply the floor level
-   grids behind the two modal buttons.
-
-   Three grains of data, so three presentations:
-     Operators view        one row per man (or per man per day)
-     Floor Performance     one row per floor
-     Modals                date by floor matrix, Eff% and OEE
-
-   Weekly Eff% is recomputed from summed minutes, never averaged from
-   the daily percentages. Averaging percentages weights a 2 hour day the
-   same as a 12 hour day and quietly flatters weak performers.
-   ================================================================== */
+/* ------------------------------------------------------------------
+   A plain mirror of Database_PIB in the Cutting Individual PIB sheet.
+   Same 15 columns, same order, same values. Period selector, search,
+   column sorting, Excel and Print. Nothing else on purpose.
+   ------------------------------------------------------------------ */
 
 var PIB_API = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
 
-var RAW=[], EFFG={cols:[],rows:[]}, OEEG={cols:[],rows:[]}, SNAP=null, STAMP='';
-var floorFilter='', query='', detail=false, view='op', gridKind='eff';
-var sortKey='avgFin', sortDir=-1;
-var fSortKey='floor', fSortDir=1;
+var RAW=[], SNAP=null, STAMP='', query='';
+var sortKey='', sortDir=1;
+
+/* Column map: sheet order, exactly as Database_PIB holds it.
+   k  = key in the API row object
+   t  = n number, p percent, d date, s text
+   a  = left aligned when true */
+var COLS=[
+  {k:'week',   h:'Week',                 t:'n', d:0, a:false},
+  {k:'floor',  h:'Floor',                t:'s', a:true},
+  {k:'date',   h:'Date',                 t:'d', a:true},
+  {k:'opId',   h:'Op ID',                t:'s', a:true},
+  {k:'name',   h:'Op Name',              t:'s', a:true},
+  {k:'desig',  h:'Designation',          t:'s', a:true},
+  {k:'inMin',  h:'Input min',            t:'n', d:1},
+  {k:'outMin', h:'Output min',           t:'n', d:1},
+  {k:'eff',    h:'Indv. Eff%',           t:'p', d:2},
+  {k:'kpiInd', h:'KPI on Indv',          t:'n', d:1},
+  {k:'type',   h:'Type',                 t:'s', a:true},
+  {k:'tScore', h:'Type Score',           t:'p', d:2},
+  {k:'kpiTyp', h:'KPI on Type',          t:'n', d:1},
+  {k:'unav',   h:'Not Considering Indv', t:'y', a:true},
+  {k:'final',  h:'Final KPI Score',      t:'n', d:1}
+];
 
 function el(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -343,36 +198,39 @@ function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
 
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function prettyDate(iso){
-  if(!iso) return '–';
+  if(!iso) return '';
   var p=String(iso).split('-'); if(p.length!==3) return iso;
-  return Number(p[2])+' '+MON[Number(p[1])-1]+', '+p[0];
-}
-function shortDate(iso){
-  if(!iso) return '–';
-  var p=String(iso).split('-'); if(p.length!==3) return iso;
-  return Number(p[2])+' '+MON[Number(p[1])-1];
+  return Number(p[2])+'-'+MON[Number(p[1])-1]+'-'+p[0].slice(2);
 }
 function fmt(v,d){
   var n=Number(v); if(isNaN(n)) n=0;
   return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
-/* Individual and floor efficiency share the same bands as the daily report.
-   OEE runs on a lower scale, so it gets its own. */
-function effClass(v){ return v<0.65?'lo':(v<=0.90?'mid':'hi'); }
-function oeeClass(v){ return v<0.55?'lo':(v<=0.75?'mid':'hi'); }
-function padId(id){ var s=String(id); return s.length<11 ? ('00000000000'+s).slice(-11) : s; }
+/* Op IDs are 11 characters in the source. Numeric ones arrive stripped of the
+   leading zero, so pad them back rather than showing a 10 digit ID. */
+function padId(id){ var s=String(id||''); return s.length&&s.length<11 ? ('00000000000'+s).slice(-11) : s; }
+
+function cellText(c,r){
+  var v=r[c.k];
+  if(c.t==='s') return esc(v||'');
+  if(c.t==='y') return v?'Yes':'';
+  if(c.t==='d') return prettyDate(v);
+  if(c.t==='p') return (v===''||v===null||v===undefined)?'':fmt(v*100,c.d)+'%';
+  if(v===''||v===null||v===undefined) return '';
+  return fmt(v,c.d);
+}
 
 /* ---------- boot ---------- */
 
 window.addEventListener('load', function(){
   fetch(PIB_API+'?action=snapshot').then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ fail(s.msg); return; }
-    SNAP=s; buildPeriod(); buildChips(); load();
+    SNAP=s; buildPeriod(); load();
   }).catch(fail);
 });
 
 function fail(e){
-  el('tb').innerHTML='<tr><td colspan="14" class="err">Could not reach the API. '+esc(e&&e.message?e.message:e)
+  el('tb').innerHTML='<tr><td colspan="15" class="err">Could not reach the API. '+esc(e&&e.message?e.message:e)
     +'<br><br>Check: 1) PIB_API is the /exec link, 2) deployment access is "Anyone", '
     +'3) a NEW VERSION was deployed after the last code change.</td></tr>';
 }
@@ -389,28 +247,16 @@ function buildPeriod(){
   el('f2label').textContent=prettyDate(SNAP.maxDate);
 }
 
-function buildChips(){
-  var h='<span class="chip'+(floorFilter===''?' on':'')+'" onclick="setFloor(\'\')">All Floors</span>';
-  (SNAP.floors||[]).forEach(function(f){
-    h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="setFloor(\''+f+'\')">'+esc(f)+'</span>';
-  });
-  el('chips').innerHTML=h;
-}
-function setFloor(f){ floorFilter=(floorFilter===f&&f!=='')?'':f; buildChips(); render(); }
-
 function periodChanged(){
   el('customWrap').classList.toggle('hide', el('period').value!=='custom');
   load();
 }
 
-function setView(v){
-  view=v;
-  el('vOp').classList.toggle('on', v==='op');
-  el('vFl').classList.toggle('on', v==='fl');
-  el('detBtn').classList.toggle('hide', v!=='op');
-  sortKey = (v==='op') ? (detail?'date':'avgFin') : 'floor';
-  sortDir = (v==='op') ? (detail?1:-1) : 1;
-  render();
+function periodLabel(){
+  var v=el('period').value;
+  if(v==='custom') return prettyDate(el('f1').value)+' to '+prettyDate(el('f2').value);
+  if(v==='all')    return 'All data';
+  return 'Week '+v.slice(1);
 }
 
 function load(){
@@ -422,121 +268,18 @@ function load(){
   }else if(v==='all'){ q='?action=data'; }
   else { q='?action=data&week='+encodeURIComponent(v.slice(1)); }
 
-  el('tb').innerHTML='<tr><td colspan="14" class="loading">Loading&hellip;</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
   fetch(PIB_API+q).then(function(r){return r.json()}).then(function(d){
     if(!d.ok){ fail(d.msg); return; }
-    RAW=d.rows||[]; EFFG=d.eff||{cols:[],rows:[]}; OEEG=d.oee||{cols:[],rows:[]};
-    STAMP=d.stamp||''; render();
+    RAW=d.rows||[]; STAMP=d.stamp||''; render();
   }).catch(fail);
 }
 
-/* ---------- shaping ---------- */
+/* ---------- render ---------- */
 
-function rowsInScope(){
-  var t=el('fType').value;
-  return RAW.filter(function(r){
-    if(floorFilter && r.floor!==floorFilter) return false;
-    if(t && r.type!==t) return false;
-    if(query){
-      var hay=(r.opId+' '+r.name+' '+r.desig+' '+r.floor).toLowerCase();
-      if(hay.indexOf(query)<0) return false;
-    }
-    return true;
-  });
-}
-
-function bandOk(score){
-  var b=el('fBand').value;
-  if(!b) return true;
-  if(b==='lo')  return score<50;
-  if(b==='mid') return score>=50 && score<75;
-  return score>=75;
-}
-
-function summarise(rows){
-  var m={};
-  rows.forEach(function(r){
-    var k=r.floor+'|'+r.opId;
-    if(!m[k]) m[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,type:r.type,
-                    days:0,inMin:0,outMin:0,kpiInd:0,kpiTyp:0,final:0,unav:0};
-    var o=m[k];
-    o.days++; o.inMin+=r.inMin; o.outMin+=r.outMin;
-    o.kpiInd+=r.kpiInd; o.kpiTyp+=r.kpiTyp; o.final+=r.final;
-    if(r.unav) o.unav++;
-    if(r.desig) o.desig=r.desig;
-    if(r.type)  o.type=r.type;
-  });
-  return Object.keys(m).map(function(k){
-    var o=m[k];
-    o.eff    = o.inMin>0 ? o.outMin/o.inMin : 0;
-    o.avgInd = o.days? o.kpiInd/o.days : 0;
-    o.avgTyp = o.days? o.kpiTyp/o.days : 0;
-    o.avgFin = o.days? o.final/o.days  : 0;
-    return o;
-  }).filter(function(o){ return bandOk(o.avgFin); });
-}
-
-/* Floor level roll-up. Floor Eff% and OEE come from the sheet grids, not from
-   the operator rows, because a floor figure is a floor measurement and must
-   not be re-derived from a filtered subset of its operators. */
-function byFloor(rows){
-  var m={};
-  rows.forEach(function(r){
-    if(!m[r.floor]) m[r.floor]={floor:r.floor,ops:{},days:{},inMin:0,outMin:0,
-                                kpiInd:0,kpiTyp:0,final:0,unav:0,n:0};
-    var f=m[r.floor];
-    f.ops[r.opId]=true; f.days[r.date]=true;
-    f.inMin+=r.inMin; f.outMin+=r.outMin;
-    f.kpiInd+=r.kpiInd; f.kpiTyp+=r.kpiTyp; f.final+=r.final; f.n++;
-    if(r.unav) f.unav++;
-  });
-  return Object.keys(m).map(function(k){
-    var f=m[k];
-    f.nOps   = Object.keys(f.ops).length;
-    f.nDays  = Object.keys(f.days).length;
-    f.eff    = f.inMin>0 ? f.outMin/f.inMin : 0;
-    f.avgInd = f.n? f.kpiInd/f.n : 0;
-    f.avgTyp = f.n? f.kpiTyp/f.n : 0;
-    f.avgFin = f.n? f.final/f.n  : 0;
-    f.fEff   = gridAvg(EFFG,f.floor);
-    f.fOee   = gridAvg(OEEG,f.floor);
-    return f;
-  });
-}
-
-function gridAvg(g,floor){
-  var i=(g.cols||[]).indexOf(floor);
-  if(i<0) return null;
-  var s=0,n=0;
-  (g.rows||[]).forEach(function(r){ var v=r[i+1]; if(v!==null&&v!==undefined&&v!==0){s+=v;n++;} });
-  return n? s/n : null;
-}
-
-function sortRows(list){
-  var k=sortKey, d=sortDir;
-  return list.slice().sort(function(a,b){
-    var x=a[k], y=b[k];
-    if(typeof x==='string'||typeof y==='string'){
-      x=String(x||'').toLowerCase(); y=String(y||'').toLowerCase();
-      return x<y?-d:(x>y?d:0);
-    }
-    return ((x||0)-(y||0))*d;
-  });
-}
 function setSort(k){
   if(sortKey===k) sortDir*=-1;
-  else { sortKey=k; sortDir=(['floor','name','opId','desig','type','date'].indexOf(k)>=0)?1:-1; }
-  render();
-}
-function th(key,label,cls){
-  var arr=sortKey===key?(sortDir===1?'&#9650;':'&#9660;'):'';
-  return '<th class="'+(cls||'')+'" onclick="setSort(\''+key+'\')">'+esc(label)+'<span class="arr">'+arr+'</span></th>';
-}
-function toggleDetail(){
-  detail=!detail;
-  el('detBtn').classList.toggle('on',detail);
-  el('detTxt').textContent=detail?'Weekly Summary':'Daily Detail';
-  sortKey=detail?'date':'avgFin'; sortDir=detail?1:-1;
+  else { sortKey=k; sortDir=1; }
   render();
 }
 function renderKeepFocus(){
@@ -544,309 +287,92 @@ function renderKeepFocus(){
   var q=el('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length);
 }
 
-/* ---------- render ---------- */
-
-function periodLabel(){
-  var v=el('period').value;
-  if(v==='custom') return prettyDate(el('f1').value)+' to '+prettyDate(el('f2').value);
-  if(v==='all')    return 'All data';
-  return 'Week '+v.slice(1);
-}
-
 function render(){
-  var scope=rowsInScope();
-
-  var days={}, inM=0, outM=0, fin=0, unav=0, ops={};
-  scope.forEach(function(r){
-    days[r.date]=true; ops[r.floor+'|'+r.opId]=true;
-    inM+=r.inMin; outM+=r.outMin; fin+=r.final; if(r.unav) unav++;
+  var list=RAW.filter(function(r){
+    if(!query) return true;
+    var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
+    return hay.indexOf(query)>=0;
   });
-  var sum=summarise(scope);
-  var below=sum.filter(function(o){return o.avgFin<50}).length;
 
-  el('k1').textContent=Object.keys(ops).length;
-  el('k2').textContent=Object.keys(days).length;
-  el('k3').textContent=(inM>0?fmt(outM/inM*100,1):'0.0')+'%';
-  el('k4').textContent=(scope.length?fmt(fin/scope.length,1):'0.0');
-  el('k5').textContent=unav;
-  el('k6').textContent=below;
-
-  var periodTxt=periodLabel();
-  el('showing').textContent=periodTxt+' · '+Object.keys(ops).length+' operators · '+scope.length+' rows';
-  el('stamp').textContent=STAMP?('Last updated '+STAMP):'';
-  el('ph1').textContent=periodTxt;
-  el('ph2').textContent=floorFilter?('Floor '+floorFilter):'All Floors';
-  el('ph3').textContent=Object.keys(ops).length;
-  el('ph4').textContent=STAMP;
-
-  if(view==='fl'){
-    el('tblTitle').textContent='Floor Performance';
-    el('phTitle').textContent='SOSL Cutting Section – Weekly Floor Performance';
-    renderFloor(sortRows(byFloor(scope)));
-  }else if(detail){
-    el('tblTitle').textContent='Daily Detail';
-    el('phTitle').textContent='SOSL Cutting Section – Weekly Individual PIB Report (Daily Detail)';
-    renderDetail(sortRows(scope.filter(function(r){return bandOk(r.final)})));
-  }else{
-    el('tblTitle').textContent='Weekly Summary';
-    el('phTitle').textContent='SOSL Cutting Section – Weekly Individual PIB Report';
-    renderSummary(sortRows(sum));
-  }
-}
-
-function renderSummary(list){
-  el('th').innerHTML='<tr><th class="l">#</th>'
-    + th('floor','Floor','l') + th('opId','Op ID','l') + th('name','Op Name','l')
-    + th('desig','Designation','l') + th('type','Type','l')
-    + th('days','Days') + th('inMin','Input Min') + th('outMin','Output Min')
-    + th('eff','Eff%') + th('avgInd','KPI Indv') + th('avgTyp','KPI Type')
-    + th('unav','Indv N/C') + th('avgFin','Final KPI') + '</tr>';
-
-  var h='', tIn=0,tOut=0,tFin=0,tUn=0,tDay=0;
-  list.forEach(function(o,i){
-    tIn+=o.inMin; tOut+=o.outMin; tFin+=o.avgFin; tUn+=o.unav; tDay+=o.days;
-    h+='<tr class="'+(o.unav?'unav':'')+'">'
-     + '<td class="l mono">'+(i+1)+'</td><td class="l">'+esc(o.floor)+'</td>'
-     + '<td class="l mono">'+esc(padId(o.opId))+'</td><td class="l">'+esc(o.name)+'</td>'
-     + '<td class="l">'+esc(o.desig)+'</td>'
-     + '<td class="l"><span class="badge '+(o.type==='OEE'?'oee':'eff')+'">'+esc(o.type||'–')+'</span></td>'
-     + '<td class="mono">'+o.days+'</td><td class="mono">'+fmt(o.inMin,0)+'</td>'
-     + '<td class="mono">'+fmt(o.outMin,0)+'</td>'
-     + '<td class="mono pct '+effClass(o.eff)+'">'+fmt(o.eff*100,1)+'%</td>'
-     + '<td class="mono">'+fmt(o.avgInd,1)+'</td><td class="mono">'+fmt(o.avgTyp,1)+'</td>'
-     + '<td class="mono">'+(o.unav||'')+'</td>'
-     + '<td class="mono final">'+fmt(o.avgFin,1)+'</td></tr>';
-  });
-  if(!list.length) h='<tr><td colspan="14" class="loading">No rows for this selection.</td></tr>';
-  else h+='<tr class="totalrow"><td class="l" colspan="6">Total &bull; '+list.length+' operators</td>'
-      + '<td class="mono">'+tDay+'</td><td class="mono">'+fmt(tIn,0)+'</td>'
-      + '<td class="mono">'+fmt(tOut,0)+'</td>'
-      + '<td class="mono">'+(tIn>0?fmt(tOut/tIn*100,1):'0.0')+'%</td>'
-      + '<td></td><td></td><td class="mono">'+(tUn||'')+'</td>'
-      + '<td class="mono">'+(list.length?fmt(tFin/list.length,1):'0.0')+'</td></tr>';
-  el('tb').innerHTML=h;
-}
-
-function renderDetail(list){
-  el('th').innerHTML='<tr><th class="l">#</th>'
-    + th('date','Date','l') + th('floor','Floor','l') + th('opId','Op ID','l')
-    + th('name','Op Name','l') + th('desig','Designation','l') + th('type','Type','l')
-    + th('inMin','Input Min') + th('outMin','Output Min') + th('eff','Eff%')
-    + th('kpiInd','KPI Indv') + th('kpiTyp','KPI Type')
-    + '<th>Indv N/C</th>' + th('final','Final KPI') + '</tr>';
-
-  var h='', tIn=0,tOut=0,tFin=0;
-  list.forEach(function(r,i){
-    tIn+=r.inMin; tOut+=r.outMin; tFin+=r.final;
-    h+='<tr class="'+(r.unav?'unav':'')+'">'
-     + '<td class="l mono">'+(i+1)+'</td><td class="l">'+prettyDate(r.date)+'</td>'
-     + '<td class="l">'+esc(r.floor)+'</td><td class="l mono">'+esc(padId(r.opId))+'</td>'
-     + '<td class="l">'+esc(r.name)+'</td><td class="l">'+esc(r.desig)+'</td>'
-     + '<td class="l"><span class="badge '+(r.type==='OEE'?'oee':'eff')+'">'+esc(r.type||'–')+'</span></td>'
-     + '<td class="mono">'+fmt(r.inMin,0)+'</td><td class="mono">'+fmt(r.outMin,0)+'</td>'
-     + '<td class="mono pct '+effClass(r.eff)+'">'+fmt(r.eff*100,1)+'%</td>'
-     + '<td class="mono">'+fmt(r.kpiInd,1)+'</td><td class="mono">'+fmt(r.kpiTyp,1)+'</td>'
-     + '<td class="mono">'+(r.unav?'Yes':'')+'</td>'
-     + '<td class="mono final">'+fmt(r.final,1)+'</td></tr>';
-  });
-  if(!list.length) h='<tr><td colspan="14" class="loading">No rows for this selection.</td></tr>';
-  else h+='<tr class="totalrow"><td class="l" colspan="7">Total &bull; '+list.length+' rows</td>'
-      + '<td class="mono">'+fmt(tIn,0)+'</td><td class="mono">'+fmt(tOut,0)+'</td>'
-      + '<td class="mono">'+(tIn>0?fmt(tOut/tIn*100,1):'0.0')+'%</td>'
-      + '<td></td><td></td><td></td>'
-      + '<td class="mono">'+(list.length?fmt(tFin/list.length,1):'0.0')+'</td></tr>';
-  el('tb').innerHTML=h;
-}
-
-function renderFloor(list){
-  el('th').innerHTML='<tr><th class="l">#</th>'
-    + th('floor','Floor','l') + th('nOps','Operators') + th('nDays','Days')
-    + th('inMin','Input Min') + th('outMin','Output Min') + th('eff','Operator Eff%')
-    + th('fEff','Floor Eff%') + th('fOee','Floor OEE')
-    + th('avgInd','Avg KPI Indv') + th('avgTyp','Avg KPI Type')
-    + th('unav','Indv N/C') + th('avgFin','Avg Final KPI') + '</tr>';
-
-  var h='', tOps=0,tIn=0,tOut=0,tUn=0,tFin=0;
-  list.forEach(function(f,i){
-    tOps+=f.nOps; tIn+=f.inMin; tOut+=f.outMin; tUn+=f.unav; tFin+=f.avgFin;
-    h+='<tr><td class="l mono">'+(i+1)+'</td><td class="l"><b>'+esc(f.floor)+'</b></td>'
-     + '<td class="mono">'+f.nOps+'</td><td class="mono">'+f.nDays+'</td>'
-     + '<td class="mono">'+fmt(f.inMin,0)+'</td><td class="mono">'+fmt(f.outMin,0)+'</td>'
-     + '<td class="mono pct '+effClass(f.eff)+'">'+fmt(f.eff*100,1)+'%</td>'
-     + '<td class="mono pct '+(f.fEff===null?'':effClass(f.fEff))+'">'+(f.fEff===null?'–':fmt(f.fEff*100,2)+'%')+'</td>'
-     + '<td class="mono pct '+(f.fOee===null?'':oeeClass(f.fOee))+'">'+(f.fOee===null?'–':fmt(f.fOee*100,2)+'%')+'</td>'
-     + '<td class="mono">'+fmt(f.avgInd,1)+'</td><td class="mono">'+fmt(f.avgTyp,1)+'</td>'
-     + '<td class="mono">'+(f.unav||'')+'</td>'
-     + '<td class="mono final">'+fmt(f.avgFin,1)+'</td></tr>';
-  });
-  if(!list.length) h='<tr><td colspan="13" class="loading">No rows for this selection.</td></tr>';
-  else h+='<tr class="totalrow"><td class="l" colspan="2">Total &bull; '+list.length+' floors</td>'
-      + '<td class="mono">'+tOps+'</td><td></td>'
-      + '<td class="mono">'+fmt(tIn,0)+'</td><td class="mono">'+fmt(tOut,0)+'</td>'
-      + '<td class="mono">'+(tIn>0?fmt(tOut/tIn*100,1):'0.0')+'%</td>'
-      + '<td></td><td></td><td></td><td></td><td class="mono">'+(tUn||'')+'</td>'
-      + '<td class="mono">'+(list.length?fmt(tFin/list.length,1):'0.0')+'</td></tr>';
-  el('tb').innerHTML=h;
-}
-
-/* ---------- floor grid modal ---------- */
-
-function curGrid(){ return gridKind==='oee'?OEEG:EFFG; }
-
-function openGrid(kind){
-  gridKind=kind;
-  var g=curGrid(), isOee=(kind==='oee');
-  el('mTitle').textContent = isOee?'Floor OEE — day by day':'Floor Efficiency — day by day';
-  el('mSub').textContent   = periodLabel()+'  ·  '+(g.rows||[]).length+' days';
-
-  var h='<tr><th class="l">Date</th>';
-  (g.cols||[]).forEach(function(c){ h+='<th>'+esc(c)+'</th>'; });
-  h+='</tr>';
-  el('mth').innerHTML=h;
-
-  var b='', sums=[], cnts=[];
-  (g.rows||[]).forEach(function(r){
-    b+='<tr><td class="l"><b>'+shortDate(r[0])+'</b></td>';
-    for(var i=1;i<r.length;i++){
-      var v=r[i];
-      if(v===null||v===undefined||v===0){ b+='<td>–</td>'; }
-      else{
-        sums[i]=(sums[i]||0)+v; cnts[i]=(cnts[i]||0)+1;
-        b+='<td class="mono gcell g '+(isOee?oeeClass(v):effClass(v))+'">'+fmt(v*100,2)+'%</td>';
+  if(sortKey){
+    var d=sortDir;
+    list=list.slice().sort(function(a,b){
+      var x=a[sortKey], y=b[sortKey];
+      if(typeof x==='string'||typeof y==='string'){
+        x=String(x||'').toLowerCase(); y=String(y||'').toLowerCase();
+        return x<y?-d:(x>y?d:0);
       }
-    }
-    b+='</tr>';
-  });
-  if(!(g.rows||[]).length){
-    b='<tr><td class="loading" colspan="'+((g.cols||[]).length+1)+'">No floor data for this period.</td></tr>';
-  }else{
-    b+='<tr class="totalrow"><td class="l">Average</td>';
-    for(var i=1;i<=(g.cols||[]).length;i++){
-      b+= cnts[i] ? '<td class="mono">'+fmt(sums[i]/cnts[i]*100,2)+'%</td>' : '<td>–</td>';
-    }
-    b+='</tr>';
+      return ((x?1:0)-(y?1:0)||(x||0)-(y||0))*d;
+    });
   }
-  el('mtb').innerHTML=b;
 
-  el('mlgd').innerHTML = isOee
-    ? '<span><i style="background:#FBE9EB"></i>Below 55%</span><span><i style="background:#E7F4EC"></i>55% to 75%</span><span><i style="background:#E8F0FC"></i>Above 75%</span><span style="margin-left:auto">Source: OEE tab</span>'
-    : '<span><i style="background:#FBE9EB"></i>Below 65%</span><span><i style="background:#E7F4EC"></i>65% to 90%</span><span><i style="background:#E8F0FC"></i>Above 90%</span><span style="margin-left:auto">Source: Efficiency tab</span>';
+  el('th').innerHTML='<tr>'+COLS.map(function(c){
+    var arr=sortKey===c.k?(sortDir===1?'&#9650;':'&#9660;'):'';
+    return '<th class="'+(c.a?'l':'')+'" onclick="setSort(\''+c.k+'\')">'+esc(c.h)+'<span class="arr">'+arr+'</span></th>';
+  }).join('')+'</tr>';
 
-  el('ovl').classList.add('on');
-}
-function closeGrid(){ el('ovl').classList.remove('on'); }
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGrid(); });
+  var h='';
+  list.forEach(function(r){
+    h+='<tr>'+COLS.map(function(c){
+      var v = c.k==='opId' ? esc(padId(r.opId)) : cellText(c,r);
+      return '<td class="'+(c.a?'l ':'')+'mono">'+v+'</td>';
+    }).join('')+'</tr>';
+  });
+  el('tb').innerHTML = h || '<tr><td colspan="15" class="loading">No rows for this selection.</td></tr>';
 
-function printGrid(){
-  document.body.classList.add('pmodal');
-  window.focus(); window.print();
-  setTimeout(function(){ document.body.classList.remove('pmodal'); },400);
+  el('showing').textContent=periodLabel()+' · '+list.length+' rows';
+  el('stamp').textContent=STAMP?('Last updated '+STAMP):'';
+  el('ph1').textContent=periodLabel();
+  el('ph2').textContent=list.length;
+  el('ph3').textContent=STAMP;
 }
 
 /* ---------- print ---------- */
 function doPrint(){ window.focus(); window.print(); }
 
 /* ---------- Excel ---------- */
-function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
-function pctTd(v,dec,extra){
-  var n=Number(v)||0;
-  return '<td style="mso-number-format:\'0'+(dec?'.'+Array(dec+1).join('0'):'')+'%\';'+(extra||'')+'">'+n+'</td>';
-}
-function xlsWrap(t,sheetName,fileName){
+function exportExcel(){
+  var list=RAW.filter(function(r){
+    if(!query) return true;
+    var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
+    return hay.indexOf(query)>=0;
+  });
+
+  var t='<table><tr><td colspan="15" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      + 'SOSL Cutting Section &ndash; Individual PIB Report</td></tr>'
+      + '<tr><td colspan="15">Period: '+esc(periodLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Rows: '+list.length
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
+
+  t+='<table border="1"><tr>'+COLS.map(function(c){
+    return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(c.h)+'</th>';
+  }).join('')+'</tr>';
+
+  list.forEach(function(r){
+    t+='<tr>'+COLS.map(function(c){
+      var v=r[c.k];
+      if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
+      if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
+      if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
+      if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
+      if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
+      return '<td>'+(Number(v)||0)+'</td>';
+    }).join('')+'</tr>';
+  });
+  t+='</table><table><tr><td></td></tr><tr><td colspan="15">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
-    +'<x:Name>'+sheetName+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    +'<x:Name>PIB</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
     +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
+
+  var name='SOSL_PIB_'+String(periodLabel()).replace(/[^A-Za-z0-9]+/g,'_')+'.xls';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=fileName;
+  a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
-}
-function safeName(s){ return String(s).replace(/[^A-Za-z0-9]+/g,'_'); }
-
-function exportGrid(){
-  var g=curGrid(), isOee=(gridKind==='oee');
-  var t='<table><tr><td colspan="'+((g.cols||[]).length+1)+'" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; '+(isOee?'Floor OEE':'Floor Efficiency')+', day by day</td></tr>'
-      + '<tr><td colspan="'+((g.cols||[]).length+1)+'">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
-  t+='<table border="1"><tr>'+th2('Date');
-  (g.cols||[]).forEach(function(c){ t+=th2(c); });
-  t+='</tr>';
-  (g.rows||[]).forEach(function(r){
-    t+='<tr><td>'+esc(prettyDate(r[0]))+'</td>';
-    for(var i=1;i<r.length;i++){ t+= (r[i]===null||r[i]===undefined)?'<td></td>':pctTd(r[i],2); }
-    t+='</tr>';
-  });
-  t+='</table><table><tr><td></td></tr><tr><td>&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
-  xlsWrap(t,(isOee?'Floor OEE':'Floor Eff'),'SOSL_'+(isOee?'Floor_OEE':'Floor_Eff')+'_'+safeName(periodLabel())+'.xls');
-}
-
-function exportExcel(){
-  var scope=rowsInScope();
-  var scopeTxt=floorFilter?('Floor '+floorFilter):'All Floors';
-  var viewTxt = view==='fl' ? 'Floor Performance' : (detail?'Daily Detail':'Weekly Summary');
-
-  var t='<table><tr><td colspan="14" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; Weekly Individual PIB Report</td></tr>'
-      + '<tr><td colspan="14">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeTxt)
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;View: '+viewTxt
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Type: '+(el('fType').value||'All')
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;KPI band: '+(el('fBand').options[el('fBand').selectedIndex].text)
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
-
-  t+='<table border="1"><tr>'+th2('Operators')+th2('Working Days')+th2('Overall Eff%')
-   + th2('Avg Final KPI')+th2('Below 50 KPI')+th2('Indv Not Counted')+'</tr><tr>'
-   + '<td>'+el('k1').textContent+'</td><td>'+el('k2').textContent+'</td>'
-   + '<td>'+el('k3').textContent+'</td><td>'+el('k4').textContent+'</td>'
-   + '<td>'+el('k6').textContent+'</td><td>'+el('k5').textContent+'</td></tr></table>'
-   + '<table><tr><td></td></tr></table>';
-
-  t+='<table border="1"><tr>';
-  if(view==='fl'){
-    var fl=sortRows(byFloor(scope));
-    t+=th2('Floor')+th2('Operators')+th2('Days')+th2('Input Min')+th2('Output Min')
-     + th2('Operator Eff%')+th2('Floor Eff%')+th2('Floor OEE')+th2('Avg KPI on Indv')
-     + th2('Avg KPI on Type')+th2('Indv Not Counted')+th2('Avg Final KPI')+'</tr>';
-    fl.forEach(function(f){
-      t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.nOps+'</td><td>'+f.nDays+'</td>'
-       + '<td>'+fmt(f.inMin,0)+'</td><td>'+fmt(f.outMin,0)+'</td>'+pctTd(f.eff,1)
-       + (f.fEff===null?'<td></td>':pctTd(f.fEff,2))
-       + (f.fOee===null?'<td></td>':pctTd(f.fOee,2))
-       + '<td>'+fmt(f.avgInd,1)+'</td><td>'+fmt(f.avgTyp,1)+'</td>'
-       + '<td>'+(f.unav||0)+'</td><td>'+fmt(f.avgFin,1)+'</td></tr>';
-    });
-  }else if(detail){
-    t+=th2('Date')+th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('Type')
-     + th2('Input Min')+th2('Output Min')+th2('Indv. Eff%')+th2('KPI on Indv')+th2('KPI on Type')
-     + th2('Indv Not Counted')+th2('Final KPI Score')+'</tr>';
-    sortRows(scope.filter(function(r){return bandOk(r.final)})).forEach(function(r){
-      t+='<tr><td>'+esc(prettyDate(r.date))+'</td><td>'+esc(r.floor)+'</td>'
-       + '<td style="mso-number-format:\'\\@\'">'+esc(padId(r.opId))+'</td>'
-       + '<td>'+esc(r.name)+'</td><td>'+esc(r.desig)+'</td><td>'+esc(r.type)+'</td>'
-       + '<td>'+fmt(r.inMin,0)+'</td><td>'+fmt(r.outMin,0)+'</td>'+pctTd(r.eff,1)
-       + '<td>'+fmt(r.kpiInd,1)+'</td><td>'+fmt(r.kpiTyp,1)+'</td>'
-       + '<td>'+(r.unav?'Yes':'')+'</td><td>'+fmt(r.final,1)+'</td></tr>';
-    });
-  }else{
-    t+=th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('Type')+th2('Days')
-     + th2('Input Min')+th2('Output Min')+th2('Eff%')+th2('Avg KPI on Indv')+th2('Avg KPI on Type')
-     + th2('Indv Not Counted (days)')+th2('Avg Final KPI Score')+'</tr>';
-    sortRows(summarise(scope)).forEach(function(o){
-      t+='<tr><td>'+esc(o.floor)+'</td>'
-       + '<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
-       + '<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+esc(o.type)+'</td>'
-       + '<td>'+o.days+'</td><td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'
-       + pctTd(o.eff,1)+'<td>'+fmt(o.avgInd,1)+'</td><td>'+fmt(o.avgTyp,1)+'</td>'
-       + '<td>'+(o.unav||0)+'</td><td>'+fmt(o.avgFin,1)+'</td></tr>';
-    });
-  }
-  t+='</table><table><tr><td></td></tr><tr><td colspan="14">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
-
-  xlsWrap(t,'Weekly PIB','SOSL_Weekly_PIB_'+safeName(periodLabel())+'_'+safeName(viewTxt)+'_'+(floorFilter||'AllFloors')+'.xls');
 }
 </script>
 </body>
