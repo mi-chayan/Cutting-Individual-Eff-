@@ -103,6 +103,10 @@
   .rsn{width:100%}
   .mins{font-weight:800;color:var(--red)}
   .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
+  /* master tick that sits in the column heading */
+  .allchk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+  .allchk input{width:15px;height:15px;accent-color:#fff;cursor:pointer;margin:0}
+  .allchk input:disabled{cursor:not-allowed;opacity:.45}
   .ctr{text-align:center}
 
   .msg{padding:10px 13px;border-radius:8px;margin-bottom:11px;font-size:12px;font-weight:700;display:none;flex:0 0 auto}
@@ -194,7 +198,10 @@
               <th>Op ID</th>
               <th>Name</th>
               <th>Process</th>
-              <th class="ctr">Unavailable</th>
+              <th class="ctr"><label class="allchk"
+                  title="Tick to mark every operator shown below as unavailable. Untick to clear them.">
+                  <input type="checkbox" id="allUnav" onchange="setAllUnav(this.checked)">
+                  <span>Unavailable</span></label></th>
               <th>Loss</th>
               <th>Unit</th>
               <th>Minutes</th>
@@ -404,6 +411,35 @@ function render(){
   });
   el('tb').innerHTML = h || '<tr><td colspan="10" class="loading">No operators match.</td></tr>';
   updateKpis();
+  syncAllUnav();
+}
+
+/* One tick in the heading marks every operator currently listed. It follows
+   the search box on purpose: filter to Manual Spreading and only those are
+   affected, which is what a floor leader actually wants. VIEW already holds
+   exactly the rows on screen, so nothing hidden is ever touched. */
+var BULK = false;
+function setAllUnav(on){
+  BULK = true;
+  VIEW.forEach(function(id){
+    var cb = el('c_'+id);
+    if(cb) cb.checked = on;
+    setv(id, 'unav', on);
+  });
+  BULK = false;
+  syncAllUnav();
+}
+
+/* The heading box reflects the rows under it: ticked when every one is
+   unavailable, a dash when only some are, empty when none. */
+function syncAllUnav(){
+  var box = el('allUnav');
+  if(!box) return;
+  var n = VIEW.length, on = 0;
+  VIEW.forEach(function(id){ if((VAL[id]||blank()).unav) on++; });
+  box.checked = (n > 0 && on === n);
+  box.indeterminate = (on > 0 && on < n);
+  box.disabled = (n === 0);
 }
 
 function rowCls(v,m){ return v.unav ? 'unav' : (m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '')); }
@@ -435,6 +471,7 @@ function setv(id,k,v){
   }
   touch(id);
   updateKpis();
+  if(!BULK) syncAllUnav();     /* skipped mid bulk, done once at the end */
 }
 
 function touch(id){
