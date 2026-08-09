@@ -95,9 +95,13 @@
   tbody td.l{text-align:left}
   tbody td.c{text-align:center}
   tbody tr:nth-child(even) td{background:#F6F7FB}
-  tbody tr:hover td{background:var(--cream)}
+  /* Full row highlight. The band classes below carry two class selectors, which
+     outrank a plain tr:hover td, so without !important only the uncoloured
+     columns would light up and the row would look broken in half. */
+  tbody tr:hover td{background:var(--cream) !important}
   tr.totalrow td{background:var(--navy) !important;color:#fff;font-weight:800;
                  position:sticky;bottom:0;z-index:5}
+  tbody tr.totalrow:hover td{background:var(--navy) !important}
   .mono{font-variant-numeric:tabular-nums}
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
@@ -112,6 +116,21 @@
   .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
        font-weight:700;padding:8px 13px;border-top:1px solid var(--line);flex:0 0 auto}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  td.sc[data-op]{cursor:help}
+
+  /* ---- score breakdown tooltip ---- */
+  #tip{position:fixed;z-index:9500;pointer-events:none;display:none;width:290px;
+       background:#1F2740;color:#fff;border-radius:9px;padding:10px 12px;
+       font-size:11.5px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+  #tip.on{display:block}
+  #tip h4{font-size:12px;font-weight:800;margin-bottom:2px}
+  #tip .sub{font-size:10px;opacity:.65;font-weight:700;margin-bottom:7px}
+  #tip .g{display:grid;grid-template-columns:1fr auto;gap:2px 12px}
+  #tip .g span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  #tip .g span:nth-child(odd){opacity:.75}
+  #tip .r{border-top:1px solid rgba(255,255,255,.22);margin-top:7px;padding-top:6px;
+          display:flex;justify-content:space-between;font-weight:800;font-size:12px}
+  #tip .note{margin-top:6px;font-size:10px;opacity:.7;font-weight:700}
 
   /* ---- modal ---- */
   .ovl{display:none;position:fixed;inset:0;z-index:9000;background:rgba(37,42,69,.45);
@@ -269,6 +288,8 @@
   </div>
 </div>
 
+<div id="tip"></div>
+
 <script>
 /* ------------------------------------------------------------------
    Two views over the same Database_PIB rows.
@@ -302,6 +323,7 @@ var RAW=[], EFFG={cols:[],rows:[]}, OEEG={cols:[],rows:[]};
 var SNAP=null, STAMP='', query='', scopeSel='', view='mat', metric='final', gridKind='eff';
 var sortKey='', sortDir=1;
 var mSortKey='total', mSortDir=-1;
+var MROWS={};   /* floor|opId -> matrix row, used by the hover breakdown */
 
 var COLS=[
   {k:'week',   h:'Week',                 t:'n', d:0},
@@ -394,11 +416,16 @@ function buildChips(){
   (SNAP.floors||[]).forEach(function(f){
     h+='<span class="chip'+(scopeSel===f?' on':'')+'" onclick="setScope(\''+esc(f)+'\')">'+esc(f)+'</span>';
   });
-  h+='<span class="fsep"></span>';
-  ['final','indv','floor'].forEach(function(m){
-    h+='<span class="mchip'+(metric===m?' on':'')+'" onclick="setMetric(\''+m+'\')">'
-     + (m==='final'?'Final KPI':'Only '+METRICS[m].label)+'</span>';
-  });
+  /* The metric picker only means anything in the matrix, where it decides which
+     number fills the date columns. The Full Table shows every column already,
+     so the buttons are hidden there rather than sitting dead on the bar. */
+  if(view==='mat'){
+    h+='<span class="fsep"></span>';
+    ['final','indv','floor'].forEach(function(m){
+      h+='<span class="mchip'+(metric===m?' on':'')+'" onclick="setMetric(\''+m+'\')">'
+       + (m==='final'?'Final KPI':'Only '+METRICS[m].label)+'</span>';
+    });
+  }
   el('chips').innerHTML=h;
 }
 function setScope(s){ scopeSel=(scopeSel===s&&s!=='')?'':s; buildChips(); render(); }
@@ -409,6 +436,8 @@ function setView(v){
   el('vMat').classList.toggle('on', v==='mat');
   el('vTbl').classList.toggle('on', v==='tbl');
   el('lgd').classList.toggle('hide', v!=='mat');
+  hideTip();
+  buildChips();     /* the metric chips only exist in the matrix view */
   render();
 }
 
@@ -527,9 +556,10 @@ function buildMatrix(list){
     dates[r.date]=true;
     var k=r.floor+'|'+r.opId;
     if(!m[k]) m[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,type:r.type,
-                    s:{},days:0,total:0,unav:0};
+                    s:{},raw:{},days:0,total:0,unav:0};
     var o=m[k], v=Number(r[mk])||0;
     o.s[r.date]=v;
+    o.raw[r.date]=r;          /* kept so the hover card can show the breakdown */
     o.days++; o.total+=v;
     if(r.unav) o.unav++;
     if(r.desig) o.desig=r.desig;
@@ -544,6 +574,7 @@ function buildMatrix(list){
 function renderMatrix(list){
   var M=buildMatrix(list), MX=METRICS[metric];
   el('ph3').textContent=M.rows.length;
+  MROWS={}; M.rows.forEach(function(o){ MROWS[o.floor+'|'+o.opId]=o; });
 
   var rows=M.rows.slice().sort(function(a,b){
     var d=mSortDir, x=a[mSortKey], y=b[mSortKey];
@@ -577,17 +608,18 @@ function renderMatrix(list){
      + '<td class="l">'+esc(o.name)+'</td>'
      + '<td class="l">'+esc(o.desig)+'</td>'
      + '<td class="l">'+esc(o.type||'')+'</td>';
+    var key=o.floor+'|'+o.opId;
     M.dates.forEach(function(d,j){
       var v=o.s[d];
       if(v===undefined||v===null){ b+='<td class="c sc na">&ndash;</td>'; }
       else{
         colSum[j]=(colSum[j]||0)+v; colDay[j]=(colDay[j]||0)+1;
-        b+='<td class="c sc '+scClass(v,MX.max)+'">'+fmt(v,1)+'</td>';
+        b+='<td class="c sc '+scClass(v,MX.max)+'" data-op="'+esc(key)+'" data-d="'+d+'">'+fmt(v,1)+'</td>';
       }
     });
     b+='<td class="mono">'+o.days+'</td>'
-     + '<td class="mono tot">'+fmt(o.total,1)+'</td>'
-     + '<td class="mono tot">'+fmt(o.avg,1)+'</td>'
+     + '<td class="mono tot sc" data-op="'+esc(key)+'" data-k="total">'+fmt(o.total,1)+'</td>'
+     + '<td class="mono tot sc" data-op="'+esc(key)+'" data-k="avg">'+fmt(o.avg,1)+'</td>'
      + '<td class="mono">'+(o.unav||'')+'</td></tr>';
   });
 
@@ -604,6 +636,99 @@ function renderMatrix(list){
   }
   el('tb').innerHTML=b;
 }
+
+/* ---------- score breakdown on hover ----------
+   Every matrix cell carries the operator key and the date, so the card can
+   rebuild the arithmetic from the original Database_PIB row rather than from
+   the displayed number. If the two ever disagree, the sheet is wrong, not this. */
+
+function tipRow(a,b){ return '<span>'+a+'</span><span>'+b+'</span>'; }
+
+function buildTip(td){
+  var o=MROWS[td.getAttribute('data-op')];
+  if(!o) return '';
+  var d=td.getAttribute('data-d'), k=td.getAttribute('data-k'), MX=METRICS[metric];
+
+  var head='<h4>'+esc(o.name||o.opId)+'</h4>'
+         + '<div class="sub">'+esc(padId(o.opId))+'  &middot;  Floor '+esc(o.floor)
+         + (d?('  &middot;  '+prettyDate(d)):'')+'</div>';
+
+  /* Total and Average columns */
+  if(k){
+    var vals=Object.keys(o.s).sort().map(function(x){return o.s[x]});
+    return head
+      + '<div class="g">'
+      + tipRow('Metric', MX.label)
+      + tipRow('Days with a record', o.days)
+      + tipRow('Sum of daily scores', fmt(o.total,1))
+      + tipRow('Individual not counted', o.unav||0)
+      + '</div>'
+      + '<div class="r"><span>'+(k==='total'?'Total':'Average')+'</span><span>'
+      + (k==='total'? fmt(o.total,1) : fmt(o.total,1)+' / '+o.days+' = '+fmt(o.avg,1))
+      + '</span></div>'
+      + '<div class="note">Out of '+(MX.max*(k==='total'?o.days:1))+' possible</div>';
+  }
+
+  /* a single day cell */
+  var r=o.raw[d];
+  if(!r) return head+'<div class="note">No record for this date.</div>';
+
+  var g='<div class="g">'
+      + tipRow('Input min',  fmt(r.inMin,1))
+      + tipRow('Output min', fmt(r.outMin,1))
+      + tipRow('Indv. Eff%', fmt((r.eff||0)*100,2)+'%')
+      + tipRow('KPI on Indv &nbsp;<i>/50</i>', fmt(r.kpiInd,1))
+      + tipRow('Type', esc(r.type||'&ndash;'))
+      + tipRow((r.type==='OEE'?'Floor OEE':'Floor Eff%'), fmt((r.tScore||0)*100,2)+'%')
+      + tipRow('KPI on Type &nbsp;<i>/50</i>', fmt(r.kpiTyp,1))
+      + '</div>';
+
+  var sum = r.unav
+    ? ('KPI on Type '+fmt(r.kpiTyp,1)+' &times; 2 = '+fmt(r.final,1))
+    : (fmt(r.kpiInd,1)+' + '+fmt(r.kpiTyp,1)+' = '+fmt(r.final,1));
+
+  var shown = (metric==='final') ? r.final : (metric==='indv' ? r.kpiInd : r.kpiTyp);
+
+  return head + g
+    + '<div class="r"><span>Final KPI</span><span>'+fmt(r.final,1)+' / 100</span></div>'
+    + '<div class="note">'+sum+(r.unav?'  &middot;  individual not counted':'')+'<br>'
+    + 'Showing <b>'+MX.label+'</b>: '+fmt(shown,1)+' / '+MX.max+'</div>';
+}
+
+function showTip(td,e){
+  var html=buildTip(td);
+  if(!html){ hideTip(); return; }
+  var t=el('tip');
+  t.innerHTML=html;
+  t.classList.add('on');
+  moveTip(e);
+}
+function moveTip(e){
+  var t=el('tip');
+  if(!t.classList.contains('on')) return;
+  var w=t.offsetWidth||290, h=t.offsetHeight||160;
+  var x=e.clientX+16, y=e.clientY+16;
+  if(x+w>window.innerWidth-10)  x=e.clientX-w-16;
+  if(y+h>window.innerHeight-10) y=e.clientY-h-16;
+  t.style.left=Math.max(8,x)+'px';
+  t.style.top =Math.max(8,y)+'px';
+}
+function hideTip(){ el('tip').classList.remove('on'); }
+
+(function(){
+  var tb=el('tb');
+  tb.addEventListener('mouseover',function(e){
+    if(view!=='mat'){ hideTip(); return; }
+    var td=e.target.closest ? e.target.closest('td[data-op]') : null;
+    if(td) showTip(td,e); else hideTip();
+  });
+  tb.addEventListener('mousemove',function(e){
+    var td=e.target.closest ? e.target.closest('td[data-op]') : null;
+    if(td) moveTip(e); else hideTip();
+  });
+  tb.addEventListener('mouseleave',hideTip);
+  window.addEventListener('scroll',hideTip,true);
+})();
 
 /* ---------- floor grid modal ---------- */
 
