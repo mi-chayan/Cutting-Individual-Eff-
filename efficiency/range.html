@@ -14,8 +14,8 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  /* The whole page is one vertical flex column so the table stretches to the
-     bottom of the window instead of stopping short and leaving dead space. */
+  /* One vertical flex column, so the table reaches the bottom of the window
+     instead of stopping short and leaving dead space above the footer. */
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
        font-size:13px;-webkit-text-size-adjust:100%;display:flex;flex-direction:column}
 
@@ -30,7 +30,7 @@
         padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .mini:hover{background:var(--cream);border-color:var(--peach)}
-  .mini svg{width:12px;height:12px;fill:var(--violet)}
+  .mini svg{width:12px;height:12px;fill:var(--navy)}
   .mini.xls{background:#E8F5EE;color:#14663A;border-color:#9FD5B8;font-weight:800}
   .mini.xls svg{fill:#1E8E4E}
   .mini.xls:hover{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
@@ -51,19 +51,25 @@
          opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .hide{display:none !important}
 
-  /* view switch */
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
   .seg button{border:0;background:#fff;color:var(--navy);font-family:inherit;font-weight:800;
               font-size:11.5px;padding:6px 14px;cursor:pointer;white-space:nowrap}
   .seg button+button{border-left:1px solid var(--line)}
-  .seg button.on{background:var(--violet);color:#fff}
+  .seg button.on{background:var(--navy);color:#fff}
 
-  /* floor chips */
+  /* ---- filter bar ---- */
   .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:9px 16px 0;flex:0 0 auto}
-  .chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 13px;
+  .chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 12px;
         font-size:11.5px;font-weight:800;color:var(--navy);cursor:pointer;white-space:nowrap}
-  .chip:hover{border-color:var(--violet)}
-  .chip.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .chip:hover{border-color:var(--navy)}
+  .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .chip.fact{border-style:dashed}
+  /* metric picker, the one deliberately different colour on this bar */
+  .mchip{background:#fff;border:1px solid var(--peach);border-radius:99px;padding:5px 12px;
+         font-size:11.5px;font-weight:800;color:#8A5B12;cursor:pointer;white-space:nowrap}
+  .mchip:hover{background:var(--cream)}
+  .mchip.on{background:#8A5B12;color:#fff;border-color:#8A5B12}
+  .fsep{width:1px;height:20px;background:var(--line);margin:0 3px}
 
   .wrap{padding:11px 16px 12px;max-width:1560px;margin:0 auto;width:100%;
         flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
@@ -83,8 +89,6 @@
   thead th:hover{background:#2B3566}
   thead th .arr{font-size:8px;margin-left:3px}
   thead th .d2{display:block;font-size:8.5px;font-weight:600;opacity:.7;letter-spacing:0}
-  /* Narrow columns whose heading is long. The heading wraps onto two or three
-     lines instead of stretching the column to fit one line of text. */
   thead th.wr{white-space:normal;width:58px;min-width:58px;line-height:1.15}
   tbody td.wr{width:58px;min-width:58px}
   tbody td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -98,24 +102,42 @@
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
 
-  /* score cells in the matrix */
   .sc{font-weight:800}
   .sc.lo{background:#FBE9EB;color:#A3252F}
   .sc.mid{background:#FFF6E6;color:#8A5B12}
   .sc.hi{background:#E7F4EC;color:#12653A}
   .sc.top{background:#E8F0FC;color:#14509E}
   .sc.na{color:#C2C6D6}
-  td.tot{background:#EFE8FB !important;color:#4B2A85;font-weight:800}
+  td.tot{background:#F1F2F7 !important;font-weight:800}
   .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
        font-weight:700;padding:8px 13px;border-top:1px solid var(--line);flex:0 0 auto}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+  /* ---- modal ---- */
+  .ovl{display:none;position:fixed;inset:0;z-index:9000;background:rgba(37,42,69,.45);
+       backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:22px}
+  .ovl.on{display:flex;align-items:center;justify-content:center}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:1240px;max-height:90vh;
+         display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 54px rgba(37,42,69,.3)}
+  .modal .mh{display:flex;align-items:center;gap:10px;padding:11px 15px;background:var(--navy);color:#fff;flex:0 0 auto}
+  .modal .mh b{font-size:12.5px;font-weight:800}
+  .modal .mh .sub{font-size:10.5px;opacity:.75;font-weight:600}
+  .modal .mh .gap{flex:1}
+  .modal .mh .mini{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.25)}
+  .modal .mh .mini:hover{background:#fff;color:var(--navy)}
+  .modal .mh .x{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:6px;width:26px;height:26px;
+                font-family:inherit;font-size:16px;line-height:1;cursor:pointer;font-weight:700}
+  .modal .mh .x:hover{background:var(--red)}
+  .modal .mb{flex:1 1 auto;overflow:auto}
+  .modal table thead th{cursor:default}
+  .modal table thead th:hover{background:var(--navy)}
 
   .printhead{display:none}
   .printfoot{display:none}
   @media print{
     @page{size:A4 landscape;margin:9mm 8mm}
     body{background:#fff;font-size:8pt}
-    .strip,.chips,.lgd{display:none !important}
+    .strip,.chips,.lgd,.ovl{display:none !important}
     html,body{height:auto;display:block}
     .wrap{padding:0;max-width:none;display:block}
     .card{border:0;box-shadow:none;border-radius:0;display:block}
@@ -139,6 +161,15 @@
     thead{display:table-header-group}
     .printfoot{display:block !important;margin-top:4mm;font-size:6.5pt;color:#666;text-align:center;
                border-top:.3mm solid #ccc;padding-top:2mm}
+
+    /* printing a modal rather than the page behind it */
+    body.pmodal .printhead,body.pmodal .printfoot,body.pmodal .wrap{display:none !important}
+    body.pmodal .ovl{display:block !important;position:static;background:none;padding:0;backdrop-filter:none}
+    body.pmodal .modal{max-width:none;max-height:none;box-shadow:none;border-radius:0}
+    body.pmodal .modal .mh{background:#fff !important;color:#333D6D !important;
+                           border-bottom:.6mm solid #333D6D;padding:0 0 2.5mm 0}
+    body.pmodal .modal .mh .mini,body.pmodal .modal .mh .x{display:none !important}
+    body.pmodal .modal .mb{overflow:visible}
   }
   @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} .chips{padding:8px 9px 0} }
 </style>
@@ -168,14 +199,16 @@
 
   <div class="sep"></div>
   <span class="seg">
-    <button id="vTbl" class="on" onclick="setView('tbl')">Full Table</button>
-    <button id="vMat" onclick="setView('mat')">Score Matrix</button>
+    <button id="vMat" class="on" onclick="setView('mat')">Score Matrix</button>
+    <button id="vTbl" onclick="setView('tbl')">Full Table</button>
   </span>
 
-  <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:160px">
+  <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:150px">
   <span class="showing" id="showing"></span>
 
   <div class="acts">
+    <button class="mini" onclick="openGrid('eff')" title="Day by day floor efficiency">Floor Eff%</button>
+    <button class="mini" onclick="openGrid('oee')" title="Day by day floor OEE">Floor OEE</button>
     <button class="mini xls" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
@@ -195,6 +228,7 @@
       <div class="meta">
         <span>Period: <b id="ph1">&ndash;</b></span>
         <span>Scope: <b id="ph2">&ndash;</b></span>
+        <span>Metric: <b id="ph5">&ndash;</b></span>
         <span>Rows: <b id="ph3">&ndash;</b></span>
         <span>Generated: <b id="ph4">&ndash;</b></span>
       </div>
@@ -202,44 +236,73 @@
   </div>
 
   <div class="card">
-    <div class="hd"><span id="tblTitle">Database PIB</span><span class="showing" id="stamp"></span></div>
+    <div class="hd"><span id="tblTitle">Score Matrix</span><span class="showing" id="stamp"></span></div>
     <div class="scroll"><table>
       <thead id="th"></thead>
       <tbody id="tb"><tr><td class="loading" colspan="15">Loading&hellip;</td></tr></tbody>
     </table></div>
-    <div class="lgd hide" id="lgd">
-      <span><i style="background:#FBE9EB"></i>Below 50</span>
-      <span><i style="background:#FFF6E6"></i>50 to 74</span>
-      <span><i style="background:#E7F4EC"></i>75 to 89</span>
-      <span><i style="background:#E8F0FC"></i>90 and above</span>
-      <span style="margin-left:auto">Blank cell means no record for that operator on that date</span>
+    <div class="lgd" id="lgd">
+      <span><i style="background:#FBE9EB"></i>Below 50%</span>
+      <span><i style="background:#FFF6E6"></i>50 to 74%</span>
+      <span><i style="background:#E7F4EC"></i>75 to 89%</span>
+      <span><i style="background:#E8F0FC"></i>90% and above</span>
+      <span id="lgdNote" style="margin-left:auto"></span>
     </div>
   </div>
 
   <div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>
 </div>
 
+<!-- ===== floor grid modal ===== -->
+<div class="ovl" id="ovl">
+  <div class="modal">
+    <div class="mh">
+      <b id="mTitle">Floor Efficiency</b>
+      <span class="sub" id="mSub"></span>
+      <span class="gap"></span>
+      <button class="mini" onclick="exportGrid()">Excel</button>
+      <button class="mini" onclick="printGrid()">Print</button>
+      <button class="x" onclick="closeGrid()" aria-label="Close">&times;</button>
+    </div>
+    <div class="mb"><table><thead id="mth"></thead><tbody id="mtb"></tbody></table></div>
+    <div class="lgd" id="mlgd"></div>
+  </div>
+</div>
+
 <script>
 /* ------------------------------------------------------------------
    Two views over the same Database_PIB rows.
 
-   Full Table   the sheet mirrored, all 15 columns, nothing added
-   Score Matrix operator on the left, one column per date carrying the
-                Final KPI Score, then Days, Total and Average
+   Score Matrix  opens first. Operator on the left, one column per date
+                 carrying the chosen score, then Days, Total, Average.
+   Full Table    the sheet mirrored, all 15 columns, nothing added.
 
-   The matrix is built from the same rows as the table, so the two can
-   never disagree. Its date columns come from the dates actually present
-   in the data, not from a calendar, so a Friday the factory worked shows
-   up and a day it did not simply is not there.
+   The metric picker changes which number fills the matrix:
+     Final KPI            out of 100
+     Individual Eff%      the KPI earned on the man's own efficiency, out of 50
+     Floor Performance    the KPI earned on his floor's Eff% or OEE, out of 50
+
+   Colour bands are a percentage of that metric's maximum, so 25 out of 50
+   is shaded the same as 50 out of 100. Comparing raw numbers across the
+   three metrics would otherwise be misleading.
    ------------------------------------------------------------------ */
 
 var PIB_API = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
 
-var RAW=[], SNAP=null, STAMP='', query='', floorFilter='', view='tbl';
+var SOL_FLOORS=['1A','1B','1C','1D','1E','3A'];
+var SSL_FLOORS=['2A','2B','2C','2D','2E'];
+
+var METRICS={
+  final:{k:'final',  max:100, label:'Final KPI',        note:'Final KPI Score, out of 100'},
+  indv: {k:'kpiInd', max:50,  label:'Individual Eff%',  note:'KPI earned on the operator\u2019s own efficiency, out of 50'},
+  floor:{k:'kpiTyp', max:50,  label:'Floor Performance',note:'KPI earned on the floor\u2019s Eff% or OEE, out of 50'}
+};
+
+var RAW=[], EFFG={cols:[],rows:[]}, OEEG={cols:[],rows:[]};
+var SNAP=null, STAMP='', query='', scopeSel='', view='mat', metric='final', gridKind='eff';
 var sortKey='', sortDir=1;
 var mSortKey='total', mSortDir=-1;
 
-/* Full Table columns: Database_PIB order, exactly as the sheet holds it. */
 var COLS=[
   {k:'week',   h:'Week',                 t:'n', d:0},
   {k:'floor',  h:'Floor',                t:'s', a:true},
@@ -282,7 +345,9 @@ function fmt(v,d){
   return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function padId(id){ var s=String(id||''); return s.length&&s.length<11 ? ('00000000000'+s).slice(-11) : s; }
-function scClass(v){ return v<50?'lo':(v<75?'mid':(v<90?'hi':'top')); }
+function scClass(v,max){ var p=(Number(v)||0)/max; return p<0.5?'lo':(p<0.75?'mid':(p<0.9?'hi':'top')); }
+function effClass(v){ return v<0.65?'lo':(v<=0.90?'mid':'hi'); }
+function oeeClass(v){ return v<0.55?'lo':(v<=0.75?'mid':'hi'); }
 
 function cellText(c,r){
   var v=r[c.k];
@@ -322,18 +387,27 @@ function buildPeriod(){
 }
 
 function buildChips(){
-  var h='<span class="chip'+(floorFilter===''?' on':'')+'" onclick="setFloor(\'\')">All Floors</span>';
+  var h='<span class="chip'+(scopeSel===''?' on':'')+'" onclick="setScope(\'\')">All</span>'
+      + '<span class="chip fact'+(scopeSel==='SOL'?' on':'')+'" onclick="setScope(\'SOL\')">SOL</span>'
+      + '<span class="chip fact'+(scopeSel==='SSL'?' on':'')+'" onclick="setScope(\'SSL\')">SSL</span>'
+      + '<span class="fsep"></span>';
   (SNAP.floors||[]).forEach(function(f){
-    h+='<span class="chip'+(floorFilter===f?' on':'')+'" onclick="setFloor(\''+esc(f)+'\')">'+esc(f)+'</span>';
+    h+='<span class="chip'+(scopeSel===f?' on':'')+'" onclick="setScope(\''+esc(f)+'\')">'+esc(f)+'</span>';
+  });
+  h+='<span class="fsep"></span>';
+  ['final','indv','floor'].forEach(function(m){
+    h+='<span class="mchip'+(metric===m?' on':'')+'" onclick="setMetric(\''+m+'\')">'
+     + (m==='final'?'Final KPI':'Only '+METRICS[m].label)+'</span>';
   });
   el('chips').innerHTML=h;
 }
-function setFloor(f){ floorFilter=(floorFilter===f&&f!=='')?'':f; buildChips(); render(); }
+function setScope(s){ scopeSel=(scopeSel===s&&s!=='')?'':s; buildChips(); render(); }
+function setMetric(m){ metric=m; buildChips(); render(); }
 
 function setView(v){
   view=v;
-  el('vTbl').classList.toggle('on', v==='tbl');
   el('vMat').classList.toggle('on', v==='mat');
+  el('vTbl').classList.toggle('on', v==='tbl');
   el('lgd').classList.toggle('hide', v!=='mat');
   render();
 }
@@ -342,13 +416,13 @@ function periodChanged(){
   el('customWrap').classList.toggle('hide', el('period').value!=='custom');
   load();
 }
-
 function periodLabel(){
   var v=el('period').value;
   if(v==='custom') return prettyDate(el('f1').value)+' to '+prettyDate(el('f2').value);
   if(v==='all')    return 'All data';
   return 'Week '+v.slice(1);
 }
+function scopeLabel(){ return scopeSel ? (SOL_FLOORS.concat(SSL_FLOORS).indexOf(scopeSel)>=0 ? ('Floor '+scopeSel) : scopeSel) : 'All Floors'; }
 
 function load(){
   var v=el('period').value, q;
@@ -362,15 +436,23 @@ function load(){
   el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
   fetch(PIB_API+q).then(function(r){return r.json()}).then(function(d){
     if(!d.ok){ fail(d.msg); return; }
-    RAW=d.rows||[]; STAMP=d.stamp||''; render();
+    RAW=d.rows||[]; EFFG=d.eff||{cols:[],rows:[]}; OEEG=d.oee||{cols:[],rows:[]};
+    STAMP=d.stamp||''; render();
   }).catch(fail);
 }
 
 /* ---------- scope ---------- */
 
+function floorsInScope(){
+  if(scopeSel==='SOL') return SOL_FLOORS;
+  if(scopeSel==='SSL') return SSL_FLOORS;
+  if(scopeSel)         return [scopeSel];
+  return null;
+}
 function inScope(){
+  var fl=floorsInScope();
   return RAW.filter(function(r){
-    if(floorFilter && r.floor!==floorFilter) return false;
+    if(fl && fl.indexOf(r.floor)<0) return false;
     if(!query) return true;
     var hay=(r.floor+' '+r.date+' '+r.opId+' '+r.name+' '+r.desig+' '+r.type).toLowerCase();
     return hay.indexOf(query)>=0;
@@ -378,7 +460,7 @@ function inScope(){
 }
 
 function setSort(k){ if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=1;} render(); }
-function setMSort(k){ if(mSortKey===k) mSortDir*=-1; else {mSortKey=k; mSortDir=(k==='floor'||k==='name'||k==='opId'||k==='desig'||k==='type')?1:-1;} render(); }
+function setMSort(k){ if(mSortKey===k) mSortDir*=-1; else {mSortKey=k; mSortDir=(['floor','name','opId','desig','type'].indexOf(k)>=0)?1:-1;} render(); }
 function renderKeepFocus(){
   query=(el('q').value||'').toLowerCase(); render();
   var q=el('q'); q.focus(); q.setSelectionRange(q.value.length,q.value.length);
@@ -386,14 +468,18 @@ function renderKeepFocus(){
 
 function render(){
   var list=inScope();
-  el('showing').textContent=periodLabel()+' · '+(floorFilter?('Floor '+floorFilter):'All Floors')+' · '+list.length+' rows';
+  var M=METRICS[metric];
+  el('showing').textContent=periodLabel()+' · '+scopeLabel()+' · '+list.length+' rows';
   el('stamp').textContent=STAMP?('Last updated '+STAMP):'';
   el('ph1').textContent=periodLabel();
-  el('ph2').textContent=floorFilter?('Floor '+floorFilter):'All Floors';
+  el('ph2').textContent=scopeLabel();
   el('ph4').textContent=STAMP;
+  el('ph5').textContent=M.label;
+  el('lgdNote').textContent=M.note;
+
   if(view==='mat'){
-    el('tblTitle').textContent='Score Matrix';
-    el('phTitle').textContent='SOSL Cutting Section – Individual PIB Score Matrix';
+    el('tblTitle').textContent='Score Matrix — '+M.label;
+    el('phTitle').textContent='SOSL Cutting Section – PIB Score Matrix ('+M.label+')';
     renderMatrix(list);
   }else{
     el('tblTitle').textContent='Database PIB';
@@ -402,7 +488,7 @@ function render(){
   }
 }
 
-/* ---------- view 1: the sheet, mirrored ---------- */
+/* ---------- view: full table ---------- */
 
 function renderTable(list){
   el('ph3').textContent=list.length;
@@ -417,49 +503,46 @@ function renderTable(list){
       return ((x?1:0)-(y?1:0)||(x||0)-(y||0))*d;
     });
   }
-
   el('th').innerHTML='<tr>'+COLS.map(function(c){
     var arr=sortKey===c.k?(sortDir===1?'&#9650;':'&#9660;'):'';
-    var cls=(c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr':'');
-    return '<th class="'+cls.trim()+'" onclick="setSort(\''+c.k+'\')">'+esc(c.h)+'<span class="arr">'+arr+'</span></th>';
+    var cls=((c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr':'')).trim();
+    return '<th class="'+cls+'" onclick="setSort(\''+c.k+'\')">'+esc(c.h)+'<span class="arr">'+arr+'</span></th>';
   }).join('')+'</tr>';
 
   var h='';
   list.forEach(function(r){
     h+='<tr>'+COLS.map(function(c){
       var v = c.k==='opId' ? esc(padId(r.opId)) : cellText(c,r);
-      var cls=(c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr ':'')+'mono';
-      return '<td class="'+cls+'">'+v+'</td>';
+      return '<td class="'+(c.a?'l ':'')+(c.c?'c ':'')+(c.w?'wr ':'')+'mono">'+v+'</td>';
     }).join('')+'</tr>';
   });
   el('tb').innerHTML = h || '<tr><td colspan="15" class="loading">No rows for this selection.</td></tr>';
 }
 
-/* ---------- view 2: score matrix ---------- */
+/* ---------- view: score matrix ---------- */
 
 function buildMatrix(list){
-  var dates={}, m={};
+  var mk=METRICS[metric].k, dates={}, m={};
   list.forEach(function(r){
     dates[r.date]=true;
     var k=r.floor+'|'+r.opId;
     if(!m[k]) m[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,type:r.type,
                     s:{},days:0,total:0,unav:0};
-    var o=m[k];
-    o.s[r.date]=r.final;
-    o.days++; o.total+=Number(r.final)||0;
+    var o=m[k], v=Number(r[mk])||0;
+    o.s[r.date]=v;
+    o.days++; o.total+=v;
     if(r.unav) o.unav++;
     if(r.desig) o.desig=r.desig;
     if(r.type)  o.type=r.type;
   });
-  var ds=Object.keys(dates).sort();
   var rows=Object.keys(m).map(function(k){
-    var o=m[k]; o.avg = o.days ? o.total/o.days : 0; return o;
+    var o=m[k]; o.avg=o.days?o.total/o.days:0; return o;
   });
-  return {dates:ds, rows:rows};
+  return {dates:Object.keys(dates).sort(), rows:rows};
 }
 
 function renderMatrix(list){
-  var M=buildMatrix(list);
+  var M=buildMatrix(list), MX=METRICS[metric];
   el('ph3').textContent=M.rows.length;
 
   var rows=M.rows.slice().sort(function(a,b){
@@ -471,10 +554,10 @@ function renderMatrix(list){
     return ((x||0)-(y||0))*d;
   });
 
-  var mth=function(k,label,cls){
+  function mth(k,label,cls){
     var arr=mSortKey===k?(mSortDir===1?'&#9650;':'&#9660;'):'';
     return '<th class="'+(cls||'')+'" onclick="setMSort(\''+k+'\')">'+label+'<span class="arr">'+arr+'</span></th>';
-  };
+  }
 
   var h='<tr><th class="l">#</th>'
       + mth('floor','Floor','l') + mth('opId','Op ID','l') + mth('name','Op Name','l')
@@ -485,7 +568,7 @@ function renderMatrix(list){
   h+= mth('days','Days') + mth('total','Total') + mth('avg','Average') + mth('unav','Indv N/C');
   el('th').innerHTML=h+'</tr>';
 
-  var b='', colDay=[], colSum=[], tTot=0, tDays=0, tUn=0;
+  var b='', colSum=[], colDay=[], tTot=0, tDays=0, tUn=0;
   rows.forEach(function(o,i){
     tTot+=o.total; tDays+=o.days; tUn+=o.unav;
     b+='<tr><td class="l mono">'+(i+1)+'</td>'
@@ -496,11 +579,10 @@ function renderMatrix(list){
      + '<td class="l">'+esc(o.type||'')+'</td>';
     M.dates.forEach(function(d,j){
       var v=o.s[d];
-      if(v===undefined||v===null||v===''){ b+='<td class="c sc na">&ndash;</td>'; }
+      if(v===undefined||v===null){ b+='<td class="c sc na">&ndash;</td>'; }
       else{
-        var n=Number(v)||0;
-        colSum[j]=(colSum[j]||0)+n; colDay[j]=(colDay[j]||0)+1;
-        b+='<td class="c sc '+scClass(n)+'">'+fmt(n,1)+'</td>';
+        colSum[j]=(colSum[j]||0)+v; colDay[j]=(colDay[j]||0)+1;
+        b+='<td class="c sc '+scClass(v,MX.max)+'">'+fmt(v,1)+'</td>';
       }
     });
     b+='<td class="mono">'+o.days+'</td>'
@@ -523,22 +605,116 @@ function renderMatrix(list){
   el('tb').innerHTML=b;
 }
 
+/* ---------- floor grid modal ---------- */
+
+function curGrid(){ return gridKind==='oee'?OEEG:EFFG; }
+
+function openGrid(kind){
+  gridKind=kind;
+  var g=curGrid(), isOee=(kind==='oee'), fl=floorsInScope();
+  el('mTitle').textContent = isOee?'Floor OEE — day by day':'Floor Efficiency — day by day';
+  el('mSub').textContent   = periodLabel()+'  ·  '+(g.rows||[]).length+' days';
+
+  /* Honour the floor or factory chip, but always keep the SOL, SSL and SOSL
+     roll-up columns visible, since those are the comparison you actually want. */
+  var keep=[];
+  (g.cols||[]).forEach(function(c,i){
+    if(!fl || fl.indexOf(c)>=0 || ['SOL','SSL','SOSL'].indexOf(c)>=0) keep.push(i);
+  });
+
+  var h='<tr><th class="l">Date</th>';
+  keep.forEach(function(i){ h+='<th class="c">'+esc(g.cols[i])+'</th>'; });
+  el('mth').innerHTML=h+'</tr>';
+
+  var b='', sums={}, cnts={};
+  (g.rows||[]).forEach(function(r){
+    b+='<tr><td class="l"><b>'+shortDate(r[0])+'</b></td>';
+    keep.forEach(function(i){
+      var v=r[i+1];
+      if(v===null||v===undefined||v===0){ b+='<td class="c sc na">&ndash;</td>'; }
+      else{
+        sums[i]=(sums[i]||0)+v; cnts[i]=(cnts[i]||0)+1;
+        b+='<td class="c sc '+(isOee?oeeClass(v):effClass(v))+'">'+fmt(v*100,2)+'%</td>';
+      }
+    });
+    b+='</tr>';
+  });
+
+  if(!(g.rows||[]).length){
+    b='<tr><td class="loading" colspan="'+(keep.length+1)+'">No floor data for this period. '
+     + 'If this stays empty, the Apps Script needs a new version deployed.</td></tr>';
+  }else{
+    b+='<tr class="totalrow"><td class="l">Average</td>';
+    keep.forEach(function(i){
+      b+= cnts[i] ? '<td class="c">'+fmt(sums[i]/cnts[i]*100,2)+'%</td>' : '<td class="c">&ndash;</td>';
+    });
+    b+='</tr>';
+  }
+  el('mtb').innerHTML=b;
+
+  el('mlgd').innerHTML = isOee
+    ? '<span><i style="background:#FBE9EB"></i>Below 55%</span><span><i style="background:#E7F4EC"></i>55 to 75%</span><span><i style="background:#E8F0FC"></i>Above 75%</span><span style="margin-left:auto">Source: OEE tab</span>'
+    : '<span><i style="background:#FBE9EB"></i>Below 65%</span><span><i style="background:#E7F4EC"></i>65 to 90%</span><span><i style="background:#E8F0FC"></i>Above 90%</span><span style="margin-left:auto">Source: Efficiency tab</span>';
+
+  el('ovl').classList.add('on');
+}
+function closeGrid(){ el('ovl').classList.remove('on'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGrid(); });
+function printGrid(){
+  document.body.classList.add('pmodal');
+  window.focus(); window.print();
+  setTimeout(function(){ document.body.classList.remove('pmodal'); },400);
+}
+
 /* ---------- print ---------- */
 function doPrint(){ window.focus(); window.print(); }
 
 /* ---------- Excel ---------- */
 function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
+function xlsWrap(t,sheetName,fileName){
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
+    +'<x:Name>'+sheetName+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
+    +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=fileName;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
+}
+function safeName(s){ return String(s).replace(/[^A-Za-z0-9]+/g,'_'); }
+
+function exportGrid(){
+  var g=curGrid(), isOee=(gridKind==='oee');
+  var t='<table><tr><td colspan="'+((g.cols||[]).length+1)+'" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      + 'SOSL Cutting Section &ndash; '+(isOee?'Floor OEE':'Floor Efficiency')+', day by day</td></tr>'
+      + '<tr><td colspan="'+((g.cols||[]).length+1)+'">Period: '+esc(periodLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
+  t+='<table border="1"><tr>'+th2('Date');
+  (g.cols||[]).forEach(function(c){ t+=th2(c); });
+  t+='</tr>';
+  (g.rows||[]).forEach(function(r){
+    t+='<tr><td>'+esc(prettyDate(r[0]))+'</td>';
+    for(var i=1;i<r.length;i++){
+      t+= (r[i]===null||r[i]===undefined) ? '<td></td>'
+        : '<td style="mso-number-format:\'0.00%\'">'+r[i]+'</td>';
+    }
+    t+='</tr>';
+  });
+  t+='</table><table><tr><td></td></tr><tr><td>&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  xlsWrap(t,(isOee?'Floor OEE':'Floor Eff'),'SOSL_'+(isOee?'Floor_OEE':'Floor_Eff')+'_'+safeName(periodLabel())+'.xls');
+}
 
 function exportExcel(){
-  var list=inScope();
-  var scopeTxt=floorFilter?('Floor '+floorFilter):'All Floors';
-  var viewTxt = view==='mat' ? 'Score Matrix' : 'Full Table';
+  var list=inScope(), MX=METRICS[metric];
+  var viewTxt = view==='mat' ? ('Score Matrix - '+MX.label) : 'Full Table';
 
   var t='<table><tr><td colspan="20" style="font-size:15pt;font-weight:bold;color:#333D6D">'
       + 'SOSL Cutting Section &ndash; Individual PIB '+(view==='mat'?'Score Matrix':'Report')+'</td></tr>'
       + '<tr><td colspan="20">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeTxt)
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;View: '+viewTxt
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Metric: '+esc(MX.label)+' ('+esc(MX.note)+')'
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
 
   if(view==='mat'){
@@ -552,7 +728,7 @@ function exportExcel(){
        + '<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+esc(o.type||'')+'</td>';
       M.dates.forEach(function(d){
         var v=o.s[d];
-        t+= (v===undefined||v===null||v==='') ? '<td></td>' : '<td>'+(Number(v)||0)+'</td>';
+        t+= (v===undefined||v===null) ? '<td></td>' : '<td>'+v+'</td>';
       });
       t+='<td>'+o.days+'</td><td>'+(Math.round(o.total*10)/10)+'</td>'
        + '<td>'+(Math.round(o.avg*10)/10)+'</td><td>'+(o.unav||0)+'</td></tr>';
@@ -575,19 +751,7 @@ function exportExcel(){
   }
   t+='<table><tr><td></td></tr><tr><td colspan="20">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
 
-  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
-    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
-    +'<x:Name>PIB</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
-    +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
-    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
-
-  var name='SOSL_PIB_'+viewTxt.replace(/\s+/g,'_')+'_'+String(periodLabel()).replace(/[^A-Za-z0-9]+/g,'_')
-          +'_'+(floorFilter||'AllFloors')+'.xls';
-  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=name;
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
+  xlsWrap(t,'PIB','SOSL_PIB_'+safeName(viewTxt)+'_'+safeName(periodLabel())+'_'+(scopeSel||'All')+'.xls');
 }
 </script>
 </body>
