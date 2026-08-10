@@ -247,8 +247,13 @@ var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
    fails, the loss is still saved and the morning rebuild will catch it. */
 var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 
-function nudgeDashboard(done){
-  fetch(EFF_API+'?action=snapshot&fresh=1', {cache:'no-store'})
+/* The date matters. A floor leader often enters loss for an earlier day, and
+   syncing only "the latest date" would leave that day's Input Min and Eff%
+   untouched in the efficiency sheet. */
+function nudgeDashboard(dateStr, done){
+  var q = EFF_API+'?action=snapshot&fresh=1'
+        + (dateStr ? '&lossdate='+encodeURIComponent(dateStr) : '');
+  fetch(q, {cache:'no-store'})
     .then(function(r){ return r.ok ? r.json() : null })
     .then(function(res){ if(done) done(res && res.loss ? res.loss : '') })
     .catch(function(){ if(done) done('could not reach the dashboard, it will catch up') });
@@ -582,7 +587,7 @@ function doSave(){
     say('smsg',esc(r.msg)+' Refreshing the efficiency dashboard\u2026','g');
     /* The rebuild also forces the loss-time IMPORTRANGE to re-fetch, which
        takes a few seconds, so the result is reported rather than assumed. */
-    nudgeDashboard(function(note){
+    nudgeDashboard(el('dt').value, function(note){
       say('smsg', esc(r.msg)+' Efficiency dashboard updated'
           + (note ? ' ('+esc(note)+')' : '') + '.', 'g');
     });
