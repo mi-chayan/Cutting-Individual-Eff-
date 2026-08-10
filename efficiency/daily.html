@@ -221,6 +221,12 @@
   td.l{text-align:left}
   /* a real loss should catch the eye without shouting */
   td.lossy{color:#C77700;font-weight:800}
+  td.nolss{color:#C3C8DA}
+  /* a small dot means there is a reason behind the figure, hover to read it */
+  td.lossy.hasr{cursor:help;position:relative}
+  td.lossy.hasr .rdot{display:inline-block;width:4px;height:4px;border-radius:50%;
+        background:#C77700;vertical-align:5px;margin-left:4px;opacity:.75}
+  td.lossy.hasr:hover{background:#FFF3E8}
   tbody tr:nth-child(even){background:#FAFBFE}
   tbody tr{transition:background .1s}
   tbody tr:hover{background:var(--cream)}
@@ -508,6 +514,49 @@ var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 var LOSS_API  = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
 var LOSS_PAGE = "loss.html";
 
+/* Loss REASONS are read from the PIB sheet, not from the efficiency sheet.
+   Duplicating them into a column there would have cost roughly 900,000 cells
+   a year, and that sheet is already the constrained one. Keyed "floor|idKey"
+   with leading zeros stripped, because a numeric id loses its leading zero in
+   the efficiency sheet while an alphanumeric one keeps it. */
+var LOSSR = {}, LOSSR_DAY = '';
+function lossKey(floor,opId){ return floor+'|'+String(opId).replace(/^0+/,''); }
+function reasonFor(floor,opId){
+  var e=LOSSR[lossKey(floor,opId)];
+  return e ? String(e.reason||'') : '';
+}
+
+/* Fetched once per date, quietly, after the table is already on screen. A
+   failure here must never affect the report: the numbers still show, only the
+   hover text is missing. */
+function loadReasons(d){
+  if(!d || d===LOSSR_DAY) return;
+  fetch(LOSS_API+'?action=reasons&date='+encodeURIComponent(d))
+    .then(function(r){ return r.ok ? r.json() : null })
+    .then(function(res){
+      if(!res || !res.ok || !res.map) return;
+      LOSSR = res.map; LOSSR_DAY = d;
+      paintReasons();
+    })
+    .catch(function(){});
+}
+
+/* Reasons arrive after render, so the tooltips are attached in place rather
+   than forcing a full re-render. */
+function paintReasons(){
+  var cells=document.querySelectorAll('td.lossy[data-lk]');
+  for(var i=0;i<cells.length;i++){
+    var td=cells[i], e=LOSSR[td.getAttribute('data-lk')];
+    var rsn = e ? String(e.reason||'') : '';
+    if(!rsn) continue;
+    td.title = td.getAttribute('data-nm')+' \u2014 '+rsn;
+    td.classList.add('hasr');
+    if(!td.querySelector('.rdot')){
+      var dot=document.createElement('span'); dot.className='rdot'; td.appendChild(dot);
+    }
+  }
+}
+
 function lsay(t,c){ var m=document.getElementById('lossmsg'); m.innerHTML=t||''; m.className = t?('lossmsg '+c):'lossmsg'; }
 
 function openLoss(){
@@ -787,6 +836,18 @@ function showErr(e){
     +'<br><br>Check: 1) API_URL is the /exec link, 2) deployment access is "Anyone with the link", 3) a NEW VERSION was deployed after the last code change.</div>';
 }
 
+/* The Loss Min cell. Hovering shows WHY the time was lost, which comes from
+   column AI of the efficiency sheet. Until that column exists the reason is
+   blank and the cell simply has no tooltip, so nothing looks broken. */
+function lossTd(o){
+  if(!(o.lossMin>0)) return '<td class="nolss">&ndash;</td>';
+  var r=reasonFor(o.floor,o.opId);
+  return '<td class="lossy'+(r?' hasr':'')+'"'
+       + ' data-lk="'+esc(lossKey(o.floor,o.opId))+'" data-nm="'+esc(o.name)+'"'
+       + (r ? ' title="'+esc(o.name)+' &mdash; '+esc(r)+'"' : '')
+       + '>'+fmt(o.lossMin,0)+(r?'<span class="rdot"></span>':'')+'</td>';
+}
+
 /* ---------- aggregation ---------- */
 function operatorAgg(){
   var map={};
@@ -1002,10 +1063,13 @@ function render(){
       +'<td class="l">'+o.name+'</td>'
       +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
-      +'<td class="'+(o.lossMin>0?'lossy':'')+'">'+(o.lossMin>0?fmt(o.lossMin,0):'&ndash;')+'</td>'
+      +lossTd(o)
       +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
-    if(isOpen) h+=detailBlock(o,10);
+    /* MUST match the number of columns in the operator table above. Adding
+       the Loss Min column made that 11; leaving this at 10 left the expanded
+       cut detail one column short of the right edge. */
+    if(isOpen) h+=detailBlock(o,11);
   });
   h+='</tbody></table></div><div class="foot">'+S.indShown.length+' of '+S.ops.length+' operator(s) shown &bull; click any operator row for cut-by-cut detail &bull; Ignored operators excluded &bull; Red &lt; 65% &bull; Green 65&ndash;90% &bull; Blue &gt; 90%</div></div>';
 
@@ -1013,6 +1077,10 @@ function render(){
   h+='</div>';
 
   document.getElementById('content').innerHTML=h;
+  /* Reasons for THIS date. No-ops if already held, so re-sorting or filtering
+     costs nothing. Runs after the table is on screen, never before. */
+  loadReasons(DAY);
+  paintReasons();
   syncStickyOffsets();
 
   /* Quietly warm cut-level data for whatever floors are on screen, so the
@@ -1211,13 +1279,13 @@ function exportExcel(){
   /* Individual table */
   t+='<table border="1"><tr><td colspan="10" style="font-weight:bold;color:#333D6D">Individual Report</td></tr><tr>'
     +th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('WH (hrs)')
-    +th2('Engagement%')+th2('Type')+th2('Loss Min (min)')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
+    +th2('Engagement%')+th2('Type')+th2('Loss Min (min)')+th2('Loss Reason')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
   S.indShown.forEach(function(o){
     t+='<tr><td>'+esc(o.floor)+'</td>'
       +'<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
       +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
       +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
-      +'<td>'+fmt(o.lossMin,0)+'</td>'
+      +'<td>'+fmt(o.lossMin,0)+'</td><td>'+esc(reasonFor(o.floor,o.opId))+'</td>'
       +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
   });
   t+='</table>';
