@@ -239,6 +239,21 @@ var LOSS_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj
 var SESS_KEY = 'sosl_loss_sess';
 var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
 
+/* The efficiency dashboard serves a snapshot that its own timer only rebuilds
+   between 8 and 10:30 AM. Loss entered during the day therefore sat invisible
+   until the next morning, even though the sheet formulas had already deducted
+   it. Saving here now asks that API to rebuild immediately, so Input Min,
+   Individual Eff% and Team Eff% all move together. Fire and forget: if it
+   fails, the loss is still saved and the morning rebuild will catch it. */
+var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+
+function nudgeDashboard(done){
+  fetch(EFF_API+'?action=snapshot&fresh=1', {cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null })
+    .then(function(res){ if(done) done(res && res.loss ? res.loss : '') })
+    .catch(function(){ if(done) done('could not reach the dashboard, it will catch up') });
+}
+
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
 var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
 /* Working hour per operator for the selected date, read from the efficiency
@@ -564,7 +579,13 @@ function doSave(){
     el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
     if(!r.ok){ fail(r.msg); return; }
     if(r.day){ apply(r.day); render(); }
-    say('smsg',esc(r.msg),'g');
+    say('smsg',esc(r.msg)+' Refreshing the efficiency dashboard\u2026','g');
+    /* The rebuild also forces the loss-time IMPORTRANGE to re-fetch, which
+       takes a few seconds, so the result is reported rather than assumed. */
+    nudgeDashboard(function(note){
+      say('smsg', esc(r.msg)+' Efficiency dashboard updated'
+          + (note ? ' ('+esc(note)+')' : '') + '.', 'g');
+    });
   }).catch(function(e){
     el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
     say('smsg','Submit failed. '+esc(e.message),'r');
