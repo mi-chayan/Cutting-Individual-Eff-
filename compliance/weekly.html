@@ -1301,9 +1301,97 @@ function exportExcel(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
-/* the shell's Refresh button asks every report to reload from scratch */
+/* The shell's Refresh delegates to whichever report is open. This page cares
+   about the RANGE on screen, not about "the latest day", so only the days in
+   that range are dropped and refetched. Days outside it stay cached. */
+function tellDone(err){
+  if(window.parent===window) return;
+  window.parent.postMessage({type:'refresh-done', stamp:STAMP||'', error:err||''}, '*');
+}
+
+/* Refresh runs in two phases.
+     Phase 1, foreground: the range ON SCREEN is rebuilt on the server and
+       redrawn, so what you are looking at is never stale.
+     Phase 2, background: every OTHER day still held locally is dropped and
+       quietly re-fetched. Until that finishes those days are simply absent,
+       so no stale figure can be served from the cache in the meantime.
+   The user waits only for phase 1. */
+var REFRESHING = false;
+
+function refreshNow(){
+  if(REFRESHING) return;
+  REFRESHING = true;
+  busy('Refreshing\u2026');
+
+  var onScreen = (RANGE||[]).slice();
+  onScreen.forEach(function(d){
+    delete DAYS[d];
+    try{ localStorage.removeItem(LS_DAY+d) }catch(e){}
+  });
+
+  refreshDates(true)
+    .then(function(){ return forceDays(onScreen) })
+    .then(function(){
+      merge(); render();
+      tellDone();
+      REFRESHING = false;
+      rewarmRest(onScreen);        /* phase 2, nobody is waiting for this */
+    })
+    .catch(function(e){
+      REFRESHING = false;
+      showErr(e); tellDone(e && e.message);
+    });
+}
+
+/* Ask the server to REBUILD these days rather than serve its parked copy. */
+function forceDays(list){
+  if(!list.length) return Promise.resolve();
+  var chunks=[];
+  for(var i=0;i<list.length;i+=FETCH_CHUNK) chunks.push(list.slice(i,i+FETCH_CHUNK));
+  return Promise.all(chunks.map(function(c){
+    return fetch(API_URL+'?action=days&fresh=1&dates='+encodeURIComponent(c.join(',')),
+                 {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
+  })).then(function(all){
+    all.forEach(function(res){
+      if(!res || res.error || !res.days) return;
+      for(var k in res.days) if(res.days.hasOwnProperty(k)){
+        if(res.days[k] && res.days[k].v!==DAY_SCHEMA) continue;
+        DAYS[k]=res.days[k]; lsSet(LS_DAY+k,res.days[k]);
+      }
+      if(res.generatedAt) setStamp(res.generatedAt);
+    });
+  });
+}
+
+/* Every other day this browser is holding is dropped immediately, so it can
+   never serve a stale figure, then re-fetched quietly in the background. */
+function rewarmRest(skip){
+  var others=[];
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k && k.indexOf(LS_DAY)===0){
+        var d=k.slice(LS_DAY.length);
+        if(skip.indexOf(d)===-1) others.push(d);
+      }
+    }
+  }catch(e){}
+  if(!others.length) return;
+
+  others.forEach(function(d){
+    delete DAYS[d];
+    try{ localStorage.removeItem(LS_DAY+d) }catch(e){}
+  });
+
+  var run=function(){ forceDays(others.slice(-PREFETCH_WINDOW)).catch(function(){}) };
+  if(window.requestIdleCallback) requestIdleCallback(run,{timeout:6000}); else setTimeout(run,900);
+}
+
 window.addEventListener('message',function(ev){
-  if(ev.data && ev.data.type==='snapshot-updated'){ clearAllDays(); boot() }
+  if(!ev.data) return;
+  if(ev.data.type==='do-refresh'){ refreshNow(); return; }
+  if(ev.data.type==='snapshot-updated'){ clearAllDays(); boot(); }
 });
 
 boot();
