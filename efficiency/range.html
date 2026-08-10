@@ -555,14 +555,22 @@ function setDate(d){ dateSel=(dateSel===d&&d!=='')?'':d; buildChips(); render();
 function setMetric(m){ metric=m; buildChips(); render(); }
 
 function setView(v){
+  var changed = (view !== v);
   view=v;
   el('vMat').classList.toggle('on', v==='mat');
   el('vTbl').classList.toggle('on', v==='tbl');
   el('vSum').classList.toggle('on', v==='sum');
   el('lgd').classList.toggle('hide', v==='tbl');
-  /* The single-date filter belongs to Summary. Clearing it on the way out stops
-     an invisible filter silently trimming the other two views. */
-  if(v!=='sum') dateSel='';
+
+  /* The three views are independent reports, so a filter must never follow the
+     user from one into another. Summary showed no floor chips at all, so a
+     floor picked in Score Matrix kept trimming it with nothing on screen to
+     say so, and no way to clear it. Every view now opens on All. */
+  if(changed){
+    scopeSel=''; dateSel=''; query='';
+    var q=el('q'); if(q) q.value='';
+  }
+
   hideTip();
   buildChips();
   render();
