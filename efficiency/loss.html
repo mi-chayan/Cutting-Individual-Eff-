@@ -103,6 +103,11 @@
   .rsn{width:100%}
   .mins{font-weight:800;color:var(--red)}
   .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
+  .whhint{font-size:9px;font-weight:700;opacity:.65}
+  .whv{font-variant-numeric:tabular-nums;font-weight:700}
+  .whna{color:var(--mut);opacity:.6}
+  tr.over .mins{color:#B4400F;font-weight:800}
+  tr.over{background:#FFF3E8}
   /* master tick that sits in the column heading */
   .allchk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
   .allchk input{width:15px;height:15px;accent-color:#fff;cursor:pointer;margin:0}
@@ -188,16 +193,17 @@
         <div class="scroll">
           <table>
             <colgroup>
-              <col style="width:46px"><col style="width:118px"><col style="width:200px">
-              <col style="width:148px"><col style="width:98px"><col style="width:86px">
-              <col style="width:74px"><col style="width:86px"><col style="width:186px">
-              <col style="width:148px">
+              <col style="width:46px"><col style="width:118px"><col style="width:190px">
+              <col style="width:136px"><col style="width:74px"><col style="width:98px">
+              <col style="width:82px"><col style="width:70px"><col style="width:82px">
+              <col style="width:172px"><col style="width:140px">
             </colgroup>
             <thead><tr>
               <th class="sl">#</th>
               <th>Op ID</th>
               <th>Name</th>
               <th>Process</th>
+              <th class="ctr">WH<span class="whhint" title="Working hour, read from the efficiency sheet for this date">&nbsp;hrs</span></th>
               <th class="ctr"><label class="allchk"
                   title="Tick to mark every operator shown below as unavailable. Untick to clear them.">
                   <input type="checkbox" id="allUnav" onchange="setAllUnav(this.checked)">
@@ -208,7 +214,7 @@
               <th>Reason</th>
               <th>Sheet Status</th>
             </tr></thead>
-            <tbody id="tb"><tr><td colspan="10" class="loading">Loading&hellip;</td></tr></tbody>
+            <tbody id="tb"><tr><td colspan="11" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -235,6 +241,19 @@ var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
 
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
 var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
+/* Working hour per operator for the selected date, read from the efficiency
+   sheet. Empty when that day's report has not been pushed yet, which is
+   normal and must read as "not pushed yet", never as zero. */
+var WH={};
+function whOf(id){
+  var v=WH[String(id).replace(/^0+/,'')];
+  return (typeof v==='number' && v>0) ? v : null;
+}
+function whCell(id){
+  var v=whOf(id);
+  return v===null ? '<span class="whna" title="The efficiency report for this date has not been pushed yet">&ndash;</span>'
+                  : '<span class="whv">'+v.toFixed(2)+'</span>';
+}
 
 function el(i){return document.getElementById(i)}
 function say(id,t,c){var m=el(id); m.innerHTML=t||''; m.className = t ? ('msg '+c) : 'msg';}
@@ -315,10 +334,15 @@ function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
 /* ---------- load ---------- */
 
 function boot(){
-  el('tb').innerHTML='<tr><td colspan="10" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
   api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
+    /* boot sends the working hour on each operator; day sends a lookup map.
+       Both are normalised into WH here so the rest of the page has one shape. */
+    WH={}; OPS.forEach(function(o){
+      if(typeof o.wh==='number' && o.wh>0) WH[String(o.id).replace(/^0+/,'')]=o.wh;
+    });
     if(!el('dt').value) el('dt').value=TODAY;
     el('dlabel').textContent=pretty(el('dt').value);
     apply(r.day); render();
@@ -329,9 +353,11 @@ function loadDay(){
   var d=el('dt').value||TODAY;
   el('dlabel').textContent=pretty(d);
   say('smsg','','');
-  el('tb').innerHTML='<tr><td colspan="10" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
   api({action:'day',token:TOKEN,floor:FLOOR,date:d}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
+    WH={};
+    if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)) WH[String(k).replace(/^0+/,'')]=r.wh[k];
     apply(r.day); render();
   }).catch(function(e){ fail(e.message) });
 }
@@ -341,7 +367,7 @@ function goToday(){
 }
 
 function fail(m){
-  el('tb').innerHTML='<tr><td colspan="10" class="loading">–</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="11" class="loading">–</td></tr>';
   say('smsg',esc(m||'Something went wrong.'),'r');
   if(String(m||'').indexOf('Session expired')>=0){
     try{ sessionStorage.removeItem(SESS_KEY); }catch(e){}
@@ -390,11 +416,12 @@ function render(){
     var m=toMin(v);
     var s=SAVED[o.id];
 
-    h+='<tr id="tr_'+o.id+'" class="'+rowCls(v,m)+'">'
+    h+='<tr id="tr_'+o.id+'" class="'+rowCls(v,m,o.id)+'">'
      + '<td class="sl">'+sl+'</td>'
      + '<td class="mono">'+esc(o.id)+'</td>'
      + '<td title="'+esc(o.name)+'">'+esc(o.name)+'</td>'
      + '<td style="color:var(--mut)" title="'+esc(o.process)+'">'+esc(o.process)+'</td>'
+     + '<td class="ctr">'+whCell(o.id)+'</td>'
      + '<td class="ctr"><input class="chk" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
      +   ' onchange="setv(\''+o.id+'\',\'unav\',this.checked)"></td>'
      + '<td><input class="num" type="text" inputmode="decimal" id="i_'+o.id+'" value="'+esc(v.min)+'"'
@@ -409,7 +436,7 @@ function render(){
      +   '</select></td>'
      + '<td>'+statCell(s)+'</td></tr>';
   });
-  el('tb').innerHTML = h || '<tr><td colspan="10" class="loading">No operators match.</td></tr>';
+  el('tb').innerHTML = h || '<tr><td colspan="11" class="loading">No operators match.</td></tr>';
   updateKpis();
   syncAllUnav();
 }
@@ -442,7 +469,20 @@ function syncAllUnav(){
   box.disabled = (n === 0);
 }
 
-function rowCls(v,m){ return v.unav ? 'unav' : (m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '')); }
+/* Loss beyond the operator's own working hour is almost always a typo, most
+   often minutes typed where hours were meant. It is flagged, not blocked: a
+   genuine long stoppage does happen and a floor leader must still be able to
+   record it. Same stance as the existing over-10-hours warning. */
+function overWh(id,v,m){
+  if(v.unav) return false;
+  var w=whOf(id);
+  return (w!==null && m>0 && m > w*60);
+}
+function rowCls(v,m,id){
+  if(v.unav) return 'unav';
+  if(overWh(id,v,m)) return 'over';
+  return m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '');
+}
 function minsCell(v,m){ return v.unav ? '<span class="pill un">PIB N/A</span>' : (m||''); }
 function statCell(s){
   if(!s) return '<span class="pill no">Not submitted</span>';
@@ -477,15 +517,16 @@ function setv(id,k,v){
 function touch(id){
   var v=VAL[id]||blank(), m=toMin(v);
   var mc=el('m_'+id); if(mc) mc.innerHTML=minsCell(v,m);
-  var tr=el('tr_'+id); if(tr) tr.className=rowCls(v,m);
+  var tr=el('tr_'+id); if(tr) tr.className=rowCls(v,m,id);
 }
 
 function updateKpis(){
-  var tot=0, cnt=0, warn=[];
+  var tot=0, cnt=0, warn=[], over=[];
   OPS.forEach(function(o){
     var v=VAL[o.id]||blank(), m=toMin(v);
     if(m>0){ tot+=m; cnt++; }
     if(m>WARN_MIN) warn.push(esc(o.name)+' ('+m+' min)');
+    if(overWh(o.id,v,m)) over.push(esc(o.name)+' '+m+' min vs '+whOf(o.id).toFixed(2)+' hr');
   });
   el('k1').textContent=OPS.length;
   el('k2').textContent=cnt;
@@ -494,7 +535,12 @@ function updateKpis(){
   el('k5').textContent=Object.keys(SAVED).length;
 
   var m=el('smsg');
-  if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
+  /* The over-working-hour notice takes priority: it points at a specific
+     operator whose figure cannot be right, which is more actionable than the
+     blanket 10 hour rule. */
+  if(over.length) say('smsg','Loss is longer than the working hour for '+over.join(', ')
+                      +'. Check the Min / Hr unit. You can still submit.','i');
+  else if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
   else if(m.className.indexOf('i')>=0) say('smsg','','');
 }
 
