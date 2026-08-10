@@ -112,6 +112,9 @@
   tr.totalrow td{background:var(--navy) !important;color:#fff;font-weight:800;
                  position:sticky;bottom:0;z-index:5}
   tbody tr.totalrow:hover td{background:var(--navy) !important}
+  /* Band classes carry their own text colour, which is unreadable on the navy
+     total row. Force white there, the band is not meaningful on a grand total. */
+  tr.totalrow td.sc{color:#fff !important}
   /* factory subtotal rows in the Summary view */
   tbody tr.grp td{background:#EEF1FA !important;font-weight:800;
                   border-top:2px solid var(--navy);border-bottom:2px solid var(--navy)}
