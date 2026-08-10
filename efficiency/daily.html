@@ -219,6 +219,8 @@
   }
   td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
   td.l{text-align:left}
+  /* a real loss should catch the eye without shouting */
+  td.lossy{color:#C77700;font-weight:800}
   tbody tr:nth-child(even){background:#FAFBFE}
   tbody tr{transition:background .1s}
   tbody tr:hover{background:var(--cream)}
@@ -479,7 +481,7 @@
       <button onclick="closeLoss()" title="Close" aria-label="Close">&times;</button>
     </div>
     <div class="mb">
-      <div class="sub">Sign in with your floor ID. The entry sheet opens in a new tab.</div>
+      <div class="sub">Sign in with your ID and pass. The entry panel opens in a new tab.</div>
       <div class="lossmsg" id="lossmsg"></div>
       <input type="text" id="lossid" placeholder="ID" autocomplete="off"
              onkeydown="if(event.key==='Enter')document.getElementById('losspw').focus()">
@@ -598,7 +600,12 @@ function effLabel(mode){
 }
 function mapRows(arr){
   return (arr||[]).map(function(r){
-    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],inMin:r[7],outMin:r[8],effPct:r[9]};
+    /* lossMin (column AG) arrives as an 11th field. An API that has not been
+       redeployed yet sends 10, so it defaults to 0 rather than undefined and
+       the column shows a dash instead of breaking the row. */
+    return {floor:r[0],opId:r[1],name:r[2],desig:r[3],wh:r[4],eng:r[5],types:r[6],
+            inMin:r[7],outMin:r[8],effPct:r[9],
+            lossMin:(typeof r[10]==='number'&&!isNaN(r[10]))?r[10]:0};
   });
 }
 function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
@@ -785,9 +792,12 @@ function operatorAgg(){
   var map={};
   DATA.forEach(function(r){
     var k=r.floor+'|'+r.opId;
-    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,eff:0,types:{}};
+    if(!map[k])map[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,n:0,wh:0,eng:0,inMin:0,outMin:0,eff:0,lossMin:0,types:{}};
     var o=map[k];
     o.n++; o.wh+=r.wh; o.eng+=r.eng; o.inMin+=r.inMin; o.outMin+=r.outMin;
+    /* Loss Time is written once per operator per day on the block-start row,
+       so it is taken, not summed, exactly like Individual Eff%. */
+    if(typeof r.lossMin==='number' && r.lossMin>o.lossMin) o.lossMin=r.lossMin;
     /* Prefer the sheet's own Individual Eff% (column AD) verbatim. Only if the
        API hasn't been redeployed yet and that field is absent do we fall back
        to computing it, so the column never goes blank. */
@@ -978,11 +988,12 @@ function render(){
     +thSort('avgWh','WH (hrs)','hs nop','WH')
     +thSort('avgEng','Engagement% (%)','','Eng %')
     +'<th class="hs"><span class="lbl">Type</span><span class="lblp">Type</span></th>'
+    +thSort('lossMin','Loss Min (min)','','Loss')
     +thSort('inMin','Input Min (min)','hp','In Min')
     +thSort('outMin','Output Min (min)','hp','Out Min')
     +thSort('eff','Individual Eff% (%)','','Eff %')
     +'</tr></thead><tbody>';
-  if(!S.indShown.length)h+='<tr><td colspan="10" class="empty">No operators match.</td></tr>';
+  if(!S.indShown.length)h+='<tr><td colspan="11" class="empty">No operators match.</td></tr>';
   S.indShown.forEach(function(o){
     var k=o.floor+'|'+o.opId, isOpen=(expandKey===k);
     h+='<tr class="oprow'+(isOpen?' open':'')+'" onclick="toggleDetail(\''+o.floor+'\',\''+o.opId+'\',event)">'
@@ -991,6 +1002,7 @@ function render(){
       +'<td class="l">'+o.name+'</td>'
       +'<td class="l hs">'+o.desig+'</td><td class="hs nop">'+fmt(o.avgWh,2)+'</td>'
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
+      +'<td class="'+(o.lossMin>0?'lossy':'')+'">'+(o.lossMin>0?fmt(o.lossMin,0):'&ndash;')+'</td>'
       +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
       +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
     if(isOpen) h+=detailBlock(o,10);
@@ -1199,12 +1211,13 @@ function exportExcel(){
   /* Individual table */
   t+='<table border="1"><tr><td colspan="10" style="font-weight:bold;color:#333D6D">Individual Report</td></tr><tr>'
     +th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('WH (hrs)')
-    +th2('Engagement%')+th2('Type')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
+    +th2('Engagement%')+th2('Type')+th2('Loss Min (min)')+th2('Input Min (min)')+th2('Output Min (min)')+th2('Individual Eff%')+'</tr>';
   S.indShown.forEach(function(o){
     t+='<tr><td>'+esc(o.floor)+'</td>'
       +'<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
       +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
       +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
+      +'<td>'+fmt(o.lossMin,0)+'</td>'
       +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
   });
   t+='</table>';
