@@ -215,7 +215,7 @@ var REPORTS = {
   /* range.html fetches on its own and parks nothing, so Refresh only needs to
      warm the snapshot. No cache keys to drop. */
   range:  { page:'efficiency/range.html',  url:PIB_API,
-            key:'sosl_pib_snapshot_v1', drop:[] },
+            key:'sosl_pib_snapshot_v1', drop:['sosl_pib_data_'] },
   fabric: { page:'compliance/fabric.html', url:FAB_API,
             key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] },
   /* The weekly report aggregates server side and parks nothing, so it has no
