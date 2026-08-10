@@ -692,7 +692,103 @@ function applySnapshot(res){
   resetFilters(); render();
 }
 
+/* The shell's Refresh asks the OPEN page to refresh itself, because only this
+   page knows which date is selected. Refreshing "the latest day" when the user
+   is looking at last Tuesday was simply the wrong answer. */
+function tellDone(err){
+  if(window.parent===window) return;
+  window.parent.postMessage({type:'refresh-done', stamp:STAMP||'', error:err||''}, '*');
+}
+
+/* Drop the cache for ONE day only. Refresh means "re-read what I am looking
+   at", so a refresh of 29 Jul must not throw away yesterday's cached data
+   that the user may switch straight back to. */
+function clearDay(d){
+  try{
+    var kill=[];
+    for(var i=0;i<sessionStorage.length;i++){
+      var k=sessionStorage.key(i);
+      if(!k) continue;
+      if(k===DAYPFX+d) kill.push(k);
+      if(k.indexOf('sosl_det')===0 && k.indexOf(d)>-1) kill.push(k);
+      if(d===LATEST && k===SNAP_KEY) kill.push(k);
+    }
+    kill.forEach(function(k){ sessionStorage.removeItem(k) });
+  }catch(e){}
+  Object.keys(DETAIL).forEach(function(k){ if(k.indexOf(d)===0) delete DETAIL[k] });
+  Object.keys(DETLOADING).forEach(function(k){ if(k.indexOf(d)===0) delete DETLOADING[k] });
+}
+
+/* Refresh runs in two phases.
+     Phase 1, foreground: the date ON SCREEN is re-read and redrawn.
+     Phase 2, background: every OTHER cached date is dropped immediately, so
+       nothing stale can be served, then the most recent few are quietly
+       re-fetched. The user waits only for phase 1. */
+function purgeOtherDays(keep){
+  var gone=[];
+  try{
+    var kill=[];
+    for(var i=0;i<sessionStorage.length;i++){
+      var k=sessionStorage.key(i);
+      if(!k) continue;
+      if(k.indexOf(DAYPFX)===0 && k!==DAYPFX+keep){ kill.push(k); gone.push(k.slice(DAYPFX.length)); }
+      if(k.indexOf('sosl_det')===0 && k.indexOf(keep)<0) kill.push(k);
+    }
+    kill.forEach(function(k){ sessionStorage.removeItem(k) });
+  }catch(e){}
+  Object.keys(DETAIL).forEach(function(k){ if(k.indexOf(keep)!==0) delete DETAIL[k] });
+  Object.keys(DETLOADING).forEach(function(k){ if(k.indexOf(keep)!==0) delete DETLOADING[k] });
+  return gone;
+}
+
+/* Quietly re-fetch a handful of recently viewed days so switching back is
+   still instant. Bounded on purpose: this must never become a stampede. */
+var REWARM_MAX = 4;
+function rewarmDays(list){
+  var pick = list.slice().sort().slice(-REWARM_MAX);
+  var run = function(){
+    pick.forEach(function(d, i){
+      setTimeout(function(){
+        fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d),
+              {cache:'no-store'})
+          .then(function(r){ return r.ok ? r.json() : null })
+          .then(function(res){ if(res && !res.error) cacheSet(DAYPFX+d, res) })
+          .catch(function(){});
+      }, i*700);
+    });
+  };
+  if(window.requestIdleCallback) requestIdleCallback(run,{timeout:6000}); else setTimeout(run,900);
+}
+
+function refreshNow(){
+  var d = DAY || LATEST;
+  clearDay(d);
+  /* The loss-time sync needs the date being viewed, not "the latest". */
+  var url = (d && d===LATEST)
+      ? API_URL+'?action=snapshot&fresh=1&lossdate='+encodeURIComponent(d)
+      : API_URL+'?action=data&fresh=1&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d);
+
+  document.getElementById('content').innerHTML=
+    '<div class="loading"><div class="spin"></div><br>Refreshing '+prettyDate(d)+'&hellip;</div>';
+
+  fetch(url,{cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
+    .then(function(res){
+      if(res.error) throw new Error(res.error);
+      if(d===LATEST){ cacheSet(SNAP_KEY,res); applySnapshot(res); }
+      else {
+        cacheSet(DAYPFX+d,res);
+        DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
+        LOSSR_DAY=''; resetFilters(); render();
+      }
+      tellDone();
+      rewarmDays(purgeOtherDays(d));      /* phase 2, nobody waits for this */
+    })
+    .catch(function(e){ showErr(e); tellDone(e.message); });
+}
+
 window.addEventListener('message',function(ev){
+  if(ev.data && ev.data.type==='do-refresh'){ refreshNow(); return; }
   if(ev.data && ev.data.type==='snapshot-updated'){
     var snap=cacheGet(SNAP_KEY);
     if(snap) applySnapshot(snap);
