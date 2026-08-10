@@ -291,32 +291,39 @@ function setStamp(t){
 
 /* Rebuild server snapshot, cache it, tell the report page to redraw.
    Nothing on screen is dimmed or cleared while this runs. */
+/* ---------- Refresh ----------
+   The shell used to decide what to fetch on the report's behalf, which meant
+   it refreshed the wrong thing: pressing Refresh on the Weekly Fabric report
+   rebuilt the DAILY fabric snapshot, and on any page it ignored the date or
+   range actually on screen.
+
+   Only the open report knows its own state: which day is selected, which
+   range, which presets. So the shell now just asks it to refresh itself and
+   waits for it to report back. Every page implements 'do-refresh'. */
+var REFRESH_TIMEOUT = 90000;   /* a cold rebuild can genuinely take a while */
+var refreshTimer = null;
+
 function doRefresh(){
-  var cfg = REPORTS[curTab];
-  if(!cfg){ alert('No API configured for this report.'); return; }
+  var f = document.getElementById('frame');
+  if(!f || !f.contentWindow){ return; }
   setBusy(true);
-  fetch(cfg.url+'?action=snapshot&fresh=1')
-    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
-    .then(function(res){
-      if(res.error) throw new Error(res.error);
-      try{
-        sessionStorage.setItem(cfg.key, JSON.stringify(res));
-        Object.keys(sessionStorage).forEach(function(k){
-          for(var i=0;i<cfg.drop.length;i++){
-            if(k.indexOf(cfg.drop[i])===0){ sessionStorage.removeItem(k); return; }
-          }
-        });
-      }catch(e){}
-      setStamp(res.generatedAt);
-      var f=document.getElementById('frame');
-      if(f.contentWindow) f.contentWindow.postMessage({type:'snapshot-updated'},'*');
-      setBusy(false);
-    })
-    .catch(function(e){ setBusy(false); alert('Refresh failed: '+e.message); });
+  clearTimeout(refreshTimer);
+  /* If the page never answers, release the button rather than spin for ever. */
+  refreshTimer = setTimeout(function(){ setBusy(false); }, REFRESH_TIMEOUT);
+  f.contentWindow.postMessage({ type:'do-refresh' }, '*');
+}
+
+function refreshDone(msg){
+  clearTimeout(refreshTimer);
+  setBusy(false);
+  if(msg && msg.stamp) setStamp(msg.stamp);
+  if(msg && msg.error) alert('Refresh failed: '+msg.error);
 }
 
 window.addEventListener('message', function(ev){
-  if(ev.data && ev.data.type==='stamp') setStamp(ev.data.value);
+  if(!ev.data) return;
+  if(ev.data.type==='stamp')        setStamp(ev.data.value);
+  if(ev.data.type==='refresh-done') refreshDone(ev.data);
 });
 
 /* ---------- keep the menu in step with what is actually on screen ----------
