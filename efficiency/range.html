@@ -400,11 +400,49 @@ function cellText(c,r){
 
 /* ---------- boot ---------- */
 
+/* ---------- session cache ----------
+   Same pattern as the other reports in this shell. Whatever was fetched last is
+   parked in sessionStorage and painted immediately on the next visit, then a
+   fresh copy is pulled in the background and swapped in. Switching tabs feels
+   instant instead of reloading from zero every time. */
+var SNAP_KEY='sosl_pib_snapshot_v1', DATA_PFX='sosl_pib_data_';
+
+function ssGet(k){ try{ var v=sessionStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function ssSet(k,v){ try{ sessionStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function ssClear(){
+  try{
+    sessionStorage.removeItem(SNAP_KEY);
+    for(var i=sessionStorage.length-1;i>=0;i--){
+      var k=sessionStorage.key(i);
+      if(k && k.indexOf(DATA_PFX)===0) sessionStorage.removeItem(k);
+    }
+  }catch(e){}
+}
+
 window.addEventListener('load', function(){
+  var c=ssGet(SNAP_KEY);
+  if(c && c.ok){
+    SNAP=c; buildPeriod(); buildChips(); load();
+    getSnapshot(false);            /* quietly check for a newer one */
+  }else{
+    getSnapshot(true);
+  }
+});
+
+function getSnapshot(initial){
   fetch(PIB_API+'?action=snapshot').then(function(r){return r.json()}).then(function(s){
-    if(!s.ok){ fail(s.msg); return; }
-    SNAP=s; buildPeriod(); buildChips(); load();
-  }).catch(fail);
+    if(!s.ok){ if(initial) fail(s.msg); return; }
+    ssSet(SNAP_KEY,s);
+    SNAP=s;
+    /* Only build the period selector on a cold start. Rebuilding it later would
+       reset the week the user had chosen, mid-read. */
+    if(initial){ buildPeriod(); buildChips(); load(); }
+  }).catch(function(e){ if(initial) fail(e); });
+}
+
+/* The shell's Refresh button tells the iframe to drop everything and re-pull. */
+window.addEventListener('message', function(ev){
+  if(ev.data && ev.data.type==='snapshot-updated'){ ssClear(); getSnapshot(true); }
 });
 
 function fail(e){
@@ -492,7 +530,14 @@ function periodLabel(){
 }
 function scopeLabel(){ return scopeSel ? (SOL_FLOORS.concat(SSL_FLOORS).indexOf(scopeSel)>=0 ? ('Floor '+scopeSel) : scopeSel) : 'All Floors'; }
 
-function load(){
+function applyData(d){
+  RAW=d.rows||[]; EFFG=d.eff||{cols:[],rows:[]}; OEEG=d.oee||{cols:[],rows:[]};
+  STAMP=d.stamp||''; THROUGH=d.through||'';
+  buildChips();          /* the date chips are built from the rows themselves */
+  render();
+}
+
+function load(force){
   var v=el('period').value, q;
   if(v==='custom'){
     el('f1label').textContent=prettyDate(el('f1').value);
@@ -501,12 +546,16 @@ function load(){
   }else if(v==='all'){ q='?action=data'; }
   else { q='?action=data&week='+encodeURIComponent(v.slice(1)); }
 
-  el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
+  var ck=DATA_PFX+q;
+  var cached = force ? null : ssGet(ck);
+  if(cached && cached.ok) applyData(cached);
+  else el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
+
   fetch(PIB_API+q).then(function(r){return r.json()}).then(function(d){
-    if(!d.ok){ fail(d.msg); return; }
-    RAW=d.rows||[]; EFFG=d.eff||{cols:[],rows:[]}; OEEG=d.oee||{cols:[],rows:[]};
-    STAMP=d.stamp||''; THROUGH=d.through||''; render();
-  }).catch(fail);
+    if(!d.ok){ if(!cached) fail(d.msg); return; }
+    ssSet(ck,d);
+    applyData(d);
+  }).catch(function(e){ if(!cached) fail(e); });
 }
 
 /* ---------- scope ---------- */
@@ -783,9 +832,11 @@ function renderMatrix(list){
         b+='<td class="c sc '+scClass(v,MX.max)+'" data-op="'+esc(key)+'" data-d="'+d+'">'+fmt(v,1)+'</td>';
       }
     });
+    /* No data-op on Days, Total, Average or Indv N/C. They are simple roll-ups
+       of the row you can already see, so a hover card would only get in the way. */
     b+='<td class="mono">'+o.days+'</td>'
-     + '<td class="mono tot sc" data-op="'+esc(key)+'" data-k="total">'+fmt(o.total,1)+'</td>'
-     + '<td class="mono tot sc" data-op="'+esc(key)+'" data-k="avg">'+fmt(o.avg,1)+'</td>'
+     + '<td class="mono tot">'+fmt(o.total,1)+'</td>'
+     + '<td class="mono tot">'+fmt(o.avg,1)+'</td>'
      + '<td class="mono">'+(o.unav||'')+'</td></tr>';
   });
 
@@ -813,29 +864,13 @@ function tipRow(a,b){ return '<span>'+a+'</span><span>'+b+'</span>'; }
 function buildTip(td){
   var o=MROWS[td.getAttribute('data-op')];
   if(!o) return '';
-  var d=td.getAttribute('data-d'), k=td.getAttribute('data-k'), MX=METRICS[metric];
+  var d=td.getAttribute('data-d'), MX=METRICS[metric];
+  if(!d) return '';
 
   var head='<h4>'+esc(o.name||o.opId)+'</h4>'
          + '<div class="sub">'+esc(padId(o.opId))+'  &middot;  Floor '+esc(o.floor)
-         + (d?('  &middot;  '+prettyDate(d)):'')+'</div>';
+         + '  &middot;  '+prettyDate(d)+'</div>';
 
-  /* Total and Average columns */
-  if(k){
-    var vals=Object.keys(o.s).sort().map(function(x){return o.s[x]});
-    return head
-      + '<div class="g">'
-      + tipRow('Metric', MX.label)
-      + tipRow('Days with a record', o.days)
-      + tipRow('Sum of daily scores', fmt(o.total,1))
-      + tipRow('Individual not counted', o.unav||0)
-      + '</div>'
-      + '<div class="r"><span>'+(k==='total'?'Total':'Average')+'</span><span>'
-      + (k==='total'? fmt(o.total,1) : fmt(o.total,1)+' / '+o.days+' = '+fmt(o.avg,1))
-      + '</span></div>'
-      + '<div class="note">Out of '+(MX.max*(k==='total'?o.days:1))+' possible</div>';
-  }
-
-  /* a single day cell */
   var r=o.raw[d];
   if(!r) return head+'<div class="note">No record for this date.</div>';
 
