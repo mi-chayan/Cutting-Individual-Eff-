@@ -484,10 +484,12 @@ function rowCls(v,m,id){
   return m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '');
 }
 function minsCell(v,m){ return v.unav ? '<span class="pill un">PIB N/A</span>' : (m||''); }
+/* Whether the row reached the sheet, nothing more. The minutes and the
+   unavailable flag are already visible in their own columns on the same row,
+   so repeating them here was noise. */
 function statCell(s){
-  if(!s) return '<span class="pill no">Not submitted</span>';
-  if(s.unav) return '<span class="pill un">Saved &middot; PIB N/A</span>';
-  return '<span class="pill sv">Saved '+s.min+' min</span>';
+  return s ? '<span class="pill sv">Submitted</span>'
+           : '<span class="pill no">Not submitted</span>';
 }
 
 /* ---------- edits, no rebuild ---------- */
