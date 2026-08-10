@@ -1007,7 +1007,16 @@ function xlsWrap(t,sheetName,fileName){
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
     +'<x:Name>'+sheetName+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
-    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'<script>
+/* This page holds no data of its own yet. It still has to answer the shell's
+   Refresh, otherwise the button would spin until its timeout. */
+window.addEventListener('message',function(ev){
+  if(ev.data && ev.data.type==='do-refresh' && window.parent!==window){
+    window.parent.postMessage({type:'refresh-done', stamp:''}, '*');
+  }
+});
+</script>
+</body></html>';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=fileName;
