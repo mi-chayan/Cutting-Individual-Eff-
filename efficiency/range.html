@@ -91,6 +91,16 @@
   thead th .d2{display:block;font-size:8.5px;font-weight:600;opacity:.7;letter-spacing:0}
   thead th.wr{white-space:normal;width:58px;min-width:58px;line-height:1.15}
   tbody td.wr{width:58px;min-width:58px}
+  /* Two-line heading: the label reads as a label and the unit sits beneath it in
+     small muted type, instead of both fighting for room inside one phrase. */
+  thead th.two{white-space:normal;line-height:1.2;vertical-align:bottom;padding:7px 8px}
+  thead th .u{display:block;font-size:8.5px;font-weight:600;opacity:.6;
+              letter-spacing:.2px;text-transform:none;margin-top:2px}
+  table.fixed{table-layout:fixed}
+  /* faint rules marking where the band-count block begins and ends */
+  thead th.bs,tbody td.bs{border-left:2px solid #DDE1EC}
+  thead th.be,tbody td.be{border-right:2px solid #DDE1EC}
+  tr.totalrow td.bs,tr.totalrow td.be{border-color:rgba(255,255,255,.28)}
   tbody td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   tbody td.l{text-align:left}
   tbody td.c{text-align:center}
@@ -262,7 +272,8 @@
 
   <div class="card">
     <div class="hd"><span id="tblTitle">Score Matrix</span></div>
-    <div class="scroll"><table>
+    <div class="scroll"><table id="mainTbl">
+      <colgroup id="cg"></colgroup>
       <thead id="th"></thead>
       <tbody id="tb"><tr><td class="loading" colspan="15">Loading&hellip;</td></tr></tbody>
     </table></div>
@@ -607,40 +618,54 @@ function renderSummary(list){
 
   el('ph3').textContent=sol.length+ssl.length+other.length;
 
+  /* Fixed widths sized to the content. Left to itself the browser gave Input and
+     Output half the table and squeezed the four band columns into nothing. */
+  el('cg').innerHTML=
+      '<col style="width:96px"><col style="width:82px"><col style="width:82px">'
+    + '<col style="width:104px"><col style="width:104px"><col style="width:92px">'
+    + '<col style="width:96px"><col style="width:84px"><col style="width:84px">'
+    + '<col style="width:74px"><col style="width:74px"><col style="width:74px"><col style="width:74px">'
+    + '<col style="width:88px">';
+  el('mainTbl').classList.add('fixed');
+
+  function hd(label,unit,cls){
+    return '<th class="two '+(cls||'')+'">'+label+'<span class="u">'+unit+'</span></th>';
+  }
   el('th').innerHTML='<tr>'
-    + '<th class="l">Floor</th>'
-    + '<th class="wr">Operators (count)</th>'
-    + '<th class="wr">Avg Days Worked (count)</th>'
-    + '<th>Input (min)</th>'
-    + '<th>Output (min)</th>'
-    + '<th>Efficiency (%)</th>'
-    + '<th class="wr">Avg '+esc(MX.label)+' (points)</th>'
-    + '<th class="wr">Best Operator (points)</th>'
-    + '<th class="wr">Lowest Operator (points)</th>'
-    + '<th class="c wr">&ge;90% (operators)</th>'
-    + '<th class="c wr">75&ndash;89% (operators)</th>'
-    + '<th class="c wr">50&ndash;74% (operators)</th>'
-    + '<th class="c wr">&lt;50% (operators)</th>'
-    + '<th class="c wr">Indv Not Counted (days)</th></tr>';
+    + '<th class="two l">Floor</th>'
+    + hd('Operators','count')
+    + hd('Avg Days<br>Worked','count')
+    + hd('Input','minutes')
+    + hd('Output','minutes')
+    + hd('Efficiency','%')
+    + hd('Avg '+esc(MX.label),'points')
+    + hd('Best<br>Operator','points')
+    + hd('Lowest<br>Operator','points')
+    + hd('&ge;90%','operators','c bs')
+    + hd('75&ndash;89%','operators','c')
+    + hd('50&ndash;74%','operators','c')
+    + hd('&lt;50%','operators','c be')
+    + hd('Indv Not<br>Counted','days','c')
+    + '</tr>';
 
   function line(label,rows,kind){
     var s=statsOf(rows);
     if(!s.nOps && kind==='floor') return '';
     return '<tr class="'+(kind||'')+'">'
      + '<td class="l"><b>'+esc(label)+'</b></td>'
-     + '<td class="mono wr">'+s.nOps+'</td>'
-     + '<td class="mono wr">'+fmt(s.avgDays,1)+'</td>'
+     + '<td class="mono">'+s.nOps+'</td>'
+     + '<td class="mono">'+fmt(s.avgDays,1)+'</td>'
      + '<td class="mono">'+fmt(s.inM,0)+'</td>'
      + '<td class="mono">'+fmt(s.outM,0)+'</td>'
      + '<td class="mono">'+fmt(s.eff*100,1)+'%</td>'
-     + '<td class="mono wr sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
-     + '<td class="mono wr">'+fmt(s.best,1)+'</td>'
-     + '<td class="mono wr">'+fmt(s.worst,1)+'</td>'
-     + '<td class="c mono wr">'+(s.b.top||'')+'</td>'
-     + '<td class="c mono wr">'+(s.b.hi||'')+'</td>'
-     + '<td class="c mono wr">'+(s.b.mid||'')+'</td>'
-     + '<td class="c mono wr">'+(s.b.lo||'')+'</td>'
-     + '<td class="c mono wr">'+(s.unav||'')+'</td></tr>';
+     + '<td class="mono sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
+     + '<td class="mono">'+fmt(s.best,1)+'</td>'
+     + '<td class="mono">'+fmt(s.worst,1)+'</td>'
+     + '<td class="c mono bs">'+(s.b.top||'&ndash;')+'</td>'
+     + '<td class="c mono">'+(s.b.hi||'&ndash;')+'</td>'
+     + '<td class="c mono">'+(s.b.mid||'&ndash;')+'</td>'
+     + '<td class="c mono be">'+(s.b.lo||'&ndash;')+'</td>'
+     + '<td class="c mono">'+(s.unav||'&ndash;')+'</td></tr>';
   }
   function pick(fl){ return list.filter(function(r){ return fl.indexOf(r.floor)>=0; }); }
 
@@ -660,6 +685,7 @@ function renderSummary(list){
 
 function renderTable(list){
   el('ph3').textContent=list.length;
+  el('cg').innerHTML=''; el('mainTbl').classList.remove('fixed');
   if(sortKey){
     var d=sortDir;
     list=list.slice().sort(function(a,b){
@@ -713,6 +739,7 @@ function buildMatrix(list){
 function renderMatrix(list){
   var M=buildMatrix(list), MX=METRICS[metric];
   el('ph3').textContent=M.rows.length;
+  el('cg').innerHTML=''; el('mainTbl').classList.remove('fixed');
   MROWS={}; M.rows.forEach(function(o){ MROWS[o.floor+'|'+o.opId]=o; });
 
   var rows=M.rows.slice().sort(function(a,b){
