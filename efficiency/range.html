@@ -443,9 +443,56 @@ function getSnapshot(initial){
   }).catch(function(e){ if(initial) fail(e); });
 }
 
-/* The shell's Refresh button tells the iframe to drop everything and re-pull. */
+/* ---------- Refresh ----------
+   The shell asks whichever report is open to refresh itself, because only this
+   page knows which PERIOD is selected. Two phases:
+     1. foreground: the period on screen is re-pulled, ignoring the cache
+     2. background: every other cached period is dropped, so nothing stale can
+        be served from it afterwards
+   The shell is told when phase 1 is done, so its button stops spinning. */
+function tellDone(err){
+  if(window.parent===window) return;
+  window.parent.postMessage({type:'refresh-done', stamp:(STAMP||''), error:err||''}, '*');
+}
+
+function refreshNow(){
+  el('tb').innerHTML='<tr><td colspan="15" class="loading">Refreshing&hellip;</td></tr>';
+
+  /* Phase 2 first, so no stale period can be served while phase 1 runs. */
+  var keep = currentKey();
+  try{
+    for(var i=sessionStorage.length-1;i>=0;i--){
+      var k=sessionStorage.key(i);
+      if(k && k.indexOf(DATA_PFX)===0 && k!==keep) sessionStorage.removeItem(k);
+    }
+    sessionStorage.removeItem(SNAP_KEY);
+  }catch(e){}
+
+  /* Phase 1: re-pull the period on screen, cache bypassed. */
+  fetch(PIB_API+'?action=snapshot',{cache:'no-store'})
+    .then(function(r){ return r.json() })
+    .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; } })
+    .catch(function(){})
+    .then(function(){
+      load(true);                  /* force = ignore the cached copy */
+      setTimeout(function(){ tellDone(); }, 60);
+    });
+}
+
+/* The cache key load() would use for whatever is selected right now. */
+function currentKey(){
+  var v=el('period').value;
+  if(v==='custom')
+    return DATA_PFX+'?action=data&from='+encodeURIComponent(el('f1').value)
+         +'&to='+encodeURIComponent(el('f2').value);
+  if(v==='all') return DATA_PFX+'?action=data';
+  return DATA_PFX+'?action=data&week='+encodeURIComponent(v.slice(1));
+}
+
 window.addEventListener('message', function(ev){
-  if(ev.data && ev.data.type==='snapshot-updated'){ ssClear(); getSnapshot(true); }
+  if(!ev.data) return;
+  if(ev.data.type==='do-refresh'){ refreshNow(); return; }
+  if(ev.data.type==='snapshot-updated'){ ssClear(); getSnapshot(true); }
 });
 
 function fail(e){
@@ -1007,16 +1054,7 @@ function xlsWrap(t,sheetName,fileName){
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
     +'<x:Name>'+sheetName+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>'
     +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
-    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'<script>
-/* This page holds no data of its own yet. It still has to answer the shell's
-   Refresh, otherwise the button would spin until its timeout. */
-window.addEventListener('message',function(ev){
-  if(ev.data && ev.data.type==='do-refresh' && window.parent!==window){
-    window.parent.postMessage({type:'refresh-done', stamp:''}, '*');
-  }
-});
-</script>
-</body></html>';
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'+t+'</body></html>';
   var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=fileName;
