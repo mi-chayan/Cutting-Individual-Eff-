@@ -71,6 +71,11 @@
   .mchip.on{background:#8A5B12;color:#fff;border-color:#8A5B12}
   /* marks an operator who moved between floors inside the period */
   .movd{font-size:9px;color:#723EC3;opacity:.85;vertical-align:1px}
+  .away{font-size:9px;color:#C77700;vertical-align:1px}
+  .noro{font-size:9px;color:#7A81A0;vertical-align:1px;font-weight:800}
+  /* a central booster belongs to no floor by design */
+  .ctrl{font-size:8.5px;font-weight:800;color:#fff;background:#723EC3;
+        border-radius:20px;padding:1px 6px;letter-spacing:.3px}
   .fsep{width:1px;height:20px;background:var(--line);margin:0 3px}
 
   .wrap{padding:11px 16px 12px;max-width:1560px;margin:0 auto;width:100%;
@@ -427,7 +432,7 @@ function ssClear(){
 window.addEventListener('load', function(){
   var c=ssGet(SNAP_KEY);
   if(c && c.ok){
-    SNAP=c; buildPeriod(); buildChips(); load();
+    SNAP=c; if(c.roster) ROSTER=c.roster; buildPeriod(); buildChips(); load();
     getSnapshot(false);            /* quietly check for a newer one */
   }else{
     getSnapshot(true);
@@ -438,7 +443,7 @@ function getSnapshot(initial){
   fetch(PIB_API+'?action=snapshot').then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ if(initial) fail(s.msg); return; }
     ssSet(SNAP_KEY,s);
-    SNAP=s;
+    SNAP=s; if(s.roster) ROSTER=s.roster;
     /* Only build the period selector on a cold start. Rebuilding it later would
        reset the week the user had chosen, mid-read. */
     if(initial){ buildPeriod(); buildChips(); load(); }
@@ -473,7 +478,7 @@ function refreshNow(){
   /* Phase 1: re-pull the period on screen, cache bypassed. */
   fetch(PIB_API+'?action=snapshot',{cache:'no-store'})
     .then(function(r){ return r.json() })
-    .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; } })
+    .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; if(sn.roster) ROSTER=sn.roster; } })
     .catch(function(){})
     .then(function(){
       load(true);                  /* force = ignore the cached copy */
@@ -592,6 +597,7 @@ function scopeLabel(){ return scopeSel ? (SOL_FLOORS.concat(SSL_FLOORS).indexOf(
 
 function applyData(d){
   RAW=d.rows||[]; EFFG=d.eff||{cols:[],rows:[]}; OEEG=d.oee||{cols:[],rows:[]};
+  if(d.roster) ROSTER=d.roster;
   STAMP=d.stamp||''; THROUGH=d.through||'';
   buildChips();          /* the date chips are built from the rows themselves */
   render();
@@ -705,6 +711,37 @@ function render(){
    floor still shows that person's performance on THAT floor only. */
 var FLOOR_ALL = SOL_FLOORS.concat(SSL_FLOORS);
 
+/* Which floor an operator BELONGS to, taken from the R_<floor> roster tabs in
+   the Loss Time sheet and delivered with the snapshot. This is a fact, unlike
+   "the floor he worked most days on", which is only a guess and is decided
+   arbitrarily on an even split. Keyed with leading zeros stripped so it lines
+   up with the Op IDs in Database_PIB. */
+var ROSTER = {};
+var HOME_CENTRAL = 'CENTRAL';
+/* Priority: the floor STAMPED on the row when it was first seen, then the live
+   roster, then nothing. The stamp is what makes an old report reproducible
+   after a reorganisation, so it must win. */
+function homeFloorOf(opId, stamped){
+  if(stamped) return String(stamped).toUpperCase();
+  return ROSTER[String(opId).replace(/^0+/,'')] || '';
+}
+
+/* Tooltip that explains, in words, why this operator sits on this floor. */
+function floorTitle(o){
+  var t = o.central
+        ? 'Central booster, works across floors. Counted in the Central group, never in a floor headcount'
+        : (o.rostered
+            ? ('Rostered to '+o.mainFloor)
+            : ('No roster line, counted on '+o.mainFloor+', the floor worked most'));
+  if(o.moved)    t += '. Worked on '+o.floorList.length+' floors this period';
+  if(o.awayOnly) t += '. Did not work on his rostered floor at all';
+  return ' title="'+escAttr(t)+'"';
+}
+function escAttr(x){
+  return String(x==null?'':x).replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function personIndex(list){
   var mk=METRICS[metric].k, m={};
 
@@ -714,6 +751,7 @@ function personIndex(list){
       floors:{}, d:{}, raw:{}, unav:0
     });
     o.floors[r.floor] = (o.floors[r.floor]||0) + 1;
+    if(r.home && !o.stampedHome) o.stampedHome = String(r.home).toUpperCase();
 
     /* One operator on two floors on the SAME day is rare but real. The two
        scores are combined weighted by input minutes, so a twenty minute stint
@@ -746,10 +784,26 @@ function personIndex(list){
       var d = o.floors[b]-o.floors[a];          /* most days first */
       return d || (FLOOR_ALL.indexOf(a)-FLOOR_ALL.indexOf(b));
     });
+
+    /* The roster decides where he belongs. Most-days-worked is only the
+       fallback for an operator with no roster line, so nobody drops out of
+       the report because of a missing entry. */
+    var home = homeFloorOf(o.opId, o.stampedHome);
+    o.rostered  = !!home;
+    o.central   = (home === HOME_CENTRAL);
+    o.mainFloor = home || fl[0] || '';
+
+    /* Home floor first in the list, so the column reads "where he belongs,
+       then where else he went". */
+    if(home && home!==HOME_CENTRAL && fl.indexOf(home) > 0){
+      fl = [home].concat(fl.filter(function(x){ return x!==home }));
+    }
     o.floorList = fl;
-    o.floor     = fl.join(', ');   /* what the Floor column shows: "1A, 2B" */
-    o.mainFloor = fl[0] || '';     /* where they mostly worked */
+    o.floor     = fl.join(', ');
     o.moved     = fl.length > 1;
+    /* Worked entirely away from his rostered floor: worth seeing, and a sign
+       the roster may need a line changing. */
+    o.awayOnly  = !!home && home!==HOME_CENTRAL && fl.indexOf(home) < 0;
   });
 
   return m;
@@ -830,8 +884,16 @@ function renderSummary(list){
   var PEOPLE = personIndex(list);
   var PLIST  = Object.keys(PEOPLE).map(function(k){ return PEOPLE[k] });
   function peopleOf(fl){
-    if(!fl) return PLIST;
+    if(!fl) return PLIST;                       /* SOSL overall: everyone, once */
     return PLIST.filter(function(o){ return fl.indexOf(o.mainFloor) >= 0 });
+  }
+  /* Central boosters have no home floor by design. They are counted in their
+     own row so no floor's headcount moves week to week, while the minutes they
+     worked still credit whichever floor got the benefit. */
+  var CENTRAL_PEOPLE = PLIST.filter(function(o){ return o.central });
+  function centralRows(){
+    var ids={}; CENTRAL_PEOPLE.forEach(function(o){ ids[o.opId]=1 });
+    return list.filter(function(r){ return ids[r.opId] });
   }
 
   function line(label,rows,kind,fl){
@@ -861,6 +923,10 @@ function renderSummary(list){
   ssl.forEach(function(f){ h+=line(f, pick([f]), 'floor', [f]); });
   if(ssl.length) h+=line('SSL total', pick(ssl), 'grp', ssl);
   other.forEach(function(f){ h+=line(f, pick([f]), 'floor', [f]); });
+
+  if(CENTRAL_PEOPLE.length){
+    h+=line('Central (boosters)', centralRows(), 'grp', [HOME_CENTRAL]);
+  }
 
   if(!h){ el('tb').innerHTML='<tr><td colspan="14" class="loading">No rows for this selection.</td></tr>'; return; }
   h+=line('SOSL overall', list, 'totalrow', null);
@@ -942,8 +1008,13 @@ function renderMatrix(list){
   rows.forEach(function(o,i){
     tTot+=o.total; tDays+=o.days; tUn+=o.unav;
     b+='<tr><td class="l mono">'+(i+1)+'</td>'
-     + '<td class="l"'+(o.moved?' title="Worked on more than one floor this period"':'')+'>'
-     +   esc(o.floor)+(o.moved?' <span class="movd">&#8644;</span>':'')+'</td>'
+     + '<td class="l"'+floorTitle(o)+'>'
+     +   (o.central ? '<span class="ctrl">Central</span> ' : '')
+     +   esc(o.floor)
+     +   (o.moved?' <span class="movd" title="Worked on more than one floor">&#8644;</span>':'')
+     +   (o.awayOnly?' <span class="away" title="Rostered elsewhere, worked only away this period">&#9888;</span>':'')
+     +   (!o.rostered?' <span class="noro" title="Not found in any floor roster, counted on the floor he worked most">?</span>':'')
+     +   '</td>'
      + '<td class="l mono">'+esc(padId(o.opId))+'</td>'
      + '<td class="l">'+esc(o.name)+'</td>'
      + '<td class="l">'+esc(o.desig)+'</td>'
@@ -1235,6 +1306,11 @@ function exportExcel(){
     ssl.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
     if(ssl.length) t+=row('SSL total',pick(ssl),true,ssl);
     oth.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+    var XC = XL.filter(function(o){ return o.central });
+    if(XC.length){
+      var cid={}; XC.forEach(function(o){ cid[o.opId]=1 });
+      t+=row('Central (boosters)', list.filter(function(r){ return cid[r.opId] }), true, ['CENTRAL']);
+    }
     t+=row('SOSL overall',list,true,null);
     t+='</table>';
   }else{
