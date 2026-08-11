@@ -69,6 +69,8 @@
          font-size:11.5px;font-weight:800;color:#8A5B12;cursor:pointer;white-space:nowrap}
   .mchip:hover{background:var(--cream)}
   .mchip.on{background:#8A5B12;color:#fff;border-color:#8A5B12}
+  /* marks an operator who moved between floors inside the period */
+  .movd{font-size:9px;color:#723EC3;opacity:.85;vertical-align:1px}
   .fsep{width:1px;height:20px;background:var(--line);margin:0 3px}
 
   .wrap{padding:11px 16px 12px;max-width:1560px;margin:0 auto;width:100%;
@@ -688,24 +690,89 @@ function render(){
    the calendar. Absence neither rewards nor punishes him here, it is already
    handled by loss time. The floor figure is then the mean of those operator
    averages, so every man counts once regardless of how many days he worked. */
-function statsOf(rows){
-  var mk=METRICS[metric].k, max=METRICS[metric].max;
-  var ops={}, inM=0, outM=0, unav=0;
-  rows.forEach(function(r){
-    var k=r.floor+'|'+r.opId, v=Number(r[mk])||0;
-    if(!ops[k]) ops[k]={n:0,s:0};
-    ops[k].n++; ops[k].s+=v;
-    inM+=r.inMin; outM+=r.outMin;
-    if(r.unav) unav++;
+/* ---------- people, not floor-people ----------
+   Everything used to be keyed floor|opId, so an operator who spent 5 days on
+   1A and 1 day on 2B became TWO people: two rows in the matrix, counted twice
+   in the operator count, and each fragment got its own weekly average. A one
+   day fragment could then win Best Operator or lose Lowest Operator, while the
+   report claimed to be weekly.
+
+   Two different things are being measured and they need different keys:
+     floor minutes  -> keyed by FLOOR   (the minutes were worked there)
+     person scores  -> keyed by OPERATOR (a person is one person)
+
+   This index is built from whatever is currently in scope, so filtering to one
+   floor still shows that person's performance on THAT floor only. */
+var FLOOR_ALL = SOL_FLOORS.concat(SSL_FLOORS);
+
+function personIndex(list){
+  var mk=METRICS[metric].k, m={};
+
+  list.forEach(function(r){
+    var o = m[r.opId] || (m[r.opId] = {
+      opId:r.opId, name:r.name, desig:r.desig, type:r.type,
+      floors:{}, d:{}, raw:{}, unav:0
+    });
+    o.floors[r.floor] = (o.floors[r.floor]||0) + 1;
+
+    /* One operator on two floors on the SAME day is rare but real. The two
+       scores are combined weighted by input minutes, so a twenty minute stint
+       cannot count as much as a full shift. */
+    var w = Number(r.inMin)||0, v = Number(r[mk])||0;
+    var c = o.d[r.date] || (o.d[r.date] = {sum:0, w:0, plain:0, n:0});
+    c.sum += v*w; c.w += w; c.plain += v; c.n++;
+
+    (o.raw[r.date] = o.raw[r.date] || []).push(r);
+    if(r.unav) o.unav++;
+    if(r.name)  o.name  = r.name;
+    if(r.desig) o.desig = r.desig;
+    if(r.type)  o.type  = r.type;
   });
-  var keys=Object.keys(ops);
-  var avgs=keys.map(function(k){ return ops[k].n?ops[k].s/ops[k].n:0; });
-  var dayc=keys.map(function(k){ return ops[k].n; });
+
+  Object.keys(m).forEach(function(k){
+    var o=m[k], tot=0, nd=0;
+    o.s={};
+    Object.keys(o.d).forEach(function(dt){
+      var c=o.d[dt];
+      var v = c.w>0 ? c.sum/c.w : (c.n ? c.plain/c.n : 0);
+      o.s[dt]=v; tot+=v; nd++;
+    });
+    /* days = distinct DATES worked, not rows. Two floors in one day is one day. */
+    o.days = nd;
+    o.total = tot;
+    o.avg = nd ? tot/nd : 0;
+
+    var fl = Object.keys(o.floors).sort(function(a,b){
+      var d = o.floors[b]-o.floors[a];          /* most days first */
+      return d || (FLOOR_ALL.indexOf(a)-FLOOR_ALL.indexOf(b));
+    });
+    o.floorList = fl;
+    o.floor     = fl.join(', ');   /* what the Floor column shows: "1A, 2B" */
+    o.mainFloor = fl[0] || '';     /* where they mostly worked */
+    o.moved     = fl.length > 1;
+  });
+
+  return m;
+}
+
+/* Person level stats come from `people`; minute totals come from `rows`.
+   Keeping them separate is what makes floor accounting and headcount both
+   correct at the same time. */
+function statsOf(rows, people){
+  var max=METRICS[metric].max;
+  var inM=0, outM=0;
+  rows.forEach(function(r){ inM+=r.inMin; outM+=r.outMin; });
+
+  var ppl = people || [];
+  var avgs = ppl.map(function(o){ return o.avg; });
+  var dayc = ppl.map(function(o){ return o.days; });
+  var unav = ppl.reduce(function(a,o){ return a+(o.unav||0) }, 0);
+
   var b={top:0,hi:0,mid:0,lo:0};
   avgs.forEach(function(v){ b[scClass(v,max)]++; });
   var mean=function(a){ return a.length ? a.reduce(function(x,y){return x+y},0)/a.length : 0; };
   return {
-    nOps:keys.length, avgDays:mean(dayc), inM:inM, outM:outM,
+    nOps:ppl.length, avgDays:mean(dayc), inM:inM, outM:outM,
     eff:(inM>0?outM/inM:0), avg:mean(avgs),
     best:(avgs.length?Math.max.apply(null,avgs):0),
     worst:(avgs.length?Math.min.apply(null,avgs):0),
@@ -755,8 +822,20 @@ function renderSummary(list){
     + hd('Indv Not<br>Counted','days','c')
     + '</tr>';
 
-  function line(label,rows,kind){
-    var s=statsOf(rows);
+  /* Person level stats are attributed to an operator's MAIN floor, the one
+     they worked most days on, and counted there ONCE. Minute totals still come
+     from every row worked on the floor, including visitors. So floor minutes
+     stay honest AND the floor operator counts add up to the real headcount
+     instead of exceeding it. */
+  var PEOPLE = personIndex(list);
+  var PLIST  = Object.keys(PEOPLE).map(function(k){ return PEOPLE[k] });
+  function peopleOf(fl){
+    if(!fl) return PLIST;
+    return PLIST.filter(function(o){ return fl.indexOf(o.mainFloor) >= 0 });
+  }
+
+  function line(label,rows,kind,fl){
+    var s=statsOf(rows, peopleOf(fl));
     if(!s.nOps && kind==='floor') return '';
     return '<tr class="'+(kind||'')+'">'
      + '<td class="l"><b>'+esc(label)+'</b></td>'
@@ -777,14 +856,14 @@ function renderSummary(list){
   function pick(fl){ return list.filter(function(r){ return fl.indexOf(r.floor)>=0; }); }
 
   var h='';
-  sol.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
-  if(sol.length) h+=line('SOL total', pick(sol), 'grp');
-  ssl.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
-  if(ssl.length) h+=line('SSL total', pick(ssl), 'grp');
-  other.forEach(function(f){ h+=line(f, pick([f]), 'floor'); });
+  sol.forEach(function(f){ h+=line(f, pick([f]), 'floor', [f]); });
+  if(sol.length) h+=line('SOL total', pick(sol), 'grp', sol);
+  ssl.forEach(function(f){ h+=line(f, pick([f]), 'floor', [f]); });
+  if(ssl.length) h+=line('SSL total', pick(ssl), 'grp', ssl);
+  other.forEach(function(f){ h+=line(f, pick([f]), 'floor', [f]); });
 
   if(!h){ el('tb').innerHTML='<tr><td colspan="14" class="loading">No rows for this selection.</td></tr>'; return; }
-  h+=line('SOSL overall', list, 'totalrow');
+  h+=line('SOSL overall', list, 'totalrow', null);
   el('tb').innerHTML=h;
 }
 
@@ -823,23 +902,10 @@ function renderTable(list){
 /* ---------- view: score matrix ---------- */
 
 function buildMatrix(list){
-  var mk=METRICS[metric].k, dates={}, m={};
-  list.forEach(function(r){
-    dates[r.date]=true;
-    var k=r.floor+'|'+r.opId;
-    if(!m[k]) m[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,type:r.type,
-                    s:{},raw:{},days:0,total:0,unav:0};
-    var o=m[k], v=Number(r[mk])||0;
-    o.s[r.date]=v;
-    o.raw[r.date]=r;          /* kept so the hover card can show the breakdown */
-    o.days++; o.total+=v;
-    if(r.unav) o.unav++;
-    if(r.desig) o.desig=r.desig;
-    if(r.type)  o.type=r.type;
-  });
-  var rows=Object.keys(m).map(function(k){
-    var o=m[k]; o.avg=o.days?o.total/o.days:0; return o;
-  });
+  var dates={};
+  list.forEach(function(r){ dates[r.date]=true; });
+  var m=personIndex(list);
+  var rows=Object.keys(m).map(function(k){ return m[k]; });
   return {dates:Object.keys(dates).sort(), rows:rows};
 }
 
@@ -847,7 +913,7 @@ function renderMatrix(list){
   var M=buildMatrix(list), MX=METRICS[metric];
   el('ph3').textContent=M.rows.length;
   el('cg').innerHTML=''; el('mainTbl').classList.remove('fixed');
-  MROWS={}; M.rows.forEach(function(o){ MROWS[o.floor+'|'+o.opId]=o; });
+  MROWS={}; M.rows.forEach(function(o){ MROWS[o.opId]=o; });
 
   var rows=M.rows.slice().sort(function(a,b){
     var d=mSortDir, x=a[mSortKey], y=b[mSortKey];
@@ -876,12 +942,13 @@ function renderMatrix(list){
   rows.forEach(function(o,i){
     tTot+=o.total; tDays+=o.days; tUn+=o.unav;
     b+='<tr><td class="l mono">'+(i+1)+'</td>'
-     + '<td class="l">'+esc(o.floor)+'</td>'
+     + '<td class="l"'+(o.moved?' title="Worked on more than one floor this period"':'')+'>'
+     +   esc(o.floor)+(o.moved?' <span class="movd">&#8644;</span>':'')+'</td>'
      + '<td class="l mono">'+esc(padId(o.opId))+'</td>'
      + '<td class="l">'+esc(o.name)+'</td>'
      + '<td class="l">'+esc(o.desig)+'</td>'
      + '<td class="l">'+esc(o.type||'')+'</td>';
-    var key=o.floor+'|'+o.opId;
+    var key=o.opId;
     M.dates.forEach(function(d,j){
       var v=o.s[d];
       if(v===undefined||v===null){ b+='<td class="c sc na">&ndash;</td>'; }
@@ -929,10 +996,18 @@ function buildTip(td){
          + '<div class="sub">'+esc(padId(o.opId))+'  &middot;  Floor '+esc(o.floor)
          + '  &middot;  '+prettyDate(d)+'</div>';
 
-  var r=o.raw[d];
-  if(!r) return head+'<div class="note">No record for this date.</div>';
+  var recs=o.raw[d];
+  if(!recs || !recs.length) return head+'<div class="note">No record for this date.</div>';
+
+  /* Two floors on one day is rare but possible, so the card names which floor
+     each record belongs to rather than silently showing one of them. */
+  var multi = recs.length > 1;
+  var r = recs[0];
 
   var g='<div class="g">'
+      + (multi ? tipRow('Floors this day',
+            esc(recs.map(function(x){return x.floor}).join(', '))) : '')
+      + tipRow('Floor', esc(r.floor))
       + tipRow('Input min',  fmt(r.inMin,1))
       + tipRow('Output min', fmt(r.outMin,1))
       + tipRow('Indv. Eff%', fmt((r.eff||0)*100,2)+'%')
@@ -1137,8 +1212,15 @@ function exportExcel(){
      + th2('Indv Not Counted (days)')+'</tr>';
 
     var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
-    var row=function(label,rows,bold){
-      var s=statsOf(rows), st=bold?' style="font-weight:bold"':'';
+    /* Same rule as the screen: a person is counted once, at their main floor. */
+    var XP = personIndex(list);
+    var XL = Object.keys(XP).map(function(k){ return XP[k] });
+    var peopleOf=function(fl){
+      if(!fl) return XL;
+      return XL.filter(function(o){ return fl.indexOf(o.mainFloor)>=0 });
+    };
+    var row=function(label,rows,bold,fl){
+      var s=statsOf(rows, peopleOf(fl)), st=bold?' style="font-weight:bold"':'';
       return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td>'
        + '<td>'+(Math.round(s.avgDays*10)/10)+'</td>'
        + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
@@ -1148,12 +1230,12 @@ function exportExcel(){
        + '<td>'+s.b.top+'</td><td>'+s.b.hi+'</td><td>'+s.b.mid+'</td><td>'+s.b.lo+'</td>'
        + '<td>'+s.unav+'</td></tr>';
     };
-    sol.forEach(function(f){ t+=row(f,pick([f])); });
-    if(sol.length) t+=row('SOL total',pick(sol),true);
-    ssl.forEach(function(f){ t+=row(f,pick([f])); });
-    if(ssl.length) t+=row('SSL total',pick(ssl),true);
-    oth.forEach(function(f){ t+=row(f,pick([f])); });
-    t+=row('SOSL overall',list,true);
+    sol.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+    if(sol.length) t+=row('SOL total',pick(sol),true,sol);
+    ssl.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+    if(ssl.length) t+=row('SSL total',pick(ssl),true,ssl);
+    oth.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+    t+=row('SOSL overall',list,true,null);
     t+='</table>';
   }else{
     t+='<table border="1"><tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
