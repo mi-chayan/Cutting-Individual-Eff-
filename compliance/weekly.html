@@ -337,8 +337,10 @@
           title="SNOWTEX week: Wednesday to Tuesday. From this week's Wednesday up to the latest day with data.">This Week</button>
   <button class="mini" id="p_lw"  onclick="preset('lw')"
           title="SNOWTEX week: Wednesday to Tuesday. The full week before this one.">Last Week</button>
-  <button class="mini" id="p_d7"  onclick="preset('d7')">Last 7 Days</button>
-  <button class="mini" id="p_d30" onclick="preset('d30')">Last 30 Days</button>
+  <button class="mini" id="p_d7"  onclick="preset('d7')"
+          title="The last 7 days that actually have data in the sheet, not 7 calendar days.">Last 7 Days</button>
+  <button class="mini" id="p_d30" onclick="preset('d30')"
+          title="The last 30 days that actually have data in the sheet, not 30 calendar days.">Last 30 Days</button>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -582,6 +584,20 @@ function busy(msg){
   $('content').innerHTML='<div class="loading"><div class="spin"></div><br>'+esc(msg)+'</div>';
 }
 
+/* "Last N Days" counts DAYS THAT HAVE DATA, not calendar days.
+   Counting back on the calendar gave a range like 4 Aug to 10 Aug that held
+   only 4 days of data, because Fridays and any unpushed day are simply not in
+   the sheet. Asking for the last 7 days and being shown 4 is not what anyone
+   means. So the last N entries of the available-dates list are taken, and the
+   From and To boxes are set to whatever those actually span.
+   This Week and Last Week stay calendar based on purpose: a week IS a calendar
+   thing, and Wed to Tue is the SNOWTEX definition. */
+function lastNDataDays(n){
+  if(!DATES.length) return null;
+  var pick = DATES.slice(-n);
+  return { from: pick[0], to: pick[pick.length-1], count: pick.length };
+}
+
 function applyPreset(which){
   if(!LATEST) return;
   var ws=weekStart(LATEST);
@@ -596,8 +612,14 @@ function applyPreset(which){
     var s=addDays(ws,-WEEK_LEN);
     markPreset('p_lw'); setRange(s,weekEnd(s));
   }
-  else if(which==='d7'){ markPreset('p_d7'); setRange(addDays(LATEST,-6),LATEST) }
-  else { markPreset('p_d30'); setRange(addDays(LATEST,-29),LATEST) }
+  else if(which==='d7'){
+    var r=lastNDataDays(7);
+    markPreset('p_d7'); if(r) setRange(r.from,r.to);
+  }
+  else {
+    var r30=lastNDataDays(30);
+    markPreset('p_d30'); if(r30) setRange(r30.from,r30.to);
+  }
 }
 
 /* ---------- load: only the days we do not already hold ---------- */
