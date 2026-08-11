@@ -546,10 +546,18 @@ function loadReasons(d){
 function paintReasons(){
   var cells=document.querySelectorAll('td.lossy[data-lk]');
   for(var i=0;i<cells.length;i++){
-    var td=cells[i], e=LOSSR[td.getAttribute('data-lk')];
-    var rsn = e ? String(e.reason||'') : '';
-    if(!rsn) continue;
-    td.title = td.getAttribute('data-nm')+' \u2014 '+rsn;
+    var td=cells[i];
+    var e=LOSSR[td.getAttribute('data-lk')];
+    var rsn = e ? String(e.reason||'').trim() : '';
+
+    if(!rsn){
+      /* no reason recorded: make sure no stale marker is left behind */
+      td.removeAttribute('title');
+      td.classList.remove('hasr');
+      var old=td.querySelector('.rdot'); if(old) old.parentNode.removeChild(old);
+      continue;
+    }
+    td.setAttribute('title', (td.getAttribute('data-nm')||'') + ' \u2014 ' + rsn);
     td.classList.add('hasr');
     if(!td.querySelector('.rdot')){
       var dot=document.createElement('span'); dot.className='rdot'; td.appendChild(dot);
@@ -935,13 +943,26 @@ function showErr(e){
 /* The Loss Min cell. Hovering shows WHY the time was lost, which comes from
    column AI of the efficiency sheet. Until that column exists the reason is
    blank and the cell simply has no tooltip, so nothing looks broken. */
+/* The cell carries only its KEY. The tooltip text is attached afterwards with
+   setAttribute, never built into the HTML string.
+   Reason: esc() in this file does not escape double quotes, so a reason such as
+   Machine "A" down silently broke the title attribute and mangled the cell.
+   Filtering to one floor surfaced operators the default 25 row view never
+   showed, which is why it looked like a filtering bug. Setting the attribute
+   through the DOM needs no escaping at all, so the whole class of problem is
+   gone rather than patched. */
 function lossTd(o){
   if(!(o.lossMin>0)) return '<td class="nolss">&ndash;</td>';
-  var r=reasonFor(o.floor,o.opId);
-  return '<td class="lossy'+(r?' hasr':'')+'"'
-       + ' data-lk="'+esc(lossKey(o.floor,o.opId))+'" data-nm="'+esc(o.name)+'"'
-       + (r ? ' title="'+esc(o.name)+' &mdash; '+esc(r)+'"' : '')
-       + '>'+fmt(o.lossMin,0)+(r?'<span class="rdot"></span>':'')+'</td>';
+  return '<td class="lossy" data-lk="'+escAttr(lossKey(o.floor,o.opId))+'"'
+       + ' data-nm="'+escAttr(o.name)+'">'+fmt(o.lossMin,0)+'</td>';
+}
+
+/* esc() is for text between tags. This one is for values inside an attribute,
+   where a quote would end the attribute early. */
+function escAttr(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 /* ---------- aggregation ---------- */
@@ -971,7 +992,15 @@ function operatorAgg(){
        export all agree. No other column is touched. */
     o.avgEng=Math.min(o.eng/o.n,100);
     if(!o.eff) o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
-    o.typeStr=['MS','AS','MC','AC'].filter(function(t){return o.types[t]}).join(', ');
+    /* Types are NOT hardcoded. The old list was ['MS','AS','MC','AC'], so the
+       day numbering operators are added their type would silently vanish from
+       this column. Known types keep their reading order, anything new is
+       appended rather than dropped. */
+    var known=['MS','AS','MC','AC'];
+    var mine=Object.keys(o.types);
+    o.typeStr = known.filter(function(t){ return o.types[t] })
+      .concat(mine.filter(function(t){ return known.indexOf(t)<0 }).sort())
+      .join(', ');
     return o;
   });
 }
