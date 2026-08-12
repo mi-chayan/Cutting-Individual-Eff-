@@ -133,6 +133,14 @@
            color:var(--mut);cursor:pointer}
   .afclear:hover{border-color:var(--red);color:var(--red)}
 
+  /* ---------- Detailed Summary filter bar ---------- */
+  .detbar{display:flex;align-items:center;gap:8px;padding:0 13px 9px}
+  .detq{flex:1 1 auto;min-width:0;font-family:inherit;font-size:12px;font-weight:600;
+        color:var(--txt);padding:7px 11px;border:1px solid var(--line);border-radius:7px;
+        background:#fff}
+  .detq:focus{outline:none;border-color:var(--violet)}
+  .detbar .afclear{margin-left:0;flex:0 0 auto}
+
   table{width:100%;border-collapse:collapse}
   /* Column headings must stay visible while the rows scroll. They pin to the
      top of their own scroll box (.tscroll / .mx), which is why those boxes
@@ -401,8 +409,16 @@ var FLOOR_ORDER = ['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
 var ST = {
   floor: { k:'rate',  d:1,  q:'' },
   fab:   { k:'fails', d:-1, q:'' },
-  con:   { k:'fails', d:-1, q:'' }
+  con:   { k:'fails', d:-1, q:'' },
+  /* the Detailed Summary table at the bottom of the page */
+  det:   { k:'waste', d:-1, q:'' }
 };
+
+/* Which breakdown the Detailed Summary is currently showing. Every one of
+   these already exists in the day aggregates, so switching between them costs
+   nothing: no request, no rebuild, just a redraw. */
+var DET_DIM  = 'floor';
+var DET_QUERY = '';
 
 /* Fabric Type is the only card that filters, and it filters by WHERE the
    fabric was used, not by its name. Same two tier idea as the daily report:
@@ -1039,6 +1055,85 @@ function tableOf(rows,firstHead,t){
   return h;
 }
 
+/* ================= Detailed Summary =================
+   One table, every breakdown. The cards above each answer one fixed question;
+   this answers whichever one is being asked right now.
+
+   Filtering is on the NAME, and it is a plain "contains" match, deliberately.
+   A floor leader typing "dec" wants every Decathlon row and does not want to
+   learn a syntax to get it. Rows are otherwise untouched, so the totals line
+   always describes exactly what is on screen rather than the whole period. */
+var DET_DIMS = [
+  { k:'floor', label:'Floor',        head:'Floor',        src:function(){ return D.byFloor   } },
+  { k:'fab',   label:'Fabric Type',  head:'Fabric Type',  src:function(){ return D.byFabric  } },
+  { k:'buyer', label:'Buyer',        head:'Buyer',        src:function(){ return D.byBuyer   } },
+  { k:'con',   label:'Consignment',  head:'Consignment',  src:function(){ return D.byConsign } },
+  { k:'day',   label:'Date',         head:'Date',         src:function(){ return D.byDay     } }
+];
+
+function detDim(){
+  for(var i=0;i<DET_DIMS.length;i++) if(DET_DIMS[i].k===DET_DIM) return DET_DIMS[i];
+  return DET_DIMS[0];
+}
+function setDetDim(k){ DET_DIM=k; render() }
+function setDetQuery(v){
+  DET_QUERY=String(v||'');
+  /* Redraw only this card, so the cursor stays in the box while typing. */
+  var host=document.getElementById('detbody');
+  if(host) host.innerHTML=detTable();
+  var lbl=document.getElementById('dethint');
+  if(lbl) lbl.textContent=detRows().length+' row(s)';
+}
+function clearDetQuery(){
+  DET_QUERY='';
+  var i=document.getElementById('detq'); if(i) i.value='';
+  render();
+}
+
+function detRows(){
+  var rows=(detDim().src()||[]).filter(function(r){
+    var k=String(r[0]||'').trim();
+    /* A row with no label says nothing and cannot be acted on. */
+    if(!k || k.toUpperCase()==='(BLANK)') return false;
+    if(!DET_QUERY) return true;
+    return k.toLowerCase().indexOf(DET_QUERY.toLowerCase())>=0;
+  });
+  return rows;
+}
+
+function detTable(){
+  var rows=detRows();
+  if(!rows.length){
+    return '<div class="empty">'
+      + (DET_QUERY ? 'Nothing matches &ldquo;'+esc(DET_QUERY)+'&rdquo;.'
+                   : 'Nothing to show for this breakdown.')
+      + '</div>';
+  }
+  return tableOf(rows, detDim().head, 'det');
+}
+
+function detCard(){
+  var h='<div class="card" id="detcard"><div class="hd"><h3>Detailed Summary</h3>'
+   +'<span class="hint" id="dethint">'+detRows().length+' row(s)</span>'
+   +'<span class="push" style="font-size:10.5px;color:var(--mut)">click a heading to sort</span></div>';
+
+  h+='<div class="chips">';
+  DET_DIMS.forEach(function(d){
+    h+='<button class="chip'+(DET_DIM===d.k?' on':'')+'" onclick="setDetDim(\''+d.k+'\')">'
+      + esc(d.label)+'</button>';
+  });
+  h+='</div>';
+
+  h+='<div class="detbar">'
+   +'<input class="detq" id="detq" type="text" placeholder="Filter '+esc(detDim().label.toLowerCase())+'\u2026" '
+   +'value="'+esc(DET_QUERY)+'" oninput="setDetQuery(this.value)">';
+  if(DET_QUERY) h+='<button class="afclear" onclick="clearDetQuery()">Clear</button>';
+  h+='</div>';
+
+  h+='<div id="detbody">'+detTable()+'</div></div>';
+  return h;
+}
+
 /* ---------- bar list ---------- */
 /* One bar, one meaning: its LENGTH is wasted yards, measured against the
    worst fabric in the current scope. Colour carries nothing, so every bar is
@@ -1111,6 +1206,7 @@ function render(){
    +fabricCard()+'</div>';
 
   h+=buyerCard();
+  h+=detCard();
 
   h+='<div class="note"><b>Compliance %</b> is passed rolls divided by total rolls, which reproduces '
    +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. '
@@ -1268,7 +1364,14 @@ function fabricCard(){
    by floor would tell you where a buyer's fabric was cut, not who wasted it.
    Days pushed before 12-Aug-2026 have no Buyer and land in (BLANK). */
 function buyerCard(){
-  var rows = (D && D.byBuyer) || [];
+  /* A day cached before 12-Aug-2026 may still carry a "(BLANK)" bucket from
+     the old shape. DAY_SCHEMA should have thrown those away, but filtering
+     here as well costs nothing and guarantees the table only ever lists real
+     buyers, which is what was asked for. */
+  var rows = ((D && D.byBuyer) || []).filter(function(r){
+    var k=String(r[0]||'').trim().toUpperCase();
+    return k && k!=='(BLANK)';
+  });
   var h='<div class="card" id="buyercard"><div class="hd"><h3>Buyer Wise Wastage Yards</h3>'
    +'<span class="hint">'+rows.length+' buyer(s)</span></div>';
   h+='<div class="barhd"><span class="lft">Buyer</span>'
@@ -1333,7 +1436,7 @@ function exportExcel(){
   t+=mxSect('WASTE YDS BY FLOOR AND DATE','w');
   t+=sect('FLOOR',sortRows(D.byFloor,ST.floor),'Floor');
   t+=sect('FABRIC TYPE',D.byFabric,'Fabric Type');
-  t+=sect('BUYER',D.byBuyer||[],'Buyer');
+  t+=sect('BUYER',(D.byBuyer||[]).filter(function(r){var k=String(r[0]||'').trim().toUpperCase();return k&&k!=='(BLANK)'}),'Buyer');
   t+=sect('CONSIGNMENT',sortRows(D.byConsign,ST.con),'Consignment');
   t+='</table>';
   var blob=new Blob(['﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head>'
