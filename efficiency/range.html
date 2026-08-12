@@ -246,6 +246,7 @@
     <button id="vMat" class="on" onclick="setView('mat')">Score Matrix</button>
     <button id="vTbl" onclick="setView('tbl')">Full Table</button>
     <button id="vSum" onclick="setView('sum')">Summary</button>
+    <button id="vTeam" onclick="setView('team')">Cutting Floor wise Team Efficiency%</button>
   </span>
 
   <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:150px">
@@ -567,7 +568,9 @@ function setView(v){
   el('vMat').classList.toggle('on', v==='mat');
   el('vTbl').classList.toggle('on', v==='tbl');
   el('vSum').classList.toggle('on', v==='sum');
-  el('lgd').classList.toggle('hide', v==='tbl');
+  el('vTeam').classList.toggle('on', v==='team');
+  /* The legend describes the score metric, which the team view does not use. */
+  el('lgd').classList.toggle('hide', v==='tbl' || v==='team');
 
   /* The three views are independent reports, so a filter must never follow the
      user from one into another. Summary showed no floor chips at all, so a
@@ -675,6 +678,14 @@ function render(){
     el('tblTitle').textContent='Summary — '+M.label;
     el('phTitle').textContent='SOSL Cutting Section – PIB Summary ('+M.label+')';
     renderSummary(list);
+  }else if(view==='team'){
+    el('tblTitle').textContent='Cutting Floor wise Team Efficiency%';
+    el('phTitle').textContent='SOSL Cutting Section – Cutting Floor wise Team Efficiency%';
+    /* Deliberately RAW, not list. This view answers "how did each floor do
+       over the whole period", so a floor chip, a single date or a search box
+       would each quietly turn it into a different question. Asked for with no
+       filters, and it stays that way. */
+    renderTeamEff(RAW);
   }else{
     el('tblTitle').textContent='Database PIB';
     el('phTitle').textContent='SOSL Cutting Section – Individual PIB Report';
@@ -832,6 +843,150 @@ function statsOf(rows, people){
     worst:(avgs.length?Math.min.apply(null,avgs):0),
     b:b, unav:unav
   };
+}
+
+/* ================= view: Cutting Floor wise Team Efficiency% =================
+   The same table the Daily report shows, but for the whole period instead of
+   one day, so every date can be read at once.
+
+   The maths is deliberately identical to daily.html:
+       Team Eff% = SUM(Output Min) / SUM(Input Min) * 100
+   Summing the minutes first, rather than averaging each day's percentage, is
+   what makes a long day count more than a short one. Averaging the daily
+   percentages would let a two hour Saturday weigh the same as a full Tuesday
+   and quietly flatter or punish a floor.
+
+   Man Count is DISTINCT operators seen on that floor in the period, not
+   operator-days, so a floor of 30 men reads 30 whether the range is one day or
+   one month.
+
+   Eff% < 65 counts an OPERATOR whose own average over the period is below 65,
+   not every bad day. One poor Tuesday should not put a man in that column if
+   his week was fine. This matches how the Summary view treats its bands.
+
+   No filters by design: this view always covers every floor and every date in
+   the loaded period. ============================================================ */
+function teamEffAgg(rows){
+  var f={}, ppl={};
+
+  function fl(k){
+    return f[k] || (f[k] = {floor:k, inMin:0, outMin:0, ids:{}});
+  }
+
+  rows.forEach(function(r){
+    var floor = r.floor; if(!floor) return;
+    var inn = Number(r.inMin)||0, out = Number(r.outMin)||0;
+
+    var b = fl(floor);
+    b.inMin += inn; b.outMin += out; b.ids[r.opId] = 1;
+
+    /* Per operator per floor, so a man who moved floors is judged on each. */
+    var pk = floor + '|' + r.opId;
+    var p = ppl[pk] || (ppl[pk] = {floor:floor, inMin:0, outMin:0});
+    p.inMin += inn; p.outMin += out;
+  });
+
+  /* Attach the below-65 count once every operator total is complete. */
+  Object.keys(ppl).forEach(function(k){
+    var p = ppl[k];
+    if(p.inMin <= 0) return;                       /* no input, no verdict */
+    var e = p.outMin / p.inMin * 100;
+    var b = f[p.floor]; if(!b) return;
+    b.u65 = b.u65 || 0;
+    if(e < 65) b.u65++;
+  });
+
+  var order = SOL_FLOORS.concat(SSL_FLOORS);
+  var seen  = Object.keys(f);
+  var extra = seen.filter(function(k){ return order.indexOf(k) < 0 }).sort();
+
+  return order.concat(extra)
+    .filter(function(k){ return f[k] })
+    .map(function(k){
+      var b = f[k];
+      b.man = Object.keys(b.ids).length;
+      b.u65 = b.u65 || 0;
+      b.eff = b.inMin > 0 ? (b.outMin / b.inMin * 100) : 0;
+      return b;
+    });
+}
+
+function renderTeamEff(rows){
+  var list = teamEffAgg(rows || []);
+
+  el('showing').textContent = periodLabel() + ' \u00b7 all floors, all dates \u00b7 '
+                            + list.length + ' floor(s)';
+  el('ph3').textContent = list.length;
+
+  el('cg').innerHTML =
+      '<col style="width:120px"><col style="width:120px">'
+    + '<col style="width:150px"><col style="width:140px">'
+    + '<col style="width:130px"><col style="width:130px">';
+  el('mainTbl').classList.add('fixed');
+
+  function hd(label,unit,cls){
+    return '<th class="two '+(cls||'')+'">'+label+'<span class="u">'+unit+'</span></th>';
+  }
+  el('th').innerHTML = '<tr>'
+    + '<th class="two l">Floor</th>'
+    + hd('Man Count','operators')
+    + hd('Team Avg Eff%','%')
+    + hd('Eff% &lt; 65%','operators')
+    + hd('Input','minutes')
+    + hd('Output','minutes')
+    + '</tr>';
+
+  function sum(keys){
+    var t = {inMin:0, outMin:0, u65:0, ids:{}};
+    list.forEach(function(b){
+      if(keys && keys.indexOf(b.floor) < 0) return;
+      t.inMin += b.inMin; t.outMin += b.outMin; t.u65 += b.u65;
+      Object.keys(b.ids).forEach(function(i){ t.ids[i] = 1 });
+    });
+    t.man = Object.keys(t.ids).length;
+    t.eff = t.inMin > 0 ? (t.outMin / t.inMin * 100) : 0;
+    return t;
+  }
+
+  function line(label, b, cls){
+    return '<tr class="' + (cls||'') + '">'
+      + '<td class="l"><b>' + esc(label) + '</b></td>'
+      + '<td class="mono">' + b.man + '</td>'
+      + '<td class="mono ' + effCls(b.eff) + '">' + fmt(b.eff,1) + '%</td>'
+      + '<td class="mono">' + b.u65 + '</td>'
+      + '<td class="mono">' + fmt(b.inMin,0) + '</td>'
+      + '<td class="mono">' + fmt(b.outMin,0) + '</td>'
+      + '</tr>';
+  }
+
+  if(!list.length){
+    el('tb').innerHTML = '<tr><td class="loading" colspan="6">No data in this period.</td></tr>';
+    return;
+  }
+
+  var solHas = list.filter(function(b){ return SOL_FLOORS.indexOf(b.floor) >= 0 });
+  var sslHas = list.filter(function(b){ return SSL_FLOORS.indexOf(b.floor) >= 0 });
+  var other  = list.filter(function(b){
+    return SOL_FLOORS.indexOf(b.floor) < 0 && SSL_FLOORS.indexOf(b.floor) < 0;
+  });
+
+  var h = '';
+  solHas.forEach(function(b){ h += line('Floor ' + b.floor, b); });
+  if(solHas.length) h += line('SOL Total', sum(SOL_FLOORS), 'grp');
+  sslHas.forEach(function(b){ h += line('Floor ' + b.floor, b); });
+  if(sslHas.length) h += line('SSL Total', sum(SSL_FLOORS), 'grp');
+  other.forEach(function(b){ h += line('Floor ' + b.floor, b); });
+  h += line('SOSL Overall', sum(null), 'totalrow');
+
+  el('tb').innerHTML = h;
+}
+
+/* Reuses this page's own band classes rather than inventing new ones, so the
+   Team Efficiency view is coloured exactly like every other table here. */
+function effCls(v){
+  if(v >= 90) return 'sc hi';
+  if(v >= 65) return 'sc mid';
+  return 'sc lo';
 }
 
 function renderSummary(list){

@@ -106,8 +106,28 @@
   .whhint{font-size:9px;font-weight:700;opacity:.65}
   .whv{font-variant-numeric:tabular-nums;font-weight:700}
   .whna{color:var(--mut);opacity:.6}
-  tr.over .mins{color:#B4400F;font-weight:800}
-  tr.over{background:#FFF3E8}
+
+  /* ---------- live Input / Output / Eff% projection ----------
+     A floor leader typing 60 minutes of loss could not see what it did until
+     after submitting and then opening another report. These three columns show
+     the effect while they type: the current figure, an arrow, the projected
+     one. Green means efficiency reads higher, which is what removing input
+     minutes does, and that is exactly the thing they need to understand. */
+  .eh{white-space:nowrap}
+  .ec{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11.5px}
+  .effnow{font-weight:700;color:#40405C}
+  .effarr{margin:0 3px;color:var(--mut);opacity:.7}
+  .effup{font-weight:800;color:#1E8E4E}
+  .effdn{font-weight:800;color:#C77700}
+  .effsame{font-weight:800;color:#40405C}
+  .effbad{font-weight:800;color:#B3261E}
+  /* Over the cap. Loud on purpose: this one blocks the submit, so it must not
+     look like the milder 10 hour warning. */
+  tr.over .mins{color:#B3261E;font-weight:800}
+  tr.over td{background:#FDECEA !important}
+  tr.over .num{border-color:#B3261E;background:#FFF6F5}
+  .overmin{color:#B3261E;font-weight:800;white-space:nowrap;cursor:help}
+  .overmin b{font-weight:800}
   /* master tick that sits in the column heading */
   .allchk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
   .allchk input{width:15px;height:15px;accent-color:#fff;cursor:pointer;margin:0}
@@ -166,7 +186,7 @@
 
     <div class="acts">
       <span id="who" style="font-size:11px;color:var(--mut);font-weight:700"></span>
-      <button class="big reload" id="reloadBtn" onclick="loadDay()">
+      <button class="big reload" id="reloadBtn" onclick="loadDay(true)">
         <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
         Reload
       </button>
@@ -211,10 +231,13 @@
               <th>Loss</th>
               <th>Unit</th>
               <th>Minutes</th>
+              <th class="ctr eh">Input Min<span class="whhint" title="Indv. Input Min from the efficiency sheet. Shows now &rarr; projected as you type.">&nbsp;now &rarr; new</span></th>
+              <th class="ctr eh">Output Min<span class="whhint" title="Indv. Output Min. Loss time does not change this.">&nbsp;fixed</span></th>
+              <th class="ctr eh">Eff %<span class="whhint" title="Output Min divided by Input Min. Shows now &rarr; projected as you type.">&nbsp;now &rarr; new</span></th>
               <th>Reason</th>
               <th>Sheet Status</th>
             </tr></thead>
-            <tbody id="tb"><tr><td colspan="11" class="loading">Loading&hellip;</td></tr></tbody>
+            <tbody id="tb"><tr><td colspan="14" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -250,9 +273,12 @@ var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2Cw
 /* The date matters. A floor leader often enters loss for an earlier day, and
    syncing only "the latest date" would leave that day's Input Min and Eff%
    untouched in the efficiency sheet. */
-function nudgeDashboard(dateStr, done){
+function nudgeDashboard(dateStr, done, floorStr){
   var q = EFF_API+'?action=snapshot&fresh=1'
-        + (dateStr ? '&lossdate='+encodeURIComponent(dateStr) : '');
+        + (dateStr ? '&lossdate='+encodeURIComponent(dateStr) : '')
+        /* Only this floor changed, so only this floor is synced. Without it
+           the script walks all eleven tabs while the user waits. */
+        + (floorStr ? '&lossfloor='+encodeURIComponent(floorStr) : '');
   fetch(q, {cache:'no-store'})
     .then(function(r){ return r.ok ? r.json() : null })
     .then(function(res){ if(done) done(res && res.loss ? res.loss : '') })
@@ -261,18 +287,105 @@ function nudgeDashboard(dateStr, done){
 
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
 var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
-/* Working hour per operator for the selected date, read from the efficiency
-   sheet. Empty when that day's report has not been pushed yet, which is
-   normal and must read as "not pushed yet", never as zero. */
+/* Operators whose typed loss exceeds the minutes that existed on the date.
+   Non-empty means Submit is refused. Kept in one place so the button state
+   and the save check can never disagree with each other. */
+var OVER=[];
+/* Efficiency figures per operator for the selected date, read from the
+   efficiency sheet. Empty when that day's report has not been pushed yet,
+   which is normal and must read as "not pushed yet", never as zero.
+     wh   working hours        inn  Indv. Input Min  (loss already deducted)
+     out  Indv. Output Min     eff  Individual Eff%
+     loss loss minutes ALREADY saved in the sheet */
 var WH={};
+function facts(id){ return WH[String(id).replace(/^0+/,'')] || null; }
 function whOf(id){
-  var v=WH[String(id).replace(/^0+/,'')];
-  return (typeof v==='number' && v>0) ? v : null;
+  var f=facts(id);
+  return (f && typeof f.wh==='number' && f.wh>0) ? f.wh : null;
 }
 function whCell(id){
   var v=whOf(id);
   return v===null ? '<span class="whna" title="The efficiency report for this date has not been pushed yet">&ndash;</span>'
                   : '<span class="whv">'+v.toFixed(2)+'</span>';
+}
+
+/* ---------- live effect of the minutes being typed ----------
+   The sheet computes
+     Indv. Input Min = WH*60 - fixed break - unavailable time - Loss Min
+   Only the last term moves while a floor leader types, and it moves one for
+   one. So the projection below is exact arithmetic, not an estimate:
+     base      = Input Min now + loss ALREADY saved
+     newInput  = base - minutes being typed now
+     newEff%   = Output Min / newInput * 100
+   Output Min does not move with loss. That is the point the floor leader
+   needs to see: the same output over fewer input minutes reads higher. */
+function project(id, mins){
+  var f=facts(id);
+  if(!f || f.inn===null || f.inn===undefined) return null;
+  var base=f.inn + (Number(f.loss)||0);
+  var ni=base - (Number(mins)||0);
+  var no=(f.out===null||f.out===undefined) ? null : f.out;
+  var ne=(no!==null && ni>0) ? (no/ni*100) : null;
+  return { base:base, inn:f.inn, newInn:ni, out:no,
+           eff:f.eff, newEff:ne, over:(ni<=0) };
+}
+
+/* One cell showing "now -> projected". Unchanged values are shown plainly so
+   the arrow only ever appears when the leader has actually changed something. */
+function effCell(id){
+  var f=facts(id);
+  if(!f || f.inn===null || f.inn===undefined)
+    return '<span class="whna" title="The efficiency report for this date has not been pushed yet">&ndash;</span>';
+
+  var v=VAL[id]||blank(), m=toMin(v);
+  var p=project(id, m);
+  var savedLoss=Number(f.loss)||0;
+  var cur=(f.eff===null||f.eff===undefined)?null:f.eff;
+
+  var curTxt=(cur===null)?'&ndash;':cur.toFixed(1)+'%';
+
+  /* Nothing typed and nothing different from what is already saved */
+  if(!p || m===savedLoss) return '<span class="effnow">'+curTxt+'</span>';
+
+  if(p.over){
+    return '<span class="effnow">'+curTxt+'</span>'
+         + '<span class="effarr">&rarr;</span>'
+         + '<span class="effbad" title="This much loss would leave no input minutes at all. Check the figure.">over</span>';
+  }
+  if(p.newEff===null) return '<span class="effnow">'+curTxt+'</span>';
+
+  var up=(cur!==null && p.newEff>cur);
+  var same=(cur!==null && Math.abs(p.newEff-cur)<0.05);
+  var cls=same?'effsame':(up?'effup':'effdn');
+  return '<span class="effnow">'+curTxt+'</span>'
+       + '<span class="effarr">&rarr;</span>'
+       + '<span class="'+cls+'">'+p.newEff.toFixed(1)+'%</span>';
+}
+
+/* Input Min the same way. */
+function inCell(id){
+  var f=facts(id);
+  if(!f || f.inn===null || f.inn===undefined)
+    return '<span class="whna">&ndash;</span>';
+
+  var v=VAL[id]||blank(), m=toMin(v);
+  var p=project(id, m);
+  var savedLoss=Number(f.loss)||0;
+
+  if(!p || m===savedLoss) return '<span class="effnow">'+Math.round(f.inn)+'</span>';
+  if(p.over)
+    return '<span class="effnow">'+Math.round(f.inn)+'</span>'
+         + '<span class="effarr">&rarr;</span><span class="effbad">0</span>';
+
+  return '<span class="effnow">'+Math.round(f.inn)+'</span>'
+       + '<span class="effarr">&rarr;</span>'
+       + '<span class="effdn">'+Math.round(p.newInn)+'</span>';
+}
+
+function outCell(id){
+  var f=facts(id);
+  if(!f || f.out===null || f.out===undefined) return '<span class="whna">&ndash;</span>';
+  return '<span class="effnow">'+Math.round(f.out)+'</span>';
 }
 
 function el(i){return document.getElementById(i)}
@@ -289,16 +402,60 @@ function pretty(iso){
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function blank(){ return {min:'',unit:'Min',reason:'',unav:false}; }
 
+/* Apps Script does not always answer with JSON. When a request runs too long,
+   or Google hiccups, or the deployment is mid-update, Google serves an HTML
+   error page instead. Calling r.json() on that produced the raw browser error
+   "Unexpected token '<', "<!DOCTYPE"... is not valid JSON", which told the
+   floor leader nothing and looked like the app was broken.
+
+   Read the body as TEXT, then decide. Real JSON parses. Anything starting with
+   "<" is Google's HTML, which is a transport failure, not a data failure, so
+   it is worth one silent retry before bothering the user. */
+function readJson(r){
+  return r.text().then(function(t){
+    var head=String(t||'').trim().slice(0,1);
+    if(head==='<'){
+      var e=new Error('The server sent a web page instead of data. '
+        +'That usually means the request took too long. Trying again\u2026');
+      e.isHtml=true;
+      throw e;
+    }
+    try{ return JSON.parse(t); }
+    catch(err){ throw new Error('The server sent something unreadable. Please retry.'); }
+  });
+}
+
+/* One retry, once, only for the HTML case. A second failure is reported
+   properly instead of being hidden behind an endless loop. */
+function withRetry(run){
+  return run().catch(function(e){
+    if(!e || !e.isHtml) throw e;
+    return new Promise(function(res){ setTimeout(res, 1200); }).then(run)
+      .catch(function(e2){
+        if(e2 && e2.isHtml){
+          throw new Error('The server is busy and did not answer in time. '
+            +'Wait a few seconds and press Reload.');
+        }
+        throw e2;
+      });
+  });
+}
+
 function api(params){
   var q=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
-  return fetch(LOSS_API+'?'+q).then(function(r){return r.json()});
+  return withRetry(function(){
+    return fetch(LOSS_API+'?'+q,{cache:'no-store'}).then(readJson);
+  });
 }
+/* Saves are NOT retried automatically. The write is an idempotent upsert so a
+   repeat is harmless to the sheet, but a silent retry would leave the user
+   unsure whether their entry landed. They are told, and they decide. */
 function apiPost(body){
   return fetch(LOSS_API,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(body)
-  }).then(function(r){return r.json()});
+  }).then(readJson);
 }
 
 /* ---------- start ---------- */
@@ -354,14 +511,19 @@ function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
 /* ---------- load ---------- */
 
 function boot(){
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="14" class="loading">Loading…</td></tr>';
   api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
     /* boot sends the working hour on each operator; day sends a lookup map.
        Both are normalised into WH here so the rest of the page has one shape. */
+    /* boot sends the figures ON each operator, day sends them as a lookup map.
+       Both are normalised into WH here so the rest of the page has one shape. */
     WH={}; OPS.forEach(function(o){
-      if(typeof o.wh==='number' && o.wh>0) WH[String(o.id).replace(/^0+/,'')]=o.wh;
+      if(typeof o.wh==='number' && o.wh>0){
+        WH[String(o.id).replace(/^0+/,'')] =
+          { wh:o.wh, inn:o.inn, out:o.out, eff:o.eff, loss:Number(o.loss)||0 };
+      }
     });
     if(!el('dt').value) el('dt').value=TODAY;
     el('dlabel').textContent=pretty(el('dt').value);
@@ -369,15 +531,26 @@ function boot(){
   }).catch(function(e){ fail(e.message) });
 }
 
-function loadDay(){
+/* fresh=true bypasses the 10 minute cache the API keeps on the efficiency
+   figures. Used by the Reload button and straight after a save, when the
+   sheet has just been rewritten and the cached copy is known to be stale. */
+function loadDay(fresh){
   var d=el('dt').value||TODAY;
   el('dlabel').textContent=pretty(d);
   say('smsg','','');
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
-  api({action:'day',token:TOKEN,floor:FLOOR,date:d}).then(function(r){
+  el('tb').innerHTML='<tr><td colspan="14" class="loading">Loading…</td></tr>';
+  var q={action:'day',token:TOKEN,floor:FLOOR,date:d};
+  if(fresh===true) q.fresh=1;
+  api(q).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     WH={};
-    if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)) WH[String(k).replace(/^0+/,'')]=r.wh[k];
+    if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
+      var f=r.wh[k];
+      /* Tolerate the old shape, where the map held a bare number, so a stale
+         deployment of the Apps Script cannot blank the working hour column. */
+      WH[String(k).replace(/^0+/,'')] =
+        (typeof f==='number') ? {wh:f,inn:null,out:null,eff:null,loss:0} : f;
+    }
     apply(r.day); render();
   }).catch(function(e){ fail(e.message) });
 }
@@ -387,7 +560,7 @@ function goToday(){
 }
 
 function fail(m){
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">–</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="14" class="loading">–</td></tr>';
   say('smsg',esc(m||'Something went wrong.'),'r');
   if(String(m||'').indexOf('Session expired')>=0){
     try{ sessionStorage.removeItem(SESS_KEY); }catch(e){}
@@ -449,14 +622,17 @@ function render(){
      + '<td><select id="u_'+o.id+'" '+(v.unav?'disabled':'')+' onchange="setv(\''+o.id+'\',\'unit\',this.value)">'
      +   '<option'+(v.unit==='Min'?' selected':'')+'>Min</option>'
      +   '<option'+(v.unit==='Hr'?' selected':'')+'>Hr</option></select></td>'
-     + '<td class="mono mins" id="m_'+o.id+'">'+minsCell(v,m)+'</td>'
+     + '<td class="mono mins" id="m_'+o.id+'">'+minsCell(v,m,o.id)+'</td>'
+     + '<td class="ctr ec" id="in_'+o.id+'">'+inCell(o.id)+'</td>'
+     + '<td class="ctr ec" id="ot_'+o.id+'">'+outCell(o.id)+'</td>'
+     + '<td class="ctr ec" id="ef_'+o.id+'">'+effCell(o.id)+'</td>'
      + '<td><select class="rsn" onchange="setv(\''+o.id+'\',\'reason\',this.value)">'
      +   '<option value="">&ndash;</option>'
      +   RSN.map(function(r){return '<option'+(v.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
      +   '</select></td>'
      + '<td>'+statCell(s)+'</td></tr>';
   });
-  el('tb').innerHTML = h || '<tr><td colspan="11" class="loading">No operators match.</td></tr>';
+  el('tb').innerHTML = h || '<tr><td colspan="14" class="loading">No operators match.</td></tr>';
   updateKpis();
   syncAllUnav();
 }
@@ -493,17 +669,53 @@ function syncAllUnav(){
    often minutes typed where hours were meant. It is flagged, not blocked: a
    genuine long stoppage does happen and a floor leader must still be able to
    record it. Same stance as the existing over-10-hours warning. */
-function overWh(id,v,m){
-  if(v.unav) return false;
-  var w=whOf(id);
-  return (w!==null && m>0 && m > w*60);
+/* ---------- the real ceiling on a loss entry ----------
+   The sheet computes
+     Indv. Input Min = WH*60 - fixed break - unavailable time - Loss Min
+   so the most loss that can be recorded before Input Min goes NEGATIVE is
+     cap = WH*60 - fixed break - unavailable time
+   which is exactly the "base" the projection already works out:
+     base = current Input Min + loss already saved
+
+   This used to be compared against WH*60 alone, which is too generous: it
+   ignores the break and the unavailable allowance, so an entry could pass the
+   check and still drive Input Min below zero. A negative Input Min does not
+   just spoil one cell, it drags the whole floor's Team Eff% and the KPI with
+   it, because those sum input minutes across the floor.
+
+   Returns null when the efficiency report for that date has not been pushed
+   yet. The cap is genuinely unknown then, so entry is never frozen by a
+   missing report; the softer WARN_MIN warning still applies. */
+function capOf(id){
+  var f=facts(id);
+  if(!f || f.inn===null || f.inn===undefined) return null;
+  var base=f.inn + (Number(f.loss)||0);
+  return base>0 ? base : 0;
 }
+
+/* Over the cap, and therefore refused at submit. */
+function overCap(id,v,m){
+  if(v.unav) return false;                 /* unavailable records no minutes */
+  var cap=capOf(id);
+  return (cap!==null && m>0 && m>cap);
+}
+
 function rowCls(v,m,id){
   if(v.unav) return 'unav';
-  if(overWh(id,v,m)) return 'over';
+  if(overCap(id,v,m)) return 'over';
   return m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '');
 }
-function minsCell(v,m){ return v.unav ? '<span class="pill un">PIB N/A</span>' : (m||''); }
+
+function minsCell(v,m,id){
+  if(v.unav) return '<span class="pill un">PIB N/A</span>';
+  if(id!==undefined && overCap(id,v,m)){
+    var cap=capOf(id);
+    return '<span class="overmin" title="Only '+Math.floor(cap)+' minutes were available on this date. '
+         + 'More loss than that would make Input Min negative. If the operator was out all day, tick Unavailable instead.">'
+         + m+' <b>&gt; '+Math.floor(cap)+'</b></span>';
+  }
+  return (m||'');
+}
 /* Whether the row reached the sheet, nothing more. The minutes and the
    unavailable flag are already visible in their own columns on the same row,
    so repeating them here was noise. */
@@ -538,7 +750,10 @@ function setv(id,k,v){
 
 function touch(id){
   var v=VAL[id]||blank(), m=toMin(v);
-  var mc=el('m_'+id); if(mc) mc.innerHTML=minsCell(v,m);
+  var mc=el('m_'+id); if(mc) mc.innerHTML=minsCell(v,m,id);
+  /* The whole reason the columns are there: they move as the leader types. */
+  var ic=el('in_'+id); if(ic) ic.innerHTML=inCell(id);
+  var ec=el('ef_'+id); if(ec) ec.innerHTML=effCell(id);
   var tr=el('tr_'+id); if(tr) tr.className=rowCls(v,m,id);
 }
 
@@ -547,8 +762,11 @@ function updateKpis(){
   OPS.forEach(function(o){
     var v=VAL[o.id]||blank(), m=toMin(v);
     if(m>0){ tot+=m; cnt++; }
-    if(m>WARN_MIN) warn.push(esc(o.name)+' ('+m+' min)');
-    if(overWh(o.id,v,m)) over.push(esc(o.name)+' '+m+' min vs '+whOf(o.id).toFixed(2)+' hr');
+    /* The 10 hour rule only earns its keep when the real cap is unknown,
+       which is the case until that day's efficiency report is pushed. Once
+       the cap IS known it is both tighter and correct, so it takes over. */
+    if(capOf(o.id)===null && m>WARN_MIN) warn.push(esc(o.name)+' ('+m+' min)');
+    if(overCap(o.id,v,m)) over.push({name:o.name, m:m, cap:Math.floor(capOf(o.id))});
   });
   el('k1').textContent=OPS.length;
   el('k2').textContent=cnt;
@@ -556,32 +774,69 @@ function updateKpis(){
   el('k4').textContent=(tot/60).toFixed(1);
   el('k5').textContent=Object.keys(SAVED).length;
 
+  /* Over the cap BLOCKS the submit, so the button is disabled the moment it
+     happens rather than letting a leader fill the whole floor and only then
+     be refused. */
+  OVER = over;
+  var sb=el('saveBtn');
+  if(sb) sb.disabled = over.length>0;
+
   var m=el('smsg');
-  /* The over-working-hour notice takes priority: it points at a specific
-     operator whose figure cannot be right, which is more actionable than the
-     blanket 10 hour rule. */
-  if(over.length) say('smsg','Loss is longer than the working hour for '+over.join(', ')
-                      +'. Check the Min / Hr unit. You can still submit.','i');
+  /* The over-cap notice takes priority: it names a specific operator whose
+     figure cannot be right, which is more actionable than the blanket rule. */
+  if(over.length){
+    say('smsg','<b>Cannot submit.</b> Loss is more than the minutes available for '
+      + over.map(function(o){ return esc(o.name)+' ('+o.m+' min, only '+o.cap+' available)' }).join(', ')
+      + '. Check the Min / Hr unit. If the operator was out all day, tick <b>Unavailable</b> instead.','r');
+  }
   else if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
-  else if(m.className.indexOf('i')>=0) say('smsg','','');
+  else if(m.className.indexOf('i')>=0 || m.className.indexOf('r')>=0) say('smsg','','');
 }
 
 /* ---------- save ---------- */
 
 function doSave(){
-  var rows=[], bad=[];
+  var rows=[], bad=[], over=[], seen={};
   OPS.forEach(function(o){
     var v=VAL[o.id]||blank(), m=toMin(v);
     if(m<=0 && !v.unav) return;
+
+    /* HARD STOP. More loss than the minutes that existed would drive Indv.
+       Input Min below zero, and a negative input does not stay in one cell:
+       Team Eff% and the KPI both sum input minutes across the floor, so one
+       bad entry drags the whole floor's figure with it. Checked again here
+       and not only in updateKpis, because the button state is a convenience
+       and this is the actual gate. */
+    if(overCap(o.id,v,m)){
+      over.push(esc(o.name)+' ('+m+' min, only '+Math.floor(capOf(o.id))+' available)');
+      return;
+    }
+
     if(!v.reason){ bad.push(o.name); return; }
+
+    /* Belt and braces against a duplicated operator in the list. The server
+       collapses these too, but sending clean rows means the saved count on
+       screen matches what a floor leader actually typed. */
+    var k=String(o.id).replace(/^0+/,'');
+    if(seen[k]) return;
+    seen[k]=1;
+
     rows.push({opId:o.id,min:m,reason:v.reason,unav:!!v.unav});
   });
+
+  if(over.length){
+    say('smsg','<b>Cannot submit.</b> Loss is more than the minutes available for '
+      + over.join(', ') + '. Check whether the unit should be Min or Hr. '
+      + 'If the operator was out for the whole day, tick <b>Unavailable</b> instead of typing the full shift.','r');
+    return;
+  }
   if(bad.length){ say('smsg','Reason missing for: '+esc(bad.join(', ')),'r'); return; }
 
   el('saveBtn').disabled=true; el('reloadBtn').disabled=true;
   say('smsg','Submitting…','i');
   apiPost({action:'save',token:TOKEN,floor:FLOOR,date:el('dt').value,rows:rows}).then(function(r){
-    el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
+    el('reloadBtn').disabled=false;
+    updateKpis();          /* updateKpis owns the Submit button's enabled state */
     if(!r.ok){ fail(r.msg); return; }
     if(r.day){ apply(r.day); render(); }
     say('smsg',esc(r.msg)+' Refreshing the efficiency dashboard\u2026','g');
@@ -590,9 +845,14 @@ function doSave(){
     nudgeDashboard(el('dt').value, function(note){
       say('smsg', esc(r.msg)+' Efficiency dashboard updated'
           + (note ? ' ('+esc(note)+')' : '') + '.', 'g');
-    });
+      /* The sheet has just recalculated, so the projection can be replaced by
+         the real figures. The arrows disappear and the columns settle on the
+         new numbers, which is the confirmation the leader is looking for. */
+      loadDay(true);
+    }, FLOOR);
   }).catch(function(e){
-    el('saveBtn').disabled=false; el('reloadBtn').disabled=false;
+    el('reloadBtn').disabled=false;
+    updateKpis();
     say('smsg','Submit failed. '+esc(e.message),'r');
   });
 }
