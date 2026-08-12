@@ -66,6 +66,34 @@
     font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px}
   .refresh:hover{filter:brightness(1.1)}
   .refresh:disabled{opacity:.75;cursor:default}
+
+  /* ---------- Refresh warning dialog ----------
+     Floor leaders were pressing Refresh while a report was still doing its
+     first load. That cancels nothing on the server, it just queues a second
+     full rebuild behind the first, so the page they were waiting for takes
+     LONGER. The button alone could not teach them that, so it now says so. */
+  .ovl{position:fixed;inset:0;background:rgba(20,22,45,.55);z-index:9000;
+       display:none;align-items:center;justify-content:center;padding:20px}
+  .ovl.on{display:flex}
+  .dlg{background:#fff;border-radius:12px;max-width:430px;width:100%;
+       box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;
+       font-family:inherit;animation:pop .16s ease-out}
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .dlg .dh{padding:14px 18px;font-weight:700;font-size:14.5px;color:#fff}
+  .dlg.warn .dh{background:#C77700}
+  .dlg.stop .dh{background:#B3261E}
+  .dlg .db{padding:16px 18px;font-size:13px;line-height:1.6;color:#333}
+  .dlg .db b{color:#333D6D}
+  .dlg .df{padding:12px 18px 16px;display:flex;gap:9px;justify-content:flex-end}
+  .dlg button{border:0;border-radius:8px;padding:9px 16px;font-size:12.5px;
+              font-weight:600;cursor:pointer;font-family:inherit}
+  .dlg .no{background:#ECECF2;color:#40405C}
+  .dlg .no:hover{background:#DEDEE8}
+  .dlg .yes{background:var(--violet);color:#fff}
+  .dlg .yes:hover{filter:brightness(1.1)}
+  .dlg .ok{background:#333D6D;color:#fff}
+  @media(max-width:520px){ .dlg .df{flex-direction:column-reverse}
+                           .dlg button{width:100%} }
   .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none;flex:0 0 auto}
   .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
@@ -149,6 +177,14 @@
   <div class="hdrright">
     <div class="stamp" id="stamp"><span class="lbl">Last updated</span><b>&ndash;</b></div>
     <button class="refresh" id="rbtn" onclick="doRefresh()" title="Refresh data"><span class="dot"></span><span id="rtxt">Refresh</span></button>
+  </div>
+</div>
+
+<div class="ovl" id="ovl">
+  <div class="dlg" id="dlg">
+    <div class="dh" id="dlgh"></div>
+    <div class="db" id="dlgb"></div>
+    <div class="df" id="dlgf"></div>
   </div>
 </div>
 
@@ -275,6 +311,7 @@ function go(which){
   void f.offsetWidth;                       /* force reflow so the animation restarts */
   f.src = REPORTS[which].page;
   f.classList.add(dir);
+  markLoading();            /* new report, new first load */
 }
 
 function setBusy(on){
@@ -303,27 +340,120 @@ function setStamp(t){
 var REFRESH_TIMEOUT = 90000;   /* a cold rebuild can genuinely take a while */
 var refreshTimer = null;
 
+/* ---------- small dialog ----------
+   Replaces alert() and confirm(). Those are blocking, ugly on a phone, and on
+   some Android browsers they are suppressed inside an iframe host. */
+function dialog(opt){
+  var ovl=document.getElementById('ovl');
+  document.getElementById('dlg').className='dlg '+(opt.kind||'warn');
+  document.getElementById('dlgh').textContent=opt.title||'';
+  document.getElementById('dlgb').innerHTML=opt.body||'';
+  var f=document.getElementById('dlgf'); f.innerHTML='';
+
+  function close(){ ovl.classList.remove('on'); }
+
+  (opt.buttons||[]).forEach(function(b){
+    var el=document.createElement('button');
+    el.className=b.cls||'no';
+    el.textContent=b.label;
+    el.onclick=function(){ close(); if(b.fn) b.fn(); };
+    f.appendChild(el);
+  });
+  ovl.classList.add('on');
+  ovl.onclick=function(e){ if(e.target===ovl) close(); };
+}
+
+/* ---------- is the open report still doing its first load? ----------
+   A report posts its timestamp up ('stamp') the moment it has painted. So
+   "loading" means: we navigated, and no stamp has come back yet. This is
+   tracked in the shell so no report page needs changing. */
+var pageLoading = true;
+var loadStarted = Date.now();
+
+function markLoading(){ pageLoading = true; loadStarted = Date.now(); setStamp(''); }
+function markLoaded(){  pageLoading = false; }
+
+/* ---------- Refresh ----------
+   WHY THE WARNING. Refresh does not cancel anything: it asks the server to
+   rebuild the snapshot from scratch. Pressing it while the report is still
+   loading queues a SECOND full rebuild behind the first, so the page the user
+   is waiting for arrives later, not sooner. They were doing exactly that, then
+   pressing it again because it felt stuck. The button now explains itself. */
 function doRefresh(){
   var f = document.getElementById('frame');
   if(!f || !f.contentWindow){ return; }
+
+  if(pageLoading){
+    var secs = Math.round((Date.now()-loadStarted)/1000);
+    dialog({
+      kind:'stop',
+      title:'The report is still loading',
+      body:'This report has been loading for <b>'+secs+' second'+(secs===1?'':'s')+'</b>.'
+          +'<br><br>Refresh does <b>not</b> cancel it and does <b>not</b> make it faster. '
+          +'It asks the server to rebuild everything again, and that second rebuild '
+          +'has to wait for the first one to finish. Pressing it now makes the wait '
+          +'<b>longer</b>.'
+          +'<br><br>Please wait for the numbers to appear.',
+      buttons:[{label:'OK, I will wait', cls:'ok'}]
+    });
+    return;
+  }
+
+  dialog({
+    kind:'warn',
+    title:'Refresh this report?',
+    body:'This rebuilds the report from the Google Sheet. It normally takes '
+        +'<b>10 to 60 seconds</b>.'
+        +'<br><br>You only need it if someone changed the sheet just now. '
+        +'The report already refreshes itself every morning.'
+        +'<br><br><b>Please press it once</b> and wait. Pressing it again '
+        +'starts another rebuild and slows this one down.',
+    buttons:[
+      {label:'Cancel', cls:'no'},
+      {label:'Yes, refresh', cls:'yes', fn:startRefresh}
+    ]
+  });
+}
+
+function startRefresh(){
+  var f = document.getElementById('frame');
+  if(!f || !f.contentWindow){ return; }
   setBusy(true);
+  pageLoading = true;
+  loadStarted = Date.now();
   clearTimeout(refreshTimer);
   /* If the page never answers, release the button rather than spin for ever. */
-  refreshTimer = setTimeout(function(){ setBusy(false); }, REFRESH_TIMEOUT);
+  refreshTimer = setTimeout(function(){ setBusy(false); markLoaded(); }, REFRESH_TIMEOUT);
   f.contentWindow.postMessage({ type:'do-refresh' }, '*');
 }
 
 function refreshDone(msg){
   clearTimeout(refreshTimer);
   setBusy(false);
+  markLoaded();
   if(msg && msg.stamp) setStamp(msg.stamp);
-  if(msg && msg.error) alert('Refresh failed: '+msg.error);
+  if(msg && msg.error){
+    dialog({
+      kind:'stop', title:'Refresh failed',
+      body:String(msg.error).replace(/</g,'&lt;'),
+      buttons:[{label:'Close', cls:'ok'}]
+    });
+  }
 }
 
 window.addEventListener('message', function(ev){
   if(!ev.data) return;
-  if(ev.data.type==='stamp')        setStamp(ev.data.value);
+  /* A stamp is a report saying "I have painted", which ends the loading state
+     whether it arrived from a first load or from a refresh. */
+  if(ev.data.type==='stamp'){ setStamp(ev.data.value); markLoaded(); }
   if(ev.data.type==='refresh-done') refreshDone(ev.data);
+});
+
+/* A report that paints without posting a stamp would leave the button locked
+   behind the "still loading" warning for ever. The iframe load event is the
+   backstop: give it a few seconds after the frame loads, then release. */
+document.getElementById('frame').addEventListener('load', function(){
+  setTimeout(function(){ markLoaded(); }, 6000);
 });
 
 /* ---------- keep the menu in step with what is actually on screen ----------
