@@ -192,6 +192,10 @@
   tr.mkrow.open .caret{transform:rotate(90deg);border-left-color:var(--violet)}
   tr.detrow>td{padding:0;background:#EFE9FA;border:2px solid var(--violet);border-top:0}
   .detbox{padding:11px 13px}
+  /* Marker-level facts stated once above the roll table, so Buyer does not
+     have to be repeated identically down every roll row. */
+  .detcap{font-size:12px;color:#4A4A6A;margin:0 0 7px;line-height:1.5}
+  .detcap b{color:#333D6D}
   /* No overflow declared here on purpose, so it stays 'visible'. A scroll
      container would become the anchor for the sticky header below and stop it
      pinning to the page. Horizontal scrolling is added back only on narrower
@@ -403,7 +407,11 @@
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
-var SNAP_KEY='fabric_snapshot_v1', DAYPFX='fabric_day_', DETPFX='fabric_det_';
+/* Cache keys carry a version. Bumped to v2 on 12-Aug-2026 when the Buyer
+   column shifted every marker/roll field along by one. A sessionStorage
+   copy saved before that change has the old shape and would paint garbage,
+   so changing the key throws it away instead of trying to read it. */
+var SNAP_KEY='fabric_snapshot_v2', DAYPFX='fabric_day_v2_', DETPFX='fabric_det_v2_';
 
 var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', fabricFilter='', query='', compFilter='all';
@@ -461,8 +469,9 @@ function compLabel(mode){
 }
 function mapMarkers(arr){
   return (arr||[]).map(function(r){
-    return {floor:r[0],date:r[1],markerSL:r[2],cutNo:r[3],fabric:r[4],ml:r[5],mw:r[6],
-            table:r[7],rolls:r[8],fails:r[9],rate:r[10],used:r[11],waste:r[12]};
+    return {floor:r[0],date:r[1],markerSL:r[2],cutNo:r[3],buyer:r[4],fabric:r[5],
+            ml:r[6],mw:r[7],table:r[8],rolls:r[9],fails:r[10],rate:r[11],
+            used:r[12],waste:r[13]};
   });
 }
 function cacheGet(k){ try{var v=sessionStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
@@ -804,6 +813,7 @@ function currentSets(){
     if(query){
       var q=query.toLowerCase();
       if(String(m.cutNo).toLowerCase().indexOf(q)<0
+         && String(m.buyer||'').toLowerCase().indexOf(q)<0
          && String(m.fabric).toLowerCase().indexOf(q)<0
          && String(m.table).toLowerCase().indexOf(q)<0
          && String(m.markerSL).indexOf(q)<0)return false;
@@ -932,15 +942,16 @@ function render(){
     +'<select class="fsel" onchange="compFilter=this.value;expandKey=\'\';render()">'
     +opt('all','All Compliance%',compFilter)+opt('lt90','Below 90%',compFilter)
     +opt('90to98','90% to 98%',compFilter)+opt('gt98','Above 98%',compFilter)+'</select>'
-    +'<input class="search" id="q" placeholder="Search cut no / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
+    +'<input class="search" id="q" placeholder="Search cut no / buyer / fabric / table" value="'+esc(query)+'" oninput="query=this.value;renderKeepFocus()"></div>';
   h+=activeFilterBar();
   h+='<div class="scroll"><table id="mktable"><thead><tr>'
     +mth('Floor','floor')+mth('Marker SL','markerSL','SL')+mth('Cut No','cutNo')
+    +mth('Buyer','buyer')
     +mth('Fabric','fabric')+mth('ML (Yds)','ml','ML','hs')+mth('MW (Inch)','mw','MW')
     +mth('Table','table','Tbl','hs')+mth('Rolls','rolls')+mth('Failed','fails')
     +mth('Compliance%','rate','Comp%')+mth('Wasted Yds','waste','Waste')
     +'</tr></thead><tbody>';
-  if(!S.mkShown.length)h+='<tr><td colspan="11" class="empty">'+emptyMarkerMsg()+'</td></tr>';
+  if(!S.mkShown.length)h+='<tr><td colspan="12" class="empty">'+emptyMarkerMsg()+'</td></tr>';
   S.mkShown.forEach(function(m){
     var k=m.floor+'|'+m.markerSL+'|'+m.cutNo;
     var isOpen=(expandKey===k);
@@ -948,6 +959,7 @@ function render(){
       +'<td><span class="caret"></span>'+m.floor+'</td>'
       +'<td>'+m.markerSL+'</td>'
       +'<td class="l">'+esc(m.cutNo)+'</td>'
+      +'<td class="l">'+esc(m.buyer)+'</td>'
       +'<td class="l">'+esc(m.fabric)+'</td>'
       +'<td class="hs">'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
       +'<td class="hs">'+esc(m.table)+'</td>'
@@ -955,7 +967,7 @@ function render(){
       +'<td class="'+(m.fails?'bad':'')+'">'+m.fails+'</td>'
       +'<td class="pct '+pctClass(m.rate)+'">'+fmt(m.rate,0)+'%</td>'
       +'<td class="'+(m.waste?'waste':'')+'">'+fmt(m.waste,1)+'</td></tr>';
-    if(isOpen) h+=detailBlock(m,11);
+    if(isOpen) h+=detailBlock(m,12);
   });
   h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
     +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+ALLOW_TEXT+' &bull; '
@@ -982,7 +994,7 @@ function fth(label,key,shortLabel){
   var txt='<span class="lbl">'+label+'</span><span class="lblp">'+(shortLabel||label)+'</span>';
   return '<th onclick="setFSort(\''+key+'\')">'+txt+'<span class="arr">'+arr+'</span></th>';
 }
-function setSort(k){ if(sortKey===k)sortDir=-sortDir; else{sortKey=k;sortDir=(k==='floor'||k==='cutNo'||k==='fabric'||k==='table')?1:-1} render() }
+function setSort(k){ if(sortKey===k)sortDir=-sortDir; else{sortKey=k;sortDir=(k==='floor'||k==='cutNo'||k==='buyer'||k==='fabric'||k==='table')?1:-1} render() }
 function setFSort(k){ if(fSortKey===k)fSortDir=-fSortDir; else{fSortKey=k;fSortDir=(k==='floor')?1:-1} render() }
 
 /* ---------- roll detail block ---------- */
@@ -1001,6 +1013,11 @@ function detailBlock(m,colspan){
     return h;
   }
 
+  /* Buyer is a marker-level field, identical on every roll of this marker,
+     so it is stated once here instead of repeated down a whole column. */
+  h+='<div class="detcap">Buyer: <b>'+esc(m.buyer||'-')+'</b>'
+    +' &nbsp;&bull;&nbsp; Cut No: <b>'+esc(m.cutNo)+'</b>'
+    +' &nbsp;&bull;&nbsp; Fabric: <b>'+esc(m.fabric)+'</b></div>';
   h+='<div class="detscroll"><table class="dettable"><thead><tr>'
     +'<th>Roll SL</th><th>Roll QR</th><th>Color</th><th>Roll No</th><th>Consignment</th>'
     +'<th>Shade No</th><th>Shrinkage</th><th>Roll Qty (Yds)</th><th>Roll Width (Inch)</th>'
@@ -1133,12 +1150,12 @@ function exportExcel(){
   var scope=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
 
   var t='';
-  t+='<table><tr><td colspan="11" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Fabric Roll Compliance Report</td></tr>';
-  t+='<tr><td colspan="11">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
+  t+='<table><tr><td colspan="12" style="font-size:15pt;font-weight:bold;color:#333D6D">SOSL Cutting Section &ndash; Daily Fabric Roll Compliance Report</td></tr>';
+  t+='<tr><td colspan="12">Date: '+esc(prettyDate(DAY))+'&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scope)
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
-  t+='<tr><td colspan="11">Fail rule: Roll Width &minus; MW &gt; allowance (1.50 in for padding, quilting, fleece, sherpa; 1.00 in otherwise)'
+  t+='<tr><td colspan="12">Fail rule: Roll Width &minus; MW &gt; allowance (1.50 in for padding, quilting, fleece, sherpa; 1.00 in otherwise)'
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; Allowance) / Roll Width, failed rolls only</td></tr>';
   t+='<tr><td></td></tr></table>';
 
@@ -1174,18 +1191,19 @@ function exportExcel(){
   t+='</table><table><tr><td></td></tr></table>';
 
   /* Marker table */
-  t+='<table border="1"><tr><td colspan="11" style="font-weight:bold;color:#333D6D">Marker wise Roll Compliance</td></tr><tr>'
-    +th2('Floor')+th2('Marker SL')+th2('Cut No')+th2('Fabric Type')+th2('ML (Yds)')+th2('MW (Inch)')
+  t+='<table border="1"><tr><td colspan="12" style="font-weight:bold;color:#333D6D">Marker wise Roll Compliance</td></tr><tr>'
+    +th2('Floor')+th2('Marker SL')+th2('Cut No')+th2('Buyer')+th2('Fabric Type')+th2('ML (Yds)')+th2('MW (Inch)')
     +th2('Table')+th2('Rolls (nos)')+th2('Failed Rolls (nos)')+th2('Compliance %')+th2('Wasted Yds')+'</tr>';
   S.mkShown.forEach(function(m){
     t+='<tr><td>'+esc(m.floor)+'</td><td>'+m.markerSL+'</td>'
       +'<td style="mso-number-format:\'\\@\'">'+esc(m.cutNo)+'</td>'
+      +'<td>'+esc(m.buyer)+'</td>'
       +'<td>'+esc(m.fabric)+'</td><td>'+fmt(m.ml,2)+'</td><td>'+fmt(m.mw,2)+'</td>'
       +'<td>'+esc(m.table)+'</td><td>'+m.rolls+'</td><td>'+m.fails+'</td>'
       +pctTd(m.rate,2)+'<td>'+fmt(m.waste,2)+'</td></tr>';
   });
   t+='</table>';
-  t+='<table><tr><td></td></tr><tr><td colspan="11">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  t+='<table><tr><td></td></tr><tr><td colspan="12">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
 
   var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
     +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'
