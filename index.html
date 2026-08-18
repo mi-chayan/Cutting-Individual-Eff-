@@ -253,11 +253,11 @@ var REPORTS = {
   range:  { page:'efficiency/range.html',  url:PIB_API,
             key:'sosl_pib_snapshot_v1', drop:['sosl_pib_data_'] },
   fabric: { page:'compliance/fabric.html', url:FAB_API,
-            key:'fabric_snapshot_v1', drop:['fabric_day_','fabric_det_'] },
+            key:'fabric_snapshot_v3', drop:['fabric_day_','fabric_det_'] },
   /* The weekly report aggregates server side and parks nothing, so it has no
      snapshot key of its own. Refresh just clears its per-range cache. */
   fabweek:{ page:'compliance/weekly.html', url:FAB_API,
-            key:'fabric_snapshot_v1', drop:['fabric_wk_'] }
+            key:'fabric_snapshot_v3', drop:['fabwk_d_','fabwk_dates'] }
 };
 
 var TABS=['daily','range','fabric','fabweek'], curTab='daily';
@@ -505,7 +505,13 @@ function syncTabFromFrame(){
    itself, exactly as it did before.
    ===================================================================== */
 var WARM_DAYS = 7;      /* how far back to pre-load */
-var WARM_SCHEMA = 3;    /* must match DAY_SCHEMA in weekly.html and Code.gs */
+/* MUST match DAY_SCHEMA in weekly.html and DAYCACHE_VER in the Fabric Code.gs.
+   It sat at 3 while those two moved to 4 and then 5, so every warmed day was
+   thrown away on arrival by the !==WARM_SCHEMA check below and the whole
+   pre-warm did nothing but burn a background fetch on every dashboard load.
+   Nothing errored, which is exactly why it went unnoticed. Bump all three
+   together, or do not bump any of them. */
+var WARM_SCHEMA = 5;
 var WARM_KEY  = 'fabwk_d_', WARM_DATES = 'fabwk_dates';
 
 function warmGet(k){ try{var v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null} }
