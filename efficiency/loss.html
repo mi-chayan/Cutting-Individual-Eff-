@@ -62,6 +62,14 @@
   .big.submit svg{fill:#fff}
   .big.submit:hover{background:#B8323C;border-color:#B8323C;box-shadow:0 4px 14px rgba(214,69,80,.45)}
   .big:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  /* Submit glows once the popup is closed with something unsaved. The whole
+     point of the popup is that it does NOT write, so the one remaining step
+     has to announce itself or a floor leader walks away thinking he is done. */
+  .big.submit.hot{animation:pulse 1.5s ease-in-out infinite}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 3px 10px rgba(214,69,80,.35)}
+    50%{box-shadow:0 0 0 7px rgba(214,69,80,.18),0 3px 10px rgba(214,69,80,.45)}
+  }
   .big.ghost{background:#fff;color:var(--navy);border-color:#C8CDE4;box-shadow:none}
   .big.ghost:hover{background:#F1F2F7}
 
@@ -124,6 +132,8 @@
   .mono{font-variant-numeric:tabular-nums}
   .sl{color:var(--mut);font-weight:700;text-align:right}
   .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
+  /* The Unavailable column is a tick, nothing more. It does not need width. */
+  .chk.sm{width:13px;height:13px}
   .whhint{font-size:9px;font-weight:700;opacity:.65}
   .whv{font-variant-numeric:tabular-nums;font-weight:700}
   .whna{color:var(--mut);opacity:.6}
@@ -181,47 +191,85 @@
          display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(37,42,69,.3);
          transform:translateY(8px);transition:transform .14s}
   .ovl.on .modal{transform:none}
-  .mhd{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+  .mhd{padding:15px 18px;display:flex;align-items:flex-start;gap:12px;
+       background:linear-gradient(135deg,var(--navy),#4A5590);color:#fff;border-radius:14px 14px 0 0}
   .mhd .who{flex:1 1 auto;min-width:0}
-  .mhd .who b{display:block;font-size:16px;font-weight:800;color:var(--navy);
+  .mhd .who b{display:block;font-size:17px;font-weight:800;color:#fff;
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mhd .who span{font-size:11px;color:var(--mut);font-weight:700}
-  .x{background:none;border:0;font-size:24px;line-height:1;color:var(--mut);cursor:pointer;
-     padding:0 4px;font-family:inherit}
-  .x:hover{color:var(--red)}
+  .mhd .who span{font-size:10.5px;color:#C9CFEA;font-weight:700;display:block;margin-top:3px}
+  .mhd .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .mhd .chip{background:rgba(255,255,255,.16);border-radius:6px;padding:3px 8px;
+             font-size:10px;font-weight:800;letter-spacing:.3px}
+  .x{background:rgba(255,255,255,.14);border:0;font-size:20px;line-height:1;color:#fff;cursor:pointer;
+     width:30px;height:30px;border-radius:8px;font-family:inherit;flex:0 0 auto}
+  .x:hover{background:var(--red)}
 
-  /* live effect strip */
-  .fx{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
-      border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .fx div{background:#FAFBFE;padding:9px 12px;text-align:center}
-  .fx .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .fx .v{font-size:15px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  /* ---------- the minute by minute breakdown ----------
+     A floor leader was shown one number, Input Min, and told to trust it. Now
+     the whole subtraction is on screen, so he can see WHERE the minutes went
+     and argue with the right line if something looks wrong. */
+  .fx{padding:13px 18px;background:#FAFBFE;border-bottom:1px solid var(--line)}
+  .fxt{width:100%;border-collapse:collapse;font-size:12px}
+  .fxt td{padding:4px 0;vertical-align:middle}
+  .fxt td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+  .fxt tr.sub td{color:var(--mut);font-weight:600}
+  .fxt tr.sub td.n{color:var(--red)}
+  .fxt tr.mid td{border-top:1px dashed #D5D9EA;padding-top:7px;font-weight:800}
+  .fxt tr.fin td{border-top:2px solid var(--navy);padding-top:8px;font-size:14px;font-weight:800;color:var(--navy)}
+  .fxt tr.fin td.n{font-size:17px}
+  .fxt .hint{font-size:9.5px;color:var(--mut);font-weight:600}
+  .effrow{display:flex;gap:9px;margin-top:11px}
+  .effbox{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;text-align:center}
+  .effbox .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .effbox .v{font-size:16px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
 
   .mbd{padding:15px 18px;overflow-y:auto;flex:1 1 auto}
-  .unavrow{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--line);
-           border-radius:9px;background:#FAFBFE;margin-bottom:13px;cursor:pointer;user-select:none}
-  .unavrow.on{background:#F4EDFB;border-color:#D9C6F5}
-  .unavrow b{font-weight:800;font-size:12.5px}
-  .unavrow span{font-size:10.5px;color:var(--mut);font-weight:600}
+  .sect{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
+        letter-spacing:.8px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .sect:after{content:'';flex:1 1 auto;height:1px;background:var(--line)}
 
-  .erow{display:grid;grid-template-columns:1fr 82px 74px 34px;gap:8px;align-items:center;margin-bottom:8px}
+  /* Unavailable is a MODE, not a field, so it looks like a switch and not like
+     another line of the form. */
+  .unavrow{display:flex;align-items:center;gap:11px;padding:12px 14px;border:2px solid var(--line);
+           border-radius:11px;background:#FAFBFE;margin-bottom:16px;cursor:pointer;user-select:none;
+           transition:background .12s,border-color .12s}
+  .unavrow:hover{border-color:#C8B0EE}
+  .unavrow.on{background:#F4EDFB;border-color:var(--violet)}
+  .unavrow b{font-weight:800;font-size:13px;color:var(--navy)}
+  .unavrow span{font-size:10.5px;color:var(--mut);font-weight:600}
+  .unavrow .keep{display:none;font-size:10px;font-weight:800;color:var(--violet);margin-top:3px}
+  .unavrow.on .keep{display:block}
+
+  /* Each loss line is a card. Fourteen bare inputs in a column all looked the
+     same and there was no way to see at a glance which line was which. */
+  .erow{display:grid;grid-template-columns:24px 1fr 78px 70px 32px;gap:8px;align-items:center;
+        margin-bottom:9px;background:#fff;border:1px solid var(--line);border-radius:10px;
+        padding:9px 10px;transition:border-color .12s,box-shadow .12s}
+  .erow:hover{border-color:#C8B0EE}
+  .erow.filled{border-color:#D9C6F5;background:#FCFAFF;box-shadow:0 1px 3px rgba(114,62,195,.08)}
+  .erow .no{width:24px;height:24px;border-radius:7px;background:#EFE8FB;color:var(--violet);
+            font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .erow.filled .no{background:var(--violet);color:#fff}
   .erow select,.erow input{width:100%;padding:8px 9px;font-size:12.5px}
-  .erow input{text-align:right;font-weight:700}
+  .erow input{text-align:right;font-weight:800}
   .del{background:#fff;border:1px solid var(--line);border-radius:7px;color:var(--mut);
        height:34px;cursor:pointer;font-size:16px;line-height:1;font-family:inherit}
   .del:hover{border-color:var(--red);color:var(--red);background:#FBE9EB}
-  .addrow{background:#fff;border:1px dashed #C8CDE4;border-radius:8px;color:var(--violet);
-          padding:9px;width:100%;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer}
+  .addrow{background:#fff;border:2px dashed #C8CDE4;border-radius:10px;color:var(--violet);
+          padding:11px;width:100%;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer}
   .addrow:hover{border-color:var(--violet);background:#FAF7FF}
-  .elab{display:grid;grid-template-columns:1fr 82px 74px 34px;gap:8px;margin-bottom:5px}
+  .elab{display:grid;grid-template-columns:24px 1fr 78px 70px 32px;gap:8px;margin:0 10px 5px}
   .elab span{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .mtot{display:flex;justify-content:space-between;align-items:center;margin-top:13px;
-        padding-top:11px;border-top:1px solid var(--line);font-size:12.5px;font-weight:800}
-  .mtot .n{font-size:19px;font-variant-numeric:tabular-nums}
-  .mwarn{margin-top:11px;padding:9px 12px;border-radius:8px;font-size:11.5px;font-weight:700;display:none}
-  .mwarn.r{background:#FBE9EB;color:var(--red);display:block}
-  .mwarn.i{background:var(--cream);color:#8A5B12;display:block}
-  .mft{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .mtot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;
+        padding:11px 14px;border-radius:10px;background:#FFF7F8;border:1px solid #F3D6DA;
+        font-size:12.5px;font-weight:800}
+  .mtot .n{font-size:21px;font-variant-numeric:tabular-nums;color:var(--red)}
+  .mwarn{margin-top:11px;padding:10px 13px;border-radius:9px;font-size:11.5px;font-weight:700;display:none}
+  .mwarn.r{background:#FBE9EB;color:var(--red);display:block;border:1px solid #F3D6DA}
+  .mwarn.i{background:var(--cream);color:#8A5B12;display:block;border:1px solid #F2DDB6}
+  .mft{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:10px;
+       justify-content:space-between;align-items:center;background:#FAFBFE;border-radius:0 0 14px 14px}
+  .mft .note{font-size:10.5px;color:var(--mut);font-weight:700;max-width:280px;line-height:1.35}
 
   /* ---- background save toast ---- */
   .toast{position:fixed;right:18px;bottom:18px;z-index:150;display:flex;flex-direction:column;gap:8px;
@@ -316,17 +364,18 @@
                  and never needs a left-right scroll. Chasing a report sideways
                  on a factory floor tablet is what made this screen unusable. -->
             <colgroup>
-              <col style="width:3%">    <!-- #        -->
-              <col style="width:9%">    <!-- Op ID    -->
-              <col style="width:17%">   <!-- Name     -->
-              <col style="width:8%">    <!-- Process  -->
-              <col style="width:5%">    <!-- WH       -->
-              <col style="width:6%">    <!-- Unavail  -->
-              <col style="width:20%">   <!-- Loss     -->
-              <col style="width:10%">   <!-- Input    -->
-              <col style="width:7%">    <!-- Output   -->
-              <col style="width:10%">   <!-- Eff %    -->
-              <col style="width:5%">    <!-- Status   -->
+              <col style="width:3%">     <!-- #          -->
+              <col style="width:8.5%">   <!-- Op ID      -->
+              <col style="width:15%">    <!-- Name       -->
+              <col style="width:7.5%">   <!-- Process    -->
+              <col style="width:4.5%">   <!-- WH         -->
+              <col style="width:5.5%">   <!-- Work Min   -->
+              <col style="width:4%">     <!-- Unavail    -->
+              <col style="width:18.5%">  <!-- Loss       -->
+              <col style="width:11%">    <!-- Adj Input  -->
+              <col style="width:7%">     <!-- Output     -->
+              <col style="width:10%">    <!-- Eff %      -->
+              <col style="width:5.5%">   <!-- Status     -->
             </colgroup>
             <thead><tr>
               <th class="sl">#</th>
@@ -334,17 +383,17 @@
               <th>Name</th>
               <th>Process</th>
               <th class="ctr" title="Working hour for this operator on this date">WH<span class="whhint"> hrs</span></th>
-              <th class="ctr"><label class="allchk"
-                  title="Tick to mark every operator shown below as unavailable. Untick to clear them.">
-                  <input type="checkbox" id="allUnav" onchange="setAllUnav(this.checked)">
-                  <span>Unavail.</span></label></th>
+              <th class="ctr" title="Working hour x 60. The minutes before any deduction.">Work<span class="whhint"> min</span></th>
+              <th class="ctr" title="Tick to mark every operator shown below as unavailable. Untick to put their entries back.">
+                  <input type="checkbox" class="chk sm" id="allUnav" onchange="setAllUnav(this.checked)"
+                         style="accent-color:#fff"></th>
               <th>Loss <span class="whhint">min &amp; reasons</span></th>
               <th class="ctr" title="Working minutes after the fixed break, unavailable time and loss time are taken off. Shows now &rarr; projected.">Adjusted<span class="whhint"> input min</span></th>
               <th class="ctr" title="Earned minutes. Loss time does not change this.">Output<span class="whhint"> min</span></th>
               <th class="ctr" title="Output Min divided by Adjusted Input Min. Shows now &rarr; projected.">Eff<span class="whhint"> %</span></th>
               <th class="ctr">Status</th>
             </tr></thead>
-            <tbody id="tb"><tr><td colspan="11" class="loading">Loading&hellip;</td></tr></tbody>
+            <tbody id="tb"><tr><td colspan="12" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -356,32 +405,50 @@
 <div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="mhd">
-      <div class="who"><b id="mName">-</b><span id="mSub">-</span></div>
-      <button class="x" onclick="closeModal()" title="Close, Esc">&times;</button>
+      <div class="who">
+        <b id="mName">-</b>
+        <span id="mSub">-</span>
+        <div class="chips" id="mChips"></div>
+      </div>
+      <button class="x" onclick="closeModal()" title="Close without saving, Esc">&times;</button>
     </div>
+
+    <!-- The full subtraction, line by line. See refreshModalTotals. -->
     <div class="fx">
-      <div><div class="k">Adjusted Input Min</div><div class="v" id="mIn">&ndash;</div></div>
-      <div><div class="k">Output Min</div><div class="v" id="mOut">&ndash;</div></div>
-      <div><div class="k">Eff %</div><div class="v" id="mEff">&ndash;</div></div>
+      <table class="fxt" id="mBreak"></table>
+      <div class="effrow">
+        <div class="effbox"><div class="k">Output Min</div><div class="v" id="mOut">&ndash;</div></div>
+        <div class="effbox"><div class="k">Eff %</div><div class="v" id="mEff">&ndash;</div></div>
+      </div>
     </div>
+
     <div class="mbd">
       <div class="unavrow" id="mUnavRow" onclick="toggleUnav()">
         <input type="checkbox" class="chk" id="mUnav" onclick="event.stopPropagation();toggleUnav()">
-        <div><b>Unavailable all day</b><br><span>No loss minutes are recorded and individual PIB does not apply</span></div>
+        <div>
+          <b>Unavailable all day</b><br>
+          <span>No loss minutes are recorded and individual PIB does not apply</span>
+          <div class="keep" id="mKeep"></div>
+        </div>
       </div>
 
       <div id="mEntryArea">
-        <div class="elab"><span>Reason</span><span>Time</span><span>Unit</span><span></span></div>
+        <div class="sect">Loss time</div>
+        <div class="elab"><span></span><span>Reason</span><span>Time</span><span>Unit</span><span></span></div>
         <div id="mRows"></div>
         <button class="addrow" onclick="addRow()">+ Add another reason</button>
       </div>
 
-      <div class="mtot"><span>Total loss</span><span class="n" id="mTot">0 min</span></div>
+      <div class="mtot"><span>Total loss for this operator</span><span class="n" id="mTot">0 min</span></div>
       <div class="mwarn" id="mWarn"></div>
     </div>
+
     <div class="mft">
-      <button class="big ghost" onclick="closeModal()">Cancel</button>
-      <button class="big submit" id="mDone" onclick="applyModal()">Done</button>
+      <div class="note">Nothing is saved yet. <b>Done</b> puts it on the list, then press <b>Submit</b>.</div>
+      <div style="display:flex;gap:10px">
+        <button class="big ghost" onclick="closeModal()">Cancel</button>
+        <button class="big submit" id="mDone" onclick="applyModal()">Done</button>
+      </div>
     </div>
   </div>
 </div>
@@ -477,6 +544,15 @@ function whCell(id){
   return v===null ? '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>'
                   : '<span class="whv">'+v.toFixed(2)+'</span>';
 }
+/* Working minutes, before any deduction at all. Working hour x 60. */
+function workMin(id){
+  var v=whOf(id);
+  return v===null ? null : Math.round(v*60);
+}
+function workCell(id){
+  var m=workMin(id);
+  return m===null ? '<span class="whna">&ndash;</span>' : '<span class="whv">'+m+'</span>';
+}
 
 /* ---------- live effect of the minutes being typed ----------
      base      = Input Min now + loss ALREADY saved
@@ -542,7 +618,15 @@ function outCell(id){
 function el(i){return document.getElementById(i)}
 function say(id,t,c){var m=el(id); m.innerHTML=t||''; m.className = t ? ('msg '+c) : 'msg';}
 function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
-function goBack(){ location.href='daily.html'; }
+/* Leaving with unsaved entries is almost always an accident, and everything on
+   this page lives only in the browser until Submit. */
+function leaveGuard(){
+  var n=changedOps().length;
+  if(!n) return true;
+  return confirm(n+' operator'+(n===1?' has':'s have')+' loss time that has NOT been submitted.\n\n'
+    +'Leave now and it will be lost. Continue?');
+}
+function goBack(){ if(leaveGuard()) location.href='daily.html'; }
 
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function pretty(iso){
@@ -555,7 +639,11 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 /* ---------- the value shape ----------
    One operator holds a LIST of entries now, not one figure.
      { unav:false, entries:[ {reason:'No fabric', min:'45', unit:'Min'}, ... ] } */
-function blank(){ return {unav:false, entries:[]}; }
+/* stash: the entries put aside when Unavailable is ticked. Untick and they
+   come straight back. Deleting them instead was wrong: a leader ticks the box
+   to SEE what N/A looks like, unticks it, and his typing is gone. The stash
+   lives until Submit, exactly like everything else on this page. */
+function blank(){ return {unav:false, entries:[], stash:null}; }
 
 function entryMin(e){
   if(!e) return 0;
@@ -693,7 +781,7 @@ function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
 /* ---------- load ---------- */
 
 function boot(){
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
   api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
@@ -717,7 +805,7 @@ function loadDay(fresh){
   var d=el('dt').value||TODAY;
   el('dlabel').textContent=pretty(d);
   say('smsg','','');
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">Loading…</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
   var q={action:'day',token:TOKEN,floor:FLOOR,date:d};
   if(fresh===true) q.fresh=1;
   api(q).then(function(r){
@@ -755,7 +843,7 @@ function applyLock(d){
 }
 
 function fail(m){
-  el('tb').innerHTML='<tr><td colspan="11" class="loading">–</td></tr>';
+  el('tb').innerHTML='<tr><td colspan="12" class="loading">–</td></tr>';
   say('smsg',esc(m||'Something went wrong.'),'r');
   if(String(m||'').indexOf('Session expired')>=0){
     try{ sessionStorage.removeItem(SESS_KEY); }catch(e){}
@@ -893,7 +981,8 @@ function render(){
      +   '</span></td>'
      + '<td style="color:var(--mut)" title="'+esc(o.process)+'">'+esc(o.process)+'</td>'
      + '<td class="ctr">'+whCell(o.id)+'</td>'
-     + '<td class="ctr"><input class="chk" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
+     + '<td class="ctr">'+workCell(o.id)+'</td>'
+     + '<td class="ctr"><input class="chk sm" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
      +   (LOCKED?' disabled':'')
      +   ' onclick="event.stopPropagation()"'
      +   ' onchange="setUnav(\''+o.id+'\',this.checked)"></td>'
@@ -903,7 +992,7 @@ function render(){
      + '<td class="ctr ec" id="ef_'+o.id+'">'+effCell(o.id)+'</td>'
      + '<td class="ctr">'+statCell(o.id)+'</td></tr>';
   });
-  el('tb').innerHTML = h || '<tr><td colspan="11" class="loading">No operators match.</td></tr>';
+  el('tb').innerHTML = h || '<tr><td colspan="12" class="loading">No operators match.</td></tr>';
   updateKpis();
   syncAllUnav();
 }
@@ -925,12 +1014,15 @@ function touch(id){
 function setUnav(id,on){
   if(LOCKED) return;
   if(!VAL[id]) VAL[id]=blank();
-  VAL[id].unav=!!on;
-  /* Unavailable means the whole day is out, so there is nothing left to
-     itemise. The lines are dropped rather than hidden, or they would come
-     back the moment the tick was cleared and quietly re-apply minutes the
-     leader thought they had removed. */
-  if(on) VAL[id].entries=[];
+  var v=VAL[id];
+  if(on && !v.unav){
+    /* Put the lines aside, do not destroy them. */
+    if(v.entries.length) v.stash=v.entries;
+    v.entries=[];
+  }else if(!on && v.unav){
+    if(v.stash && v.stash.length){ v.entries=v.stash; v.stash=null; }
+  }
+  v.unav=!!on;
   touch(id);
 }
 
@@ -973,7 +1065,11 @@ function updateKpis(){
   var pend=changedOps().length;
   var pp=el('pendPill');
   pp.classList.toggle('hide', pend===0);
-  pp.textContent = pend+' unsaved';
+  pp.textContent = pend+' not submitted';
+  /* Submit pulses while anything is unsaved. Done in the popup only puts the
+     entry on the list, and without this a leader closes twenty popups and
+     walks away believing the job is finished. */
+  el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED);
 
   OVER=over;
   var sb=el('saveBtn');
@@ -1013,17 +1109,20 @@ function openModal(id){
   /* Edited on a COPY. Pressing Cancel then has to do nothing at all, rather
      than trying to reverse a half finished set of changes. */
   var v=VAL[id]||blank();
-  MDRAFT={ unav:!!v.unav,
-           entries:(v.entries||[]).map(function(e){
-             return {reason:e.reason, min:e.min, unit:e.unit||'Min'};
-           }) };
+  function copy(list){
+    return (list||[]).map(function(e){ return {reason:e.reason, min:e.min, unit:e.unit||'Min'}; });
+  }
+  MDRAFT={ unav:!!v.unav, entries:copy(v.entries), stash:copy(v.stash) };
   if(!MDRAFT.unav && !MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
 
   el('mName').textContent=o.name;
   var wh=whOf(id);
-  el('mSub').textContent = 'Op ID '+o.id+'  ·  '+(o.process||'-')
-    + '  ·  WH '+(wh===null?'not loaded':wh.toFixed(2))
-    + '  ·  Floor '+FLOOR+'  ·  '+pretty(el('dt').value);
+  el('mSub').textContent = 'Op ID '+o.id;
+  el('mChips').innerHTML =
+      '<span class="chip">'+esc(o.process||'-')+'</span>'
+    + '<span class="chip">Floor '+esc(FLOOR)+'</span>'
+    + '<span class="chip">'+esc(pretty(el('dt').value))+'</span>'
+    + '<span class="chip">WH '+(wh===null?'not loaded':wh.toFixed(2))+'</span>';
 
   el('ovl').classList.add('on');
   renderModal();
@@ -1038,11 +1137,23 @@ function closeModal(){
   MID=null; MDRAFT=null;
 }
 
+/* Ticking Unavailable STASHES the lines, it does not delete them. Untick and
+   they come straight back, exactly as typed. They survive until Submit. */
 function toggleUnav(){
   if(!MDRAFT) return;
-  MDRAFT.unav=!MDRAFT.unav;
-  if(MDRAFT.unav) MDRAFT.entries=[];
-  else if(!MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
+  if(!MDRAFT.unav){
+    var keep=(MDRAFT.entries||[]).filter(function(e){
+      return entryMin(e)>0 || String(e.reason||'').trim();
+    });
+    MDRAFT.stash = keep.length ? keep : MDRAFT.stash;
+    MDRAFT.entries=[];
+    MDRAFT.unav=true;
+  }else{
+    MDRAFT.unav=false;
+    MDRAFT.entries = (MDRAFT.stash && MDRAFT.stash.length) ? MDRAFT.stash : [];
+    MDRAFT.stash=null;
+    if(!MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
+  }
   renderModal();
 }
 
@@ -1068,6 +1179,8 @@ function delRow(i){
 function setEntry(i,k,val){
   if(!MDRAFT || !MDRAFT.entries[i]) return;
   MDRAFT.entries[i][k]=val;
+  var e=MDRAFT.entries[i], card=el('er_'+i);
+  if(card) card.classList.toggle('filled', entryMin(e)>0 && !!String(e.reason||'').trim());
   refreshModalTotals();
 }
 
@@ -1077,8 +1190,18 @@ function renderModal(){
   el('mUnavRow').classList.toggle('on', !!MDRAFT.unav);
   el('mEntryArea').style.display = MDRAFT.unav ? 'none' : '';
 
+  /* Say out loud that the lines are being held, or ticking the box looks like
+     it threw the typing away. */
+  var st=(MDRAFT.stash||[]).filter(function(e){ return entryMin(e)>0; });
+  el('mKeep').textContent = (MDRAFT.unav && st.length)
+    ? ('Holding '+st.length+' loss line'+(st.length===1?'':'s')
+       +'. Untick to bring them back.')
+    : '';
+
   MDRAFT.entries.forEach(function(e,i){
-    h+='<div class="erow">'
+    var filled = entryMin(e)>0 && String(e.reason||'').trim();
+    h+='<div class="erow'+(filled?' filled':'')+'" id="er_'+i+'">'
+     + '<div class="no">'+(i+1)+'</div>'
      + '<select class="rsel" onchange="setEntry('+i+',\'reason\',this.value)">'
      +   '<option value="">Select a reason</option>'
      +   RSN.map(function(r){return '<option'+(e.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
@@ -1095,29 +1218,89 @@ function renderModal(){
   refreshModalTotals();
 }
 
+/* ---------- the whole subtraction, on screen ----------
+   The sheet works this out as
+
+     Working minutes      = WH x 60
+     minus fixed break    = 'SOSL Summary'!D13
+     minus unavailable    = the Unavailable Time tab for that date and floor
+     minus loss time      = what a floor leader enters here
+     = Adjusted Input Min
+
+   The page cannot see the break and the unavailable allowance separately, it
+   only knows their COMBINED size, because what it is given is
+
+     available = Adjusted Input Min now + loss already submitted
+
+   so the two are shown as one honest line rather than invented as two. */
 function refreshModalTotals(){
   if(!MDRAFT) return;
   var m=totMin(MDRAFT);
-  el('mTot').textContent = m + ' min' + (m>=60 ? '  ('+(m/60).toFixed(2)+' hr)' : '');
+  el('mTot').textContent = m + ' min' + (m>=60 ? '   ('+(m/60).toFixed(2)+' hr)' : '');
 
   var f=facts(MID);
   var cap=capOf(MID);
-  var p=project(MID, m);
+  var wmin=workMin(MID);
+  var tbl=el('mBreak');
 
   if(!f || f.inn===null || f.inn===undefined){
-    el('mIn').innerHTML='&ndash;'; el('mOut').innerHTML='&ndash;'; el('mEff').innerHTML='&ndash;';
+    tbl.innerHTML='<tr><td colspan="2" class="hint">'
+      + 'The report for this date has not been loaded yet, so the minute '
+      + 'breakdown is not available. The loss time is still recorded and '
+      + 'applies the moment the day is loaded.</td></tr>';
+    el('mOut').innerHTML='&ndash;'; el('mEff').innerHTML='&ndash;';
+    el('mDone').disabled=false;
+    var w0=el('mWarn'); w0.innerHTML=''; w0.className='mwarn';
+    return;
+  }
+
+  var savedLoss = Number(f.loss)||0;      /* already submitted for this date */
+  var avail     = f.inn + savedLoss;      /* WH x 60 minus break and unavailable */
+  var fixed     = (wmin===null) ? null : (wmin - avail);
+  var newInput  = avail - m;
+
+  var rows='';
+  if(wmin!==null){
+    rows+='<tr><td>Working minutes<span class="hint">  '+whOf(MID).toFixed(2)+' hr x 60</span></td>'
+        + '<td class="n">'+wmin+'</td></tr>';
+    rows+='<tr class="sub"><td>Break and unavailable time</td>'
+        + '<td class="n">'+(fixed>0?'- '+Math.round(fixed):'0')+'</td></tr>';
+  }
+  rows+='<tr class="mid"><td>Available minutes</td><td class="n">'+Math.round(avail)+'</td></tr>';
+  rows+='<tr class="sub"><td>Loss already submitted</td>'
+      + '<td class="n">'+(savedLoss?'- '+Math.round(savedLoss):'0')+'</td></tr>';
+  rows+='<tr class="sub"><td>Loss on this screen</td>'
+      + '<td class="n">'+(m?'- '+m:'0')+'</td></tr>';
+
+  if(MDRAFT.unav){
+    rows+='<tr class="fin"><td>Individual PIB</td><td class="n">N/A</td></tr>';
+  }else if(newInput<=0){
+    rows+='<tr class="fin"><td>Adjusted Input Min</td>'
+        + '<td class="n" style="color:#B3261E">'+Math.round(newInput)+'</td></tr>';
   }else{
-    el('mIn').innerHTML  = p && !p.over
-      ? Math.round(f.inn)+' <span class="effarr">&rarr;</span> <span class="effdn">'+Math.round(p.newInn)+'</span>'
-      : Math.round(f.inn);
-    el('mOut').innerHTML = (f.out===null||f.out===undefined) ? '&ndash;' : Math.round(f.out);
-    if(!p || p.newEff===null || p.over){
-      el('mEff').innerHTML = (f.eff===null||f.eff===undefined) ? '&ndash;' : f.eff.toFixed(1)+'%';
+    var arrow = (m!==savedLoss)
+      ? '<span class="effnow">'+Math.round(f.inn)+'</span><span class="effarr">&rarr;</span>'
+        + '<span class="effdn">'+Math.round(newInput)+'</span>'
+      : Math.round(newInput);
+    rows+='<tr class="fin"><td>Adjusted Input Min</td><td class="n">'+arrow+'</td></tr>';
+  }
+  tbl.innerHTML=rows;
+
+  el('mOut').innerHTML = (f.out===null||f.out===undefined) ? '&ndash;' : Math.round(f.out);
+
+  var cur=(f.eff===null||f.eff===undefined)?null:f.eff;
+  if(MDRAFT.unav){
+    el('mEff').innerHTML='<span style="color:var(--violet)">N/A</span>';
+  }else if(newInput<=0 || f.out===null || f.out===undefined){
+    el('mEff').innerHTML=(cur===null)?'&ndash;':cur.toFixed(1)+'%';
+  }else{
+    var ne=f.out/newInput*100;
+    if(m===savedLoss){
+      el('mEff').innerHTML=(cur===null)?'&ndash;':cur.toFixed(1)+'%';
     }else{
-      var cur=(f.eff===null||f.eff===undefined)?null:f.eff;
-      var cls=(cur!==null && Math.abs(p.newEff-cur)<0.05)?'effsame':((cur!==null && p.newEff>cur)?'effup':'effdn');
+      var cls=(cur!==null && Math.abs(ne-cur)<0.05)?'effsame':((cur!==null && ne>cur)?'effup':'effdn');
       el('mEff').innerHTML=(cur===null?'&ndash;':cur.toFixed(1)+'%')
-        +' <span class="effarr">&rarr;</span> <span class="'+cls+'">'+p.newEff.toFixed(1)+'%</span>';
+        +' <span class="effarr">&rarr;</span> <span class="'+cls+'">'+ne.toFixed(1)+'%</span>';
     }
   }
 
@@ -1125,6 +1308,9 @@ function refreshModalTotals(){
   var w=el('mWarn'), txt='', cls='';
   var missing=(MDRAFT.entries||[]).some(function(e){
     return entryMin(e)>0 && !String(e.reason||'').trim();
+  });
+  var noMin=(MDRAFT.entries||[]).some(function(e){
+    return entryMin(e)<=0 && String(e.reason||'').trim();
   });
   if(cap!==null && m>cap){
     txt='Only <b>'+Math.floor(cap)+' minutes</b> were available on this date. '
@@ -1134,6 +1320,9 @@ function refreshModalTotals(){
   }else if(missing){
     txt='One line has minutes but no reason. It will not be saved until a reason is picked.';
     cls='r';
+  }else if(noMin){
+    txt='One line has a reason but no time. It will be ignored.';
+    cls='i';
   }else if(cap===null && m>WARN_MIN){
     txt='Over 10 hours. The report for this date has not been loaded yet, so the real limit is unknown. Please double check.';
     cls='i';
@@ -1149,7 +1338,9 @@ function applyModal(){
   var keep=MDRAFT.unav ? [] : MDRAFT.entries.filter(function(e){
     return entryMin(e)>0 && String(e.reason||'').trim();
   });
-  VAL[MID]={ unav:!!MDRAFT.unav, entries:keep };
+  /* The stash travels with the value, so unticking Unavailable on the row
+     itself restores the same lines the popup was holding. */
+  VAL[MID]={ unav:!!MDRAFT.unav, entries:keep, stash:(MDRAFT.stash||null) };
   var id=MID;
   closeModal();
   touch(id);
