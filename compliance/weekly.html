@@ -73,7 +73,7 @@
   .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
   .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
   .kpi.k6:before{background:var(--green)}
-  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .k{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
   .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
@@ -337,12 +337,43 @@
   @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
+
+  /* ---------- the range is committed ONCE ----------
+     Picking From used to fire a load, then picking To fired a second one, so a
+     two date choice always cost two loads and the first was always the wrong
+     answer. Nothing loads until the pair settles. */
+  .rpend{display:none;align-items:center;gap:8px;background:#FFF0D9;color:#8A5B12;
+         border:1px solid #F2DDB6;border-radius:8px;padding:5px 8px 5px 11px;
+         font-size:11px;font-weight:800;white-space:nowrap}
+  .rpend.on{display:inline-flex}
+  .rpend button{background:#333D6D;color:#fff;border:0;border-radius:6px;
+                padding:6px 13px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer}
+  .rpend button:hover{background:#723EC3}
+  .showing{font-size:10.5px;color:var(--mut);font-weight:700;white-space:nowrap}
   .spin{display:none !important}
+
+  /* The chip that says WHAT is loading. */
+  .barmsg{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-140%);
+          z-index:399;background:#333D6D;color:#fff;border-radius:0 0 10px 10px;
+          padding:7px 16px 8px;font-size:11.5px;font-weight:800;letter-spacing:.2px;
+          box-shadow:0 5px 16px rgba(37,42,69,.28);white-space:nowrap;max-width:92vw;
+          overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+          transition:transform .2s cubic-bezier(.2,.8,.3,1)}
+  .barmsg.on{transform:translateX(-50%) translateY(0)}
+  .barmsg i{display:inline-block;width:7px;height:7px;border-radius:50%;
+            background:#B07CFF;margin-right:8px;vertical-align:middle;
+            animation:barblink .9s ease-in-out infinite}
+  @keyframes barblink{0%,100%{opacity:.35}50%{opacity:1}}
+  .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
+         background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
+         font-size:11.5px;font-weight:700}
+  .dnote.on{display:block;margin:10px auto 0}
 </style>
 </head>
 <body>
 
 <div id="bar"><i></i></div>
+<div id="barmsg" class="barmsg"></div>
 
 
 <div class="strip">
@@ -352,14 +383,17 @@
   <span class="dpick">
     <span id="f1label">&ndash;</span>
     <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-    <input type="date" id="f1" onchange="onPick()" onclick="openPicker(this)" aria-label="From date">
+    <input type="date" id="f1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="From date">
   </span>
   <label>To</label>
   <span class="dpick">
     <span id="t1label">&ndash;</span>
     <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-    <input type="date" id="t1" onchange="onPick()" onclick="openPicker(this)" aria-label="To date">
+    <input type="date" id="t1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="To date">
   </span>
+    <span class="rpend" id="rpend"><span id="rpendtxt"></span>
+      <button onclick="rangeCommit()">Load now</button></span>
+  <span class="showing" id="showing"></span>
   <div class="sep"></div>
   <button class="mini" id="p_tw"  onclick="preset('tw')"
           title="SNOWTEX week: Wednesday to Tuesday. From this week's Wednesday up to the latest day with data.">This Week</button>
@@ -379,6 +413,7 @@
   </div>
 </div>
 
+<div id="dnote" class="dnote"></div>
 <div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
@@ -403,20 +438,41 @@
       this morning's report has been pulled yet.
    ================================================================== */
 
-var BUSY_N = 0;
+var BUSY_N = 0, BUSY_LABELS = [];
 /* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
    the report with a message, and two functions of the same name in one file
-   means the second one silently wins. */
-function barBusy(on){
-  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+   means the second one silently wins.
+
+   THE LABEL MATTERS AS MUCH AS THE BAR. A moving line says something is
+   happening. It does not say WHICH report, or for WHICH date, so pressing a
+   button and waiting felt like pressing a button and hoping. */
+function barBusy(on, label){
+  if(on){
+    BUSY_N++;
+    if(label) BUSY_LABELS.push(label);
+  }else{
+    BUSY_N = Math.max(0, BUSY_N - 1);
+    if(label){
+      var i = BUSY_LABELS.indexOf(label);
+      if(i >= 0) BUSY_LABELS.splice(i, 1);
+    }
+    if(!BUSY_N) BUSY_LABELS = [];
+  }
   var b = document.getElementById('bar');
   if(b) b.className = BUSY_N ? 'on' : '';
+
+  var c = document.getElementById('barmsg');
+  if(c){
+    var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length - 1] : '';
+    c.innerHTML = txt ? ('<i></i>' + txt + '&hellip;') : '';
+    c.className = (BUSY_N && txt) ? 'barmsg on' : 'barmsg';
+  }
 }
 /* Wrap any promise so the bar follows it, whatever the outcome. */
-function track(p){
-  barBusy(true);
-  return p.then(function(v){ barBusy(false); return v; },
-                function(e){ barBusy(false); throw e; });
+function track(p, label){
+  barBusy(true, label);
+  return p.then(function(v){ barBusy(false, label); return v; },
+                function(e){ barBusy(false, label); throw e; });
 }
 
 var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
@@ -469,7 +525,8 @@ var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock *
    will quietly lack the newer fields. That is what produced a Fabric Type list
    full of zeroes: the day had no floor x fabric cross-tab in it at all. Any
    locally held day that is not this version is thrown away and refetched. */
-var DAY_SCHEMA = 4;   /* 4 = Buyer bucket 'b' added 12-Aug-2026 */
+var DAY_SCHEMA = 5;   /* 5 = 2 inch width allowance from 12-Aug-2026
+                         4 = Buyer bucket 'b' added 12-Aug-2026 */
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
@@ -536,6 +593,42 @@ function $(id){ return document.getElementById(id) }
 function fmt(n,d){ return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d) }
 function num(n){ return (n==null||isNaN(n))?'-':Number(n).toLocaleString(undefined,{maximumFractionDigits:0}) }
 function pctClass(p){ return p<90?'red':(p<=98?'green':'blue') }
+
+/* ---------- fabric width allowance, EFFECTIVE DATED ----------
+   Keep this list byte for byte in step with TOLERANCE_RULES in the Fabric
+   Code.gs and in fabric.html. Newest first, first match wins, never edit an
+   older row.
+
+   This page reports a RANGE, so it can straddle the day the rule changed. It
+   says so rather than picking one and pretending. The footnote used to be a
+   typed sentence claiming 1.50 inch for four fabrics, and it kept saying that
+   for weeks after the rule became 2.00 inch for seven. */
+var TOLERANCE_RULES=[
+  { from:'2026-08-12', narrow:1.00, wide:2.00,
+    wideWords:['padding','quilting','fleece','sherpa','mesh','spandex','needle'] },
+  { from:'0000-00-00', narrow:1.00, wide:1.50,
+    wideWords:['padding','quilting','fleece','sherpa'] }
+];
+function toleranceRule(dateStr){
+  var d=String(dateStr||'9999-12-31');
+  for(var i=0;i<TOLERANCE_RULES.length;i++) if(d>=TOLERANCE_RULES[i].from) return TOLERANCE_RULES[i];
+  return TOLERANCE_RULES[TOLERANCE_RULES.length-1];
+}
+function ruleSentence(r){
+  var w=r.wideWords.slice(), last=w.pop();
+  return r.wide.toFixed(2)+'&Prime; for '+w.join(', ')+' and '+last
+       + ', '+r.narrow.toFixed(2)+'&Prime; otherwise';
+}
+/* One sentence when the range sits inside one rule, two when it straddles. */
+function allowText(from,to){
+  var a=toleranceRule(from), b=toleranceRule(to);
+  if(a===b) return ruleSentence(a);
+  return ruleSentence(b)+' from '+prettyDate(b.from)+', and '+ruleSentence(a)+' before that';
+}
+function allowTextPlain(from,to){
+  return allowText(from,to).replace(/&Prime;/g,' in');
+}
+
 function prettyDate(s){ if(!s)return ''; var p=s.split('-');
   return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+', '+p[0] }
 function shortDate(s){ if(!s)return ''; var p=s.split('-');
@@ -624,7 +717,7 @@ function boot(){
     $('content').innerHTML='<div class="loading">First load, fetching dates&hellip;</div>';
   }
 
-  track(fetch(API_URL+'?action=dates'))
+  track(fetch(API_URL+'?action=dates'), 'Fabric Weekly, checking available days')
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
     .then(function(res){
       if(res.error) throw new Error(res.error);
@@ -665,18 +758,38 @@ function refreshDates(force){
 }
 
 function setRange(from,to){ $('f1').value=from; $('t1').value=to; syncLabels(); load() }
-function syncLabels(){
-  $('f1label').textContent = prettyDate($('f1').value)||'-';
-  $('t1label').textContent = prettyDate($('t1').value)||'-';
+
+/* ---------- commit the date range once, not once per box ----------
+   Every change restarts a short timer. Pick From and To one after the other
+   and only ONE load happens, on the pair. Pick just one and it loads that
+   single day when the timer runs out. */
+var RPEND_T = null, RPEND_MS = 2200;
+
+function rangeShowPending(msg){
+  var c = $('rpend');
+  if(!c) return;
+  $('rpendtxt').textContent = msg || '';
+  c.className = msg ? 'rpend on' : 'rpend';
 }
-function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
-/* Typing a date is a deliberate act, so re-check what the sheet holds. */
+function rangeCancelPending(){
+  if(RPEND_T){ clearTimeout(RPEND_T); RPEND_T = null; }
+  rangeShowPending('');
+}
+function onRangeEdit(){
+  if(RPEND_T) clearTimeout(RPEND_T);
+  markPreset(''); syncLabels();
+  var a = $('f1').value, b = $('t1').value;
+  rangeShowPending(
+    (a && b) ? ('Loading ' + prettyDate(a) + ' to ' + prettyDate(b))
+             : ('Pick the other date, or load ' + prettyDate(a || b) + ' on its own')
+  );
+  RPEND_T = setTimeout(function(){ rangeCommit(); }, RPEND_MS);
+}
+function rangeCommit(){ rangeCancelPending(); onPick(); }
+
 /* ---------- ONE date is enough ----------
-   This used to need BOTH boxes filled before anything would load, so looking
-   at a single day meant picking it twice. Fill either box and the other
-   follows it. Filling the second one then widens the range. A range typed
-   backwards is swapped rather than refused, because that is a slip and not a
-   question. */
+   Fill either box and the other follows it. Filling the second widens the
+   range. A range typed backwards is swapped rather than refused. */
 function normaliseRange(){
   var a=$('f1'), b=$('t1');
   if(a.value && !b.value) b.value=a.value;
@@ -685,6 +798,12 @@ function normaliseRange(){
   return { from:a.value, to:b.value };
 }
 
+function syncLabels(){
+  $('f1label').textContent = prettyDate($('f1').value)||'-';
+  $('t1label').textContent = prettyDate($('t1').value)||'-';
+}
+function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
+/* Typing a date is a deliberate act, so re-check what the sheet holds. */
 function onPick(){
   var r=normaliseRange();
   markPreset(''); syncLabels();
@@ -695,7 +814,8 @@ function onPick(){
 }
 
 function preset(which){
-  busy('Checking the sheet\u2026');
+  rangeCancelPending();
+  busy('Checking for new days\u2026');
   refreshDates(true)
     .then(function(){ applyPreset(which) })
     .catch(function(){ applyPreset(which) });
@@ -748,8 +868,6 @@ function load(){
   var r=normaliseRange();
   var f=r.from, t=r.to;
   if(!f||!t) return;
-  /* Whatever this page settles on, including a preset, becomes the range the
-     rest of the dashboard opens with. */
   shareRange(f,t);
   shareDay(t);
   if(f>t){ $('content').innerHTML='<div class="err"><b>From date is after To date.</b><br>Fix the order and it will load.</div>'; return }
@@ -780,10 +898,13 @@ function load(){
   var chunks=[];
   for(var i=0;i<missing.length;i+=FETCH_CHUNK) chunks.push(missing.slice(i,i+FETCH_CHUNK));
 
+  var lbl='Fabric Weekly, '+prettyDate($('f1').value)+' to '+prettyDate($('t1').value);
+  barBusy(true, lbl);
   Promise.all(chunks.map(function(c){
     return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
       .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
   })).then(function(all){
+    barBusy(false, lbl);
     var oldServer=false;
     all.forEach(function(res){
       if(res.error) throw new Error(res.error);
@@ -804,7 +925,7 @@ function load(){
       return;
     }
     merge(); render();
-  }).catch(showErr);
+  }).catch(function(e){ barBusy(false, lbl); showErr(e); });
 }
 /* The cache state used to show as a chip in the strip. It was noise: the user
    does not care where the numbers came from, only that they are on screen.
@@ -1269,12 +1390,23 @@ function barList(rows,t,limit){
   return h+'</div>';
 }
 
+/* One line saying what is on screen: range, day count, row count. daily.html
+   and range.html have carried this for months, these two did not, so half the
+   dashboard confirmed what you were looking at and half left you guessing. */
+function setShowing(txt){
+  var e=$('showing');
+  if(e) e.textContent = txt || '';
+}
+
 /* ---------- render ---------- */
 function render(){
   if(!D) return;
   syncLabels();
   tellParent(STAMP);      /* fires even on a fully cached load */
   var T=D.totals;
+  setShowing('Showing: '+prettyDate(D.from)+' to '+prettyDate(D.to)
+    +'  \u00b7  '+(RANGE?RANGE.length:0)+' day(s)'
+    +'  \u00b7  '+(T&&T.rolls?T.rolls:0)+' roll(s)');
   if(!T.rolls){
     $('content').innerHTML='<div class="wrap"><div class="empty">No rolls between '+
       prettyDate(D.from)+' and '+prettyDate(D.to)+'.</div></div>';
@@ -1322,8 +1454,7 @@ function render(){
    +'the ERP\'s own Floor Roll Compliance Rate by the inspection team. '
    +'<b>Waste Yds</b> = Used Yds &times; (Roll Width &minus; Marker Width &minus; Allowance) &divide; '
    +'Roll Width, charged on failed rolls only. '
-   +'<b>Allowance</b> is 1.50&Prime; for Padding, Quilting, Fleece and Sherpa, and 1.00&Prime; for all '
-   +'other fabrics.</div>';
+   +'<b>Allowance</b> is '+allowText($('f1').value,$('t1').value)+'.</div>';
 
   h+='</div>';
   $('content').innerHTML=h;
@@ -1345,8 +1476,11 @@ var _rsz;
 window.addEventListener('resize',function(){
   clearTimeout(_rsz);
   _rsz=setTimeout(function(){ syncStickyOffsets(); syncPairHeight(); drawChart() },180);
-window.addEventListener('load', syncPairHeightSoon);
 });
+/* This used to sit INSIDE the resize handler, so it only registered the first
+   time the window was resized, by which point the one-shot load event had long
+   since fired. It never ran, and every resize added another dead listener. */
+window.addEventListener('load', syncPairHeightSoon);
 
 /* ---------- sticky offsets ----------
    Same approach as fabric.html and daily.html. The control strip and the card
@@ -1535,7 +1669,8 @@ function exportExcel(){
   var t='<table><tr><td colspan="7" style="font-size:15pt;font-weight:bold;color:#333D6D">'
    +'SOSL Cutting Section &ndash; Weekly Fabric Roll Compliance Report</td></tr>'
    +'<tr><td colspan="7">'+prettyDate(D.from)+' to '+prettyDate(D.to)+'</td></tr>'
-   +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. Allowance 1.50 in for padding, quilting, fleece and sherpa, else 1.00 in.</td></tr>'
+   +'<tr><td colspan="7">Compliance % = passed rolls / total rolls. Allowance '
+   +allowTextPlain(D.from,D.to)+'.</td></tr>'
    +'<tr><td colspan="7"></td></tr>'
    +'<tr><td><b>Rolls</b></td><td>'+T.rolls+'</td><td><b>Failed</b></td><td>'+T.fails+'</td>'
    +'<td><b>Compliance %</b></td><td>'+fmt(rate,2)+'</td><td></td></tr>'

@@ -65,7 +65,7 @@
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
   .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
   .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
-  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
+  .kpi .k{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
   .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
@@ -383,6 +383,19 @@
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
   .spin{display:none !important}
+
+  /* The chip that says WHAT is loading. */
+  .barmsg{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-140%);
+          z-index:399;background:#333D6D;color:#fff;border-radius:0 0 10px 10px;
+          padding:7px 16px 8px;font-size:11.5px;font-weight:800;letter-spacing:.2px;
+          box-shadow:0 5px 16px rgba(37,42,69,.28);white-space:nowrap;max-width:92vw;
+          overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+          transition:transform .2s cubic-bezier(.2,.8,.3,1)}
+  .barmsg.on{transform:translateX(-50%) translateY(0)}
+  .barmsg i{display:inline-block;width:7px;height:7px;border-radius:50%;
+            background:#B07CFF;margin-right:8px;vertical-align:middle;
+            animation:barblink .9s ease-in-out infinite}
+  @keyframes barblink{0%,100%{opacity:.35}50%{opacity:1}}
   .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
          background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
          font-size:11.5px;font-weight:700}
@@ -392,6 +405,7 @@
 <body>
 
 <div id="bar"><i></i></div>
+<div id="barmsg" class="barmsg"></div>
 
 
 <div class="strip">
@@ -404,6 +418,7 @@
     <input type="date" id="d1" onchange="pickDate()" onclick="openPicker(this)" aria-label="Report date">
   </span>
   <button class="mini" onclick="goLatest()">Latest Day</button>
+  <span class="showing" id="showing"></span>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export current view to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -439,20 +454,41 @@
       this morning's report has been pulled yet.
    ================================================================== */
 
-var BUSY_N = 0;
+var BUSY_N = 0, BUSY_LABELS = [];
 /* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
    the report with a message, and two functions of the same name in one file
-   means the second one silently wins. */
-function barBusy(on){
-  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+   means the second one silently wins.
+
+   THE LABEL MATTERS AS MUCH AS THE BAR. A moving line says something is
+   happening. It does not say WHICH report, or for WHICH date, so pressing a
+   button and waiting felt like pressing a button and hoping. */
+function barBusy(on, label){
+  if(on){
+    BUSY_N++;
+    if(label) BUSY_LABELS.push(label);
+  }else{
+    BUSY_N = Math.max(0, BUSY_N - 1);
+    if(label){
+      var i = BUSY_LABELS.indexOf(label);
+      if(i >= 0) BUSY_LABELS.splice(i, 1);
+    }
+    if(!BUSY_N) BUSY_LABELS = [];
+  }
   var b = document.getElementById('bar');
   if(b) b.className = BUSY_N ? 'on' : '';
+
+  var c = document.getElementById('barmsg');
+  if(c){
+    var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length - 1] : '';
+    c.innerHTML = txt ? ('<i></i>' + txt + '&hellip;') : '';
+    c.className = (BUSY_N && txt) ? 'barmsg on' : 'barmsg';
+  }
 }
 /* Wrap any promise so the bar follows it, whatever the outcome. */
-function track(p){
-  barBusy(true);
-  return p.then(function(v){ barBusy(false); return v; },
-                function(e){ barBusy(false); throw e; });
+function track(p, label){
+  barBusy(true, label);
+  return p.then(function(v){ barBusy(false, label); return v; },
+                function(e){ barBusy(false, label); throw e; });
 }
 
 var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
@@ -485,7 +521,11 @@ function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
    Calculated in Code.gs because the sheet does not hold it:
      Excess    = Roll Width - MW
      Waste Yds = Used Yds x (Excess - Allowance) / Roll Width, failed rolls only
-     Allowance   = 1.50 in for padding, quilting, fleece, sherpa; 1.00 otherwise
+     Allowance   = EFFECTIVE DATED, see TOLERANCE_RULES below.
+                   from 12-08-2026: 2.00 in for padding, quilting, fleece,
+                   sherpa, mesh, spandex, needle; 1.00 otherwise
+                   before that:     1.50 in for padding, quilting, fleece,
+                   sherpa; 1.00 otherwise
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
@@ -493,7 +533,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281
    column shifted every marker/roll field along by one. A sessionStorage
    copy saved before that change has the old shape and would paint garbage,
    so changing the key throws it away instead of trying to read it. */
-var SNAP_KEY='fabric_snapshot_v2', DAYPFX='fabric_day_v2_', DETPFX='fabric_det_v2_';
+var SNAP_KEY='fabric_snapshot_v3', DAYPFX='fabric_day_v3_', DETPFX='fabric_det_v3_';
 
 var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', fabricFilter='', query='', compFilter='all';
@@ -507,18 +547,40 @@ var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']}
 var factFilter='';
 function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
 function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
-/* Width allowance, mirrored from Code.gs. The server prices the waste, but
-   this page still decides which Excess figures to flag red, so it has to use
-   the same rule or the two would disagree on screen.
-   Matched on a name FRAGMENT, so "Fleece Check Match" also gets 1.50. */
-var TOLERANCE=1.00, TOLERANCE_WIDE=1.50;
-var WIDE_WORDS=['padding','quilting','fleece','sherpa'];
-function allowanceFor(fab){
-  var f=String(fab||'').toLowerCase();
-  for(var i=0;i<WIDE_WORDS.length;i++) if(f.indexOf(WIDE_WORDS[i])>-1) return TOLERANCE_WIDE;
-  return TOLERANCE;
+/* Width allowance, mirrored from Code.gs and EFFECTIVE DATED the same way.
+   The server prices the waste, but this page still decides which Excess
+   figures to flag red, so it has to use the identical rule or the two would
+   disagree on screen.
+
+   Keep this list byte for byte in step with TOLERANCE_RULES in Code.gs.
+   Newest first, first match wins, never edit an older row.
+   Matched on a name FRAGMENT, so "Fleece Check Match" also matches. */
+var TOLERANCE_RULES=[
+  { from:'2026-08-12', narrow:1.00, wide:2.00,
+    wideWords:['padding','quilting','fleece','sherpa','mesh','spandex','needle'] },
+  { from:'0000-00-00', narrow:1.00, wide:1.50,
+    wideWords:['padding','quilting','fleece','sherpa'] }
+];
+function toleranceRule(dateStr){
+  var d=String(dateStr||'9999-12-31');
+  for(var i=0;i<TOLERANCE_RULES.length;i++) if(d>=TOLERANCE_RULES[i].from) return TOLERANCE_RULES[i];
+  return TOLERANCE_RULES[TOLERANCE_RULES.length-1];
 }
-var ALLOW_TEXT='1.50&Prime; for padding, quilting, fleece and sherpa, 1.00&Prime; otherwise';
+function allowanceFor(fab,dateStr){
+  var rule=toleranceRule(dateStr);
+  var f=String(fab||'').toLowerCase();
+  for(var i=0;i<rule.wideWords.length;i++) if(f.indexOf(rule.wideWords[i])>-1) return rule.wide;
+  return rule.narrow;
+}
+/* Footnote text follows the rule for the date on screen, so a July report
+   never claims the August allowance was applied to it. */
+function allowText(dateStr){
+  var r=toleranceRule(dateStr);
+  var w=r.wideWords.slice();
+  var last=w.pop();
+  return r.wide.toFixed(2)+'&Prime; for '+w.join(', ')+' and '+last
+       + ', '+r.narrow.toFixed(2)+'&Prime; otherwise';
+}
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
 /* Compliance bands: red below 90, green 90 to 98, blue above 98. */
@@ -576,7 +638,7 @@ function boot(){
   /* Always re-check the server, even when the cache painted. If the sheet has
      a newer day than the cache, the page silently moves to it. This is what
      fixes "I pushed this morning but still see yesterday". */
-  track(fetch(API_URL+'?action=snapshot'))
+  track(fetch(API_URL+'?action=snapshot'), 'Fabric Roll Compliance, latest day')
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
@@ -605,7 +667,8 @@ function applySnapshot(res){
   }
 
   /* Honour the day the user asked for rather than jumping to the newest one
-     the sheet happens to hold. */
+     the sheet happens to hold. Falling back silently is how "I pushed this
+     morning" turns into an argument. */
   var want = document.getElementById('d1').value || wantedDay();
   if(DATES.length && DATES.indexOf(want) < 0){
     dnote('<b>'+prettyDate(want)+'</b> has not been loaded into this report yet. '
@@ -772,7 +835,8 @@ function pickDate(){
               STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
 
   document.getElementById('content').innerHTML='<div class="loading">Loading '+prettyDate(d)+'&hellip;</div>';
-  track(fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d)))
+  track(fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d)),
+        'Fabric Roll Compliance, '+prettyDate(d))
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
@@ -960,10 +1024,20 @@ function syncDateLabel(){
 }
 
 /* ---------- render ---------- */
+/* One line saying what is on screen: date, scope, row count. daily.html and
+   range.html have carried this for months, these two did not, so half the
+   dashboard confirmed what you were looking at and half left you guessing. */
+function setShowing(txt){
+  var e=document.getElementById('showing');
+  if(e) e.textContent = txt || '';
+}
+
 function render(){
   syncDateLabel();
   var S=currentSets(), tot=S.tot;
   var scopeLabel=floorFilter?('Floor '+floorFilter):(factFilter?(factFilter+' (all floors)'):'All Floors');
+  setShowing('Showing: '+prettyDate(DAY)+'  \u00b7  '+scopeLabel
+    +'  \u00b7  '+(tot&&tot.rolls?tot.rolls:0)+' roll(s)');
   var scopeNote=floorFilter?('floor '+floorFilter):(factFilter?factFilter:'all floors');
   document.body.classList.toggle('single-floor', !!floorFilter);
 
@@ -1087,7 +1161,7 @@ function render(){
     if(isOpen) h+=detailBlock(m,12);
   });
   h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
-    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+ALLOW_TEXT+' &bull; '
+    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+allowText(DAY)+' &bull; '
     +'Wasted Yds = Used Yds &times; (Excess &minus; Allowance) &divide; Roll Width, failed rolls only</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
@@ -1155,7 +1229,7 @@ function detailBlock(m,colspan){
       +'<td>'+fmt(r[11],2)+'</td>'
       +'<td>'+fmt(r[12],2)+'</td>'
       +'<td>'+fmt(r[3],2)+'</td>'
-      +'<td class="'+(r[19]>allowanceFor(r[2])?'bad':'')+'">'+fmt(r[19],2)+'</td>'
+      +'<td class="'+(r[19]>allowanceFor(r[2],DAY)?'bad':'')+'">'+fmt(r[19],2)+'</td>'
       +'<td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[14],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td>'
@@ -1272,7 +1346,10 @@ function exportExcel(){
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Fabric: '+esc(fabricFilter||'All')
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Compliance filter: '+esc(compLabel(compFilter))
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Last updated: '+esc(STAMP)+'</td></tr>';
-  t+='<tr><td colspan="12">Fail rule: Roll Width &minus; MW &gt; allowance (1.50 in for padding, quilting, fleece, sherpa; 1.00 in otherwise)'
+  /* Read from the rule table, not typed in. This line still said 1.50 for
+     four fabrics after the rule became 2.00 for seven on 12-Aug-2026, so an
+     exported file argued with the screen it came from. */
+  t+='<tr><td colspan="12">Fail rule: Roll Width &minus; MW &gt; allowance ('+allowText(DAY)+')'
     +'&nbsp;&nbsp;|&nbsp;&nbsp;Wasted Yds = Used Yds x (Excess &minus; Allowance) / Roll Width, failed rolls only</td></tr>';
   t+='<tr><td></td></tr></table>';
 
