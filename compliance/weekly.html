@@ -840,7 +840,7 @@ function boot(){
 var _datesAt = 0;
 function refreshDates(force){
   if(!force && Date.now()-_datesAt < 60000) return Promise.resolve(false);
-  return fetch(API_URL+'?action=dates')
+  return track(fetch(API_URL+'?action=dates'), 'Checking for new days')
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
     .then(function(res){
       if(res.error) throw new Error(res.error);
@@ -909,12 +909,21 @@ function onPick(){
   refreshDates(true).then(function(){ load() }).catch(function(){ load() });
 }
 
+/* The preset buttons load data exactly like the date boxes do, so they get
+   the same island and the same bar. Naming the preset matters: "This Week"
+   and "Last 7 Days" can land on ranges that look similar, and the island is
+   the only thing on screen saying which one was pressed. */
+var PRESET_LABEL = { tw:'This Week', lw:'Last Week', d7:'Last 7 Days', d30:'Last 30 Days' };
+
 function preset(which){
   rangeCancelPending();
-  busy('Checking for new days\u2026');
+  var lbl = 'Fabric Weekly, ' + (PRESET_LABEL[which] || which);
+  barBusy(true, lbl);
+  busy('Loading ' + (PRESET_LABEL[which] || which) + '\u2026');
   refreshDates(true)
     .then(function(){ applyPreset(which) })
-    .catch(function(){ applyPreset(which) });
+    .catch(function(){ applyPreset(which) })
+    .then(function(){ barBusy(false, lbl); });
 }
 
 function busy(msg){
@@ -1848,11 +1857,16 @@ function forceDays(list){
   if(!list.length) return Promise.resolve();
   var chunks=[];
   for(var i=0;i<list.length;i+=FETCH_CHUNK) chunks.push(list.slice(i,i+FETCH_CHUNK));
+  var flbl='Rebuilding '+list.length+' day(s)';
+  barBusy(true, flbl);
+  var fdone=0;
   return Promise.all(chunks.map(function(c){
     return fetch(API_URL+'?action=days&fresh=1&dates='+encodeURIComponent(c.join(',')),
                  {cache:'no-store'})
-      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
+      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+      .then(function(j){ fdone++; barSet(Math.min(0.95, fdone/chunks.length)); return j; });
   })).then(function(all){
+    barBusy(false, flbl);
     all.forEach(function(res){
       if(!res || res.error || !res.days) return;
       for(var k in res.days) if(res.days.hasOwnProperty(k)){
@@ -1861,6 +1875,11 @@ function forceDays(list){
       }
       if(res.generatedAt) setStamp(res.generatedAt);
     });
+  }).catch(function(e){
+    /* A failed rebuild must still clear the island, or it hangs on screen
+       claiming work that has already stopped. */
+    barBusy(false, flbl);
+    throw e;
   });
 }
 
