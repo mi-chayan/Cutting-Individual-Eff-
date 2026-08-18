@@ -216,9 +216,29 @@
     body.pmodal .modal .mb{overflow:visible}
   }
   @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} .chips{padding:8px 9px 0} }
+
+  /* ---------- GitHub style progress bar ----------
+     A thin line across the very top that runs left to right while anything is
+     in flight. It replaces the spinner that used to blank the whole report:
+     a page you cannot read is a worse answer than a page you can read with a
+     line moving above it. Purely visual, it never disables anything. */
+  #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
+       pointer-events:none;opacity:0;transition:opacity .18s}
+  #bar.on{opacity:1}
+  #bar i{display:block;height:100%;width:40%;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#723EC3,#B07CFF,#723EC3);
+         box-shadow:0 0 8px rgba(114,62,195,.55);
+         animation:barslide 1.1s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  /* The old spinner is kept out of the way rather than deleted, so any
+     markup that still asks for one simply shows nothing. */
+  .spin{display:none !important}
 </style>
 </head>
 <body>
+
+<div id="bar"><i></i></div>
+
 
 <div class="strip">
   <h2>Weekly Individual PIB Report</h2>
@@ -246,7 +266,6 @@
     <button id="vMat" class="on" onclick="setView('mat')">Score Matrix</button>
     <button id="vTbl" onclick="setView('tbl')">Full Table</button>
     <button id="vSum" onclick="setView('sum')">Summary</button>
-    <button id="vTeam" onclick="setView('team')">Cutting Floor wise Team Efficiency%</button>
   </span>
 
   <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:150px">
@@ -319,6 +338,63 @@
 <div id="tip"></div>
 
 <script>
+
+/* ==================================================================
+   SNOWTEX dashboard kit
+   Shared by daily, range, fabric and weekly. Keep the four copies the
+   same: they are inlined rather than imported because every page is a
+   single self contained file served from Cloudflare Pages.
+
+   1. THE THIN BAR. Counted, not toggled. Two requests can overlap and a
+      naive hide on the first response would switch it off while the
+      second is still running.
+
+   2. THE SELECTED DATE IS SHARED. Every report used to remember its own
+      date, so moving from the Daily report to Fabric Compliance silently
+      changed the day under you. One value in sessionStorage, written by
+      whichever page the user last touched, read by all of them.
+
+   3. FIRST OPEN LANDS ON YESTERDAY. Not on "the latest day the sheet
+      happens to hold", which is a different date depending on whether
+      this morning's report has been pulled yet.
+   ================================================================== */
+
+var BUSY_N = 0;
+/* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
+   the report with a message, and two functions of the same name in one file
+   means the second one silently wins. */
+function barBusy(on){
+  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+  var b = document.getElementById('bar');
+  if(b) b.className = BUSY_N ? 'on' : '';
+}
+/* Wrap any promise so the bar follows it, whatever the outcome. */
+function track(p){
+  barBusy(true);
+  return p.then(function(v){ barBusy(false); return v; },
+                function(e){ barBusy(false); throw e; });
+}
+
+var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
+function ssRead(k){ try{ return sessionStorage.getItem(k)||''; }catch(e){ return ''; } }
+function ssWrite(k,v){ try{ sessionStorage.setItem(k, v||''); }catch(e){} }
+
+function isoOf(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function yesterdayISO(){
+  var d=new Date(); d.setDate(d.getDate()-1); return isoOf(d);
+}
+
+/* The day this page should open on: whatever the user last looked at
+   anywhere in the dashboard, otherwise yesterday. */
+function wantedDay(){ return ssRead(SD_DAY) || yesterdayISO(); }
+function shareDay(d){ if(d) ssWrite(SD_DAY, d); }
+
+function wantedFrom(){ return ssRead(SD_FROM) || wantedDay(); }
+function wantedTo(){   return ssRead(SD_TO)   || wantedDay(); }
+function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
+
 /* ------------------------------------------------------------------
    Two views over the same Database_PIB rows.
 
@@ -441,7 +517,7 @@ window.addEventListener('load', function(){
 });
 
 function getSnapshot(initial){
-  fetch(PIB_API+'?action=snapshot').then(function(r){return r.json()}).then(function(s){
+  track(fetch(PIB_API+'?action=snapshot')).then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ if(initial) fail(s.msg); return; }
     ssSet(SNAP_KEY,s);
     SNAP=s; if(s.roster) ROSTER=s.roster;
@@ -477,7 +553,7 @@ function refreshNow(){
   }catch(e){}
 
   /* Phase 1: re-pull the period on screen, cache bypassed. */
-  fetch(PIB_API+'?action=snapshot',{cache:'no-store'})
+  track(fetch(PIB_API+'?action=snapshot',{cache:'no-store'}))
     .then(function(r){ return r.json() })
     .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; if(sn.roster) ROSTER=sn.roster; } })
     .catch(function(){})
@@ -490,9 +566,11 @@ function refreshNow(){
 /* The cache key load() would use for whatever is selected right now. */
 function currentKey(){
   var v=el('period').value;
-  if(v==='custom')
-    return DATA_PFX+'?action=data&from='+encodeURIComponent(el('f1').value)
-         +'&to='+encodeURIComponent(el('f2').value);
+  if(v==='custom'){
+    var r=normaliseRange();
+    return DATA_PFX+'?action=data&from='+encodeURIComponent(r.from)
+         +'&to='+encodeURIComponent(r.to);
+  }
   if(v==='all') return DATA_PFX+'?action=data';
   return DATA_PFX+'?action=data&week='+encodeURIComponent(v.slice(1));
 }
@@ -516,9 +594,13 @@ function buildPeriod(){
   });
   h+='<option value="all">All data</option><option value="custom">Custom range&hellip;</option>';
   el('period').innerHTML=h;
-  el('f1').value=SNAP.minDate||''; el('f2').value=SNAP.maxDate||'';
-  el('f1label').textContent=prettyDate(SNAP.minDate);
-  el('f2label').textContent=prettyDate(SNAP.maxDate);
+  /* Seed the custom boxes with the range the rest of the dashboard is on, so
+     switching to Custom does not throw away the dates already chosen
+     elsewhere. Falls back to the full span the sheet holds. */
+  el('f1').value = wantedFrom() || SNAP.minDate || '';
+  el('f2').value = wantedTo()   || SNAP.maxDate || '';
+  el('f1label').textContent=prettyDate(el('f1').value);
+  el('f2label').textContent=prettyDate(el('f2').value);
 }
 
 function datesInData(){
@@ -562,15 +644,20 @@ function setScope(s){ scopeSel=(scopeSel===s&&s!=='')?'':s; buildChips(); render
 function setDate(d){ dateSel=(dateSel===d&&d!=='')?'':d; buildChips(); render(); }
 function setMetric(m){ metric=m; buildChips(); render(); }
 
+/* The Cutting Floor wise Team Efficiency% view was removed on 18-Aug-2026.
+   It answered a floor level question inside an operator level report, it had
+   to ignore every filter on the strip to stay correct, and the same figure is
+   already on the Daily report where it belongs. renderTeamEff below is left in
+   place, unreferenced, so nothing else that might call it breaks. */
 function setView(v){
+  if(v==='team') v='mat';
   var changed = (view !== v);
   view=v;
   el('vMat').classList.toggle('on', v==='mat');
   el('vTbl').classList.toggle('on', v==='tbl');
   el('vSum').classList.toggle('on', v==='sum');
-  el('vTeam').classList.toggle('on', v==='team');
-  /* The legend describes the score metric, which the team view does not use. */
-  el('lgd').classList.toggle('hide', v==='tbl' || v==='team');
+  /* The legend describes the score metric, which the full table does not use. */
+  el('lgd').classList.toggle('hide', v==='tbl');
 
   /* The three views are independent reports, so a filter must never follow the
      user from one into another. Summary showed no floor chips at all, so a
@@ -606,12 +693,33 @@ function applyData(d){
   render();
 }
 
+/* ---------- ONE date is enough ----------
+   A custom range used to need BOTH boxes filled before anything would load, so
+   picking a single day meant picking it twice. Fill either box and the other
+   follows it, which reads as "just that day" and is what people actually do.
+   Filling the second one then widens it. Reversed dates are swapped rather
+   than refused, because a range typed backwards is a slip, not a question. */
+function normaliseRange(){
+  var a=el('f1'), b=el('f2');
+  if(a.value && !b.value) b.value=a.value;
+  else if(b.value && !a.value) a.value=b.value;
+  if(a.value && b.value && a.value>b.value){ var t=a.value; a.value=b.value; b.value=t; }
+  el('f1label').textContent=prettyDate(a.value);
+  el('f2label').textContent=prettyDate(b.value);
+  /* A custom range picked here is the range every other report opens with. */
+  if(a.value && b.value) shareRange(a.value,b.value);
+  return { from:a.value, to:b.value };
+}
+
 function load(force){
   var v=el('period').value, q;
   if(v==='custom'){
-    el('f1label').textContent=prettyDate(el('f1').value);
-    el('f2label').textContent=prettyDate(el('f2').value);
-    q='?action=data&from='+encodeURIComponent(el('f1').value)+'&to='+encodeURIComponent(el('f2').value);
+    var r=normaliseRange();
+    if(!r.from && !r.to){
+      el('tb').innerHTML='<tr><td colspan="15" class="loading">Pick a date to load.</td></tr>';
+      return;
+    }
+    q='?action=data&from='+encodeURIComponent(r.from)+'&to='+encodeURIComponent(r.to);
   }else if(v==='all'){ q='?action=data'; }
   else { q='?action=data&week='+encodeURIComponent(v.slice(1)); }
 
@@ -620,7 +728,7 @@ function load(force){
   if(cached && cached.ok) applyData(cached);
   else el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
 
-  fetch(PIB_API+q).then(function(r){return r.json()}).then(function(d){
+  track(fetch(PIB_API+q)).then(function(r){return r.json()}).then(function(d){
     if(!d.ok){ if(!cached) fail(d.msg); return; }
     ssSet(ck,d);
     applyData(d);
@@ -678,14 +786,6 @@ function render(){
     el('tblTitle').textContent='Summary — '+M.label;
     el('phTitle').textContent='SOSL Cutting Section – PIB Summary ('+M.label+')';
     renderSummary(list);
-  }else if(view==='team'){
-    el('tblTitle').textContent='Cutting Floor wise Team Efficiency%';
-    el('phTitle').textContent='SOSL Cutting Section – Cutting Floor wise Team Efficiency%';
-    /* Deliberately RAW, not list. This view answers "how did each floor do
-       over the whole period", so a floor chip, a single date or a search box
-       would each quietly turn it into a different question. Asked for with no
-       filters, and it stays that way. */
-    renderTeamEff(RAW);
   }else{
     el('tblTitle').textContent='Database PIB';
     el('phTitle').textContent='SOSL Cutting Section – Individual PIB Report';
