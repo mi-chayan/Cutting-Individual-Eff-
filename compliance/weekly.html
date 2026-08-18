@@ -321,9 +321,29 @@
                 /* release every scroll box so nothing is cut off on paper */
                 .bars,.tscroll,.mx{max-height:none;overflow:visible}
                 th,tfoot td{position:static;box-shadow:none} }
+
+  /* ---------- GitHub style progress bar ----------
+     A thin line across the very top that runs left to right while anything is
+     in flight. It replaces the spinner that used to blank the whole report:
+     a page you cannot read is a worse answer than a page you can read with a
+     line moving above it. Purely visual, it never disables anything. */
+  #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
+       pointer-events:none;opacity:0;transition:opacity .18s}
+  #bar.on{opacity:1}
+  #bar i{display:block;height:100%;width:40%;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#723EC3,#B07CFF,#723EC3);
+         box-shadow:0 0 8px rgba(114,62,195,.55);
+         animation:barslide 1.1s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  /* The old spinner is kept out of the way rather than deleted, so any
+     markup that still asks for one simply shows nothing. */
+  .spin{display:none !important}
 </style>
 </head>
 <body>
+
+<div id="bar"><i></i></div>
+
 
 <div class="strip">
   <h2>Weekly Fabric Roll Compliance Report</h2>
@@ -359,9 +379,66 @@
   </div>
 </div>
 
-<div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
+<div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
+
+/* ==================================================================
+   SNOWTEX dashboard kit
+   Shared by daily, range, fabric and weekly. Keep the four copies the
+   same: they are inlined rather than imported because every page is a
+   single self contained file served from Cloudflare Pages.
+
+   1. THE THIN BAR. Counted, not toggled. Two requests can overlap and a
+      naive hide on the first response would switch it off while the
+      second is still running.
+
+   2. THE SELECTED DATE IS SHARED. Every report used to remember its own
+      date, so moving from the Daily report to Fabric Compliance silently
+      changed the day under you. One value in sessionStorage, written by
+      whichever page the user last touched, read by all of them.
+
+   3. FIRST OPEN LANDS ON YESTERDAY. Not on "the latest day the sheet
+      happens to hold", which is a different date depending on whether
+      this morning's report has been pulled yet.
+   ================================================================== */
+
+var BUSY_N = 0;
+/* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
+   the report with a message, and two functions of the same name in one file
+   means the second one silently wins. */
+function barBusy(on){
+  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+  var b = document.getElementById('bar');
+  if(b) b.className = BUSY_N ? 'on' : '';
+}
+/* Wrap any promise so the bar follows it, whatever the outcome. */
+function track(p){
+  barBusy(true);
+  return p.then(function(v){ barBusy(false); return v; },
+                function(e){ barBusy(false); throw e; });
+}
+
+var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
+function ssRead(k){ try{ return sessionStorage.getItem(k)||''; }catch(e){ return ''; } }
+function ssWrite(k,v){ try{ sessionStorage.setItem(k, v||''); }catch(e){} }
+
+function isoOf(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function yesterdayISO(){
+  var d=new Date(); d.setDate(d.getDate()-1); return isoOf(d);
+}
+
+/* The day this page should open on: whatever the user last looked at
+   anywhere in the dashboard, otherwise yesterday. */
+function wantedDay(){ return ssRead(SD_DAY) || yesterdayISO(); }
+function shareDay(d){ if(d) ssWrite(SD_DAY, d); }
+
+function wantedFrom(){ return ssRead(SD_FROM) || wantedDay(); }
+function wantedTo(){   return ssRead(SD_TO)   || wantedDay(); }
+function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
+
 /* =====================================================================
    SNOWTEX - Weekly Fabric Roll Compliance Report
    ---------------------------------------------------------------------
@@ -392,8 +469,7 @@ var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock *
    will quietly lack the newer fields. That is what produced a Fabric Type list
    full of zeroes: the day had no floor x fabric cross-tab in it at all. Any
    locally held day that is not this version is thrown away and refetched. */
-var DAY_SCHEMA = 5;   /* 5 = 2 inch width allowance from 12-Aug-2026
-                         4 = Buyer bucket 'b' added 12-Aug-2026 */
+var DAY_SCHEMA = 4;   /* 4 = Buyer bucket 'b' added 12-Aug-2026 */
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
@@ -532,12 +608,23 @@ function boot(){
   var cd = lsGet(LS_DATES);
   if(cd && cd.dates && cd.dates.length){
     DATES=cd.dates; LATEST=cd.latest;
-    if(!$('f1').value) applyPreset('d7'); else load();
+    /* Open on whatever range the rest of the dashboard is showing, if there
+       is one, rather than always jumping back to the last seven days. */
+    if(!$('f1').value){
+      var wf=ssRead(SD_FROM), wt=ssRead(SD_TO);
+      if(wf && wt){
+        $('f1').value=wf; $('t1').value=wt; markPreset(''); syncLabels(); load();
+      }else{
+        applyPreset('d7');
+      }
+    }else{
+      load();
+    }
   }else{
-    $('content').innerHTML='<div class="loading"><div class="spin"></div><br>First load, fetching dates&hellip;</div>';
+    $('content').innerHTML='<div class="loading">First load, fetching dates&hellip;</div>';
   }
 
-  fetch(API_URL+'?action=dates')
+  track(fetch(API_URL+'?action=dates'))
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
     .then(function(res){
       if(res.error) throw new Error(res.error);
@@ -584,9 +671,26 @@ function syncLabels(){
 }
 function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
 /* Typing a date is a deliberate act, so re-check what the sheet holds. */
+/* ---------- ONE date is enough ----------
+   This used to need BOTH boxes filled before anything would load, so looking
+   at a single day meant picking it twice. Fill either box and the other
+   follows it. Filling the second one then widens the range. A range typed
+   backwards is swapped rather than refused, because that is a slip and not a
+   question. */
+function normaliseRange(){
+  var a=$('f1'), b=$('t1');
+  if(a.value && !b.value) b.value=a.value;
+  else if(b.value && !a.value) a.value=b.value;
+  if(a.value && b.value && a.value>b.value){ var t=a.value; a.value=b.value; b.value=t; }
+  return { from:a.value, to:b.value };
+}
+
 function onPick(){
+  var r=normaliseRange();
   markPreset(''); syncLabels();
-  busy('Checking the sheet\u2026');
+  shareRange(r.from, r.to);
+  shareDay(r.to);            /* the single date reports follow the end of it */
+  busy('Checking for new days\u2026');
   refreshDates(true).then(function(){ load() }).catch(function(){ load() });
 }
 
@@ -598,7 +702,7 @@ function preset(which){
 }
 
 function busy(msg){
-  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>'+esc(msg)+'</div>';
+  $('content').innerHTML='<div class="loading">'+esc(msg)+'</div>';
 }
 
 /* "Last N Days" counts DAYS THAT HAVE DATA, not calendar days.
@@ -641,8 +745,13 @@ function applyPreset(which){
 
 /* ---------- load: only the days we do not already hold ---------- */
 function load(){
-  var f=$('f1').value, t=$('t1').value;
+  var r=normaliseRange();
+  var f=r.from, t=r.to;
   if(!f||!t) return;
+  /* Whatever this page settles on, including a preset, becomes the range the
+     rest of the dashboard opens with. */
+  shareRange(f,t);
+  shareDay(t);
   if(f>t){ $('content').innerHTML='<div class="err"><b>From date is after To date.</b><br>Fix the order and it will load.</div>'; return }
 
   RANGE = DATES.filter(function(d){ return d>=f && d<=t });
@@ -664,7 +773,7 @@ function load(){
 
   if(!missing.length){ merge(); render(); return }
 
-  $('content').innerHTML='<div class="loading"><div class="spin"></div><br>Fetching '+
+  $('content').innerHTML='<div class="loading">Fetching '+
     missing.length+' new day(s)&hellip;<br><span style="font-size:11px">'+
     (RANGE.length-missing.length)+' of '+RANGE.length+' already cached</span></div>';
 

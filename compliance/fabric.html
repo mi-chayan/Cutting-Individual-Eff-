@@ -366,9 +366,33 @@
                border-top:.5pt solid #ccc;padding-top:2mm}
   }
   .printfoot{display:none}
+
+  /* ---------- GitHub style progress bar ----------
+     A thin line across the very top that runs left to right while anything is
+     in flight. It replaces the spinner that used to blank the whole report:
+     a page you cannot read is a worse answer than a page you can read with a
+     line moving above it. Purely visual, it never disables anything. */
+  #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
+       pointer-events:none;opacity:0;transition:opacity .18s}
+  #bar.on{opacity:1}
+  #bar i{display:block;height:100%;width:40%;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#723EC3,#B07CFF,#723EC3);
+         box-shadow:0 0 8px rgba(114,62,195,.55);
+         animation:barslide 1.1s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  /* The old spinner is kept out of the way rather than deleted, so any
+     markup that still asks for one simply shows nothing. */
+  .spin{display:none !important}
+  .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
+         background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
+         font-size:11.5px;font-weight:700}
+  .dnote.on{display:block;margin:10px auto 0}
 </style>
 </head>
 <body>
+
+<div id="bar"><i></i></div>
+
 
 <div class="strip">
   <h2>Daily Fabric Roll Compliance Report</h2>
@@ -390,9 +414,67 @@
   </div>
 </div>
 
-<div id="content"><div class="loading"><div class="spin"></div><br>Loading&hellip;</div></div>
+<div id="dnote" class="dnote"></div>
+<div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
+
+/* ==================================================================
+   SNOWTEX dashboard kit
+   Shared by daily, range, fabric and weekly. Keep the four copies the
+   same: they are inlined rather than imported because every page is a
+   single self contained file served from Cloudflare Pages.
+
+   1. THE THIN BAR. Counted, not toggled. Two requests can overlap and a
+      naive hide on the first response would switch it off while the
+      second is still running.
+
+   2. THE SELECTED DATE IS SHARED. Every report used to remember its own
+      date, so moving from the Daily report to Fabric Compliance silently
+      changed the day under you. One value in sessionStorage, written by
+      whichever page the user last touched, read by all of them.
+
+   3. FIRST OPEN LANDS ON YESTERDAY. Not on "the latest day the sheet
+      happens to hold", which is a different date depending on whether
+      this morning's report has been pulled yet.
+   ================================================================== */
+
+var BUSY_N = 0;
+/* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
+   the report with a message, and two functions of the same name in one file
+   means the second one silently wins. */
+function barBusy(on){
+  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+  var b = document.getElementById('bar');
+  if(b) b.className = BUSY_N ? 'on' : '';
+}
+/* Wrap any promise so the bar follows it, whatever the outcome. */
+function track(p){
+  barBusy(true);
+  return p.then(function(v){ barBusy(false); return v; },
+                function(e){ barBusy(false); throw e; });
+}
+
+var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
+function ssRead(k){ try{ return sessionStorage.getItem(k)||''; }catch(e){ return ''; } }
+function ssWrite(k,v){ try{ sessionStorage.setItem(k, v||''); }catch(e){} }
+
+function isoOf(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function yesterdayISO(){
+  var d=new Date(); d.setDate(d.getDate()-1); return isoOf(d);
+}
+
+/* The day this page should open on: whatever the user last looked at
+   anywhere in the dashboard, otherwise yesterday. */
+function wantedDay(){ return ssRead(SD_DAY) || yesterdayISO(); }
+function shareDay(d){ if(d) ssWrite(SD_DAY, d); }
+
+function wantedFrom(){ return ssRead(SD_FROM) || wantedDay(); }
+function wantedTo(){   return ssRead(SD_TO)   || wantedDay(); }
+function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
+
 /* =====================================================================
    Fabric Roll Compliance Report
    ---------------------------------------------------------------------
@@ -403,11 +485,7 @@
    Calculated in Code.gs because the sheet does not hold it:
      Excess    = Roll Width - MW
      Waste Yds = Used Yds x (Excess - Allowance) / Roll Width, failed rolls only
-     Allowance   = EFFECTIVE DATED, see TOLERANCE_RULES below.
-                   from 12-08-2026: 2.00 in for padding, quilting, fleece,
-                   sherpa, mesh, spandex, needle; 1.00 otherwise
-                   before that:     1.50 in for padding, quilting, fleece,
-                   sherpa; 1.00 otherwise
+     Allowance   = 1.50 in for padding, quilting, fleece, sherpa; 1.00 otherwise
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
@@ -415,7 +493,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281
    column shifted every marker/roll field along by one. A sessionStorage
    copy saved before that change has the old shape and would paint garbage,
    so changing the key throws it away instead of trying to read it. */
-var SNAP_KEY='fabric_snapshot_v3', DAYPFX='fabric_day_v3_', DETPFX='fabric_det_v3_';
+var SNAP_KEY='fabric_snapshot_v2', DAYPFX='fabric_day_v2_', DETPFX='fabric_det_v2_';
 
 var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', fabricFilter='', query='', compFilter='all';
@@ -429,40 +507,18 @@ var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']}
 var factFilter='';
 function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
 function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
-/* Width allowance, mirrored from Code.gs and EFFECTIVE DATED the same way.
-   The server prices the waste, but this page still decides which Excess
-   figures to flag red, so it has to use the identical rule or the two would
-   disagree on screen.
-
-   Keep this list byte for byte in step with TOLERANCE_RULES in Code.gs.
-   Newest first, first match wins, never edit an older row.
-   Matched on a name FRAGMENT, so "Fleece Check Match" also matches. */
-var TOLERANCE_RULES=[
-  { from:'2026-08-12', narrow:1.00, wide:2.00,
-    wideWords:['padding','quilting','fleece','sherpa','mesh','spandex','needle'] },
-  { from:'0000-00-00', narrow:1.00, wide:1.50,
-    wideWords:['padding','quilting','fleece','sherpa'] }
-];
-function toleranceRule(dateStr){
-  var d=String(dateStr||'9999-12-31');
-  for(var i=0;i<TOLERANCE_RULES.length;i++) if(d>=TOLERANCE_RULES[i].from) return TOLERANCE_RULES[i];
-  return TOLERANCE_RULES[TOLERANCE_RULES.length-1];
-}
-function allowanceFor(fab,dateStr){
-  var rule=toleranceRule(dateStr);
+/* Width allowance, mirrored from Code.gs. The server prices the waste, but
+   this page still decides which Excess figures to flag red, so it has to use
+   the same rule or the two would disagree on screen.
+   Matched on a name FRAGMENT, so "Fleece Check Match" also gets 1.50. */
+var TOLERANCE=1.00, TOLERANCE_WIDE=1.50;
+var WIDE_WORDS=['padding','quilting','fleece','sherpa'];
+function allowanceFor(fab){
   var f=String(fab||'').toLowerCase();
-  for(var i=0;i<rule.wideWords.length;i++) if(f.indexOf(rule.wideWords[i])>-1) return rule.wide;
-  return rule.narrow;
+  for(var i=0;i<WIDE_WORDS.length;i++) if(f.indexOf(WIDE_WORDS[i])>-1) return TOLERANCE_WIDE;
+  return TOLERANCE;
 }
-/* Footnote text follows the rule for the date on screen, so a July report
-   never claims the August allowance was applied to it. */
-function allowText(dateStr){
-  var r=toleranceRule(dateStr);
-  var w=r.wideWords.slice();
-  var last=w.pop();
-  return r.wide.toFixed(2)+'&Prime; for '+w.join(', ')+' and '+last
-       + ', '+r.narrow.toFixed(2)+'&Prime; otherwise';
-}
+var ALLOW_TEXT='1.50&Prime; for padding, quilting, fleece and sherpa, 1.00&Prime; otherwise';
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
 /* Compliance bands: red below 90, green 90 to 98, blue above 98. */
@@ -506,13 +562,21 @@ function tellParent(s){ if(window.parent!==window) window.parent.postMessage({ty
 
 /* ---------- boot: cache first, network only if empty ---------- */
 function boot(){
+  /* The date box is filled BEFORE anything is fetched, and it carries the same
+     day the rest of the dashboard is on. */
+  var want = wantedDay();
+  document.getElementById('d1').value = want;
+  syncDateLabel();
+  document.getElementById('content').innerHTML =
+    '<div class="loading">Loading '+prettyDate(want)+'&hellip;</div>';
+
   var snap=cacheGet(SNAP_KEY);
   if(snap) applySnapshot(snap);          /* paint instantly, may be stale */
 
   /* Always re-check the server, even when the cache painted. If the sheet has
      a newer day than the cache, the page silently moves to it. This is what
      fixes "I pushed this morning but still see yesterday". */
-  fetch(API_URL+'?action=snapshot')
+  track(fetch(API_URL+'?action=snapshot'))
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
@@ -523,16 +587,41 @@ function boot(){
     }).catch(function(e){ if(!snap) showErr(e); });
 }
 
+function dnote(txt){
+  var n=document.getElementById('dnote');
+  if(!n) return;
+  n.innerHTML=txt||'';
+  n.className = txt ? 'dnote on' : 'dnote';
+}
+
 function applySnapshot(res){
-  DATES=res.dates||[]; LATEST=res.latest||''; DAY=LATEST; STAMP=res.generatedAt||'';
+  DATES=res.dates||[]; LATEST=res.latest||''; STAMP=res.generatedAt||'';
   MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
   DETAIL={}; DETLOADING={};
-  document.getElementById('d1').value=LATEST;
   tellParent(STAMP);
   if(!MARKERS.length && !LATEST){
-    document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';return;
+    document.getElementById('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
+    return;
   }
-  resetFilters(); render();
+
+  /* Honour the day the user asked for rather than jumping to the newest one
+     the sheet happens to hold. */
+  var want = document.getElementById('d1').value || wantedDay();
+  if(DATES.length && DATES.indexOf(want) < 0){
+    dnote('<b>'+prettyDate(want)+'</b> has not been loaded into this report yet. '
+        + 'Showing <b>'+prettyDate(LATEST)+'</b>, the most recent day available.');
+    want = LATEST;
+  }else{
+    dnote('');
+  }
+
+  document.getElementById('d1').value = want;
+  syncDateLabel();
+  shareDay(want);
+  DAY = want;
+
+  if(want === LATEST){ resetFilters(); render(); }
+  else { pickDate(); }
 }
 
 /* The shell's Refresh delegates to whichever report is open, because only
@@ -609,7 +698,7 @@ function refreshNow(){
       : API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d);
 
   document.getElementById('content').innerHTML=
-    '<div class="loading"><div class="spin"></div><br>Refreshing '+prettyDate(d)+'&hellip;</div>';
+    '<div class="loading">Refreshing '+prettyDate(d)+'&hellip;</div>';
 
   fetch(url,{cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
@@ -642,7 +731,7 @@ window.addEventListener('message',function(ev){
    re-read, and it clears the local caches so nothing stale can win. */
 function goLatest(){
   document.getElementById('content').innerHTML=
-    '<div class="loading"><div class="spin"></div><br>Checking the sheet for the latest day&hellip;</div>';
+    '<div class="loading">Checking for the latest day&hellip;</div>';
   clearCaches();
   fetch(API_URL+'?action=snapshot&fresh=1')
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
@@ -671,6 +760,8 @@ function pickDate(){
   if(!d)return;
   DAY=d;
   syncDateLabel();   /* show the picked date immediately, not after loading */
+  shareDay(d);       /* every other report opens on this day too */
+  dnote('');
   if(d===LATEST){
     var snap=cacheGet(SNAP_KEY);
     if(snap){ MARKERS=mapMarkers(snap.markers); FLOORRATES=snap.floorRates||{};
@@ -680,8 +771,8 @@ function pickDate(){
   if(cached){ MARKERS=mapMarkers(cached.markers); FLOORRATES=cached.floorRates||{};
               STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
 
-  document.getElementById('content').innerHTML='<div class="loading"><div class="spin"></div><br>Loading '+prettyDate(d)+'&hellip;</div>';
-  fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d))
+  document.getElementById('content').innerHTML='<div class="loading">Loading '+prettyDate(d)+'&hellip;</div>';
+  track(fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d)))
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
       if(res.error)throw new Error(res.error);
@@ -996,7 +1087,7 @@ function render(){
     if(isOpen) h+=detailBlock(m,12);
   });
   h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
-    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+allowText(DAY)+' &bull; '
+    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+ALLOW_TEXT+' &bull; '
     +'Wasted Yds = Used Yds &times; (Excess &minus; Allowance) &divide; Roll Width, failed rolls only</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
@@ -1064,7 +1155,7 @@ function detailBlock(m,colspan){
       +'<td>'+fmt(r[11],2)+'</td>'
       +'<td>'+fmt(r[12],2)+'</td>'
       +'<td>'+fmt(r[3],2)+'</td>'
-      +'<td class="'+(r[19]>allowanceFor(r[2],DAY)?'bad':'')+'">'+fmt(r[19],2)+'</td>'
+      +'<td class="'+(r[19]>allowanceFor(r[2])?'bad':'')+'">'+fmt(r[19],2)+'</td>'
       +'<td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[14],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td>'
