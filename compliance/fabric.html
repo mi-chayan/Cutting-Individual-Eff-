@@ -403,7 +403,11 @@
    Calculated in Code.gs because the sheet does not hold it:
      Excess    = Roll Width - MW
      Waste Yds = Used Yds x (Excess - Allowance) / Roll Width, failed rolls only
-     Allowance   = 1.50 in for padding, quilting, fleece, sherpa; 1.00 otherwise
+     Allowance   = EFFECTIVE DATED, see TOLERANCE_RULES below.
+                   from 12-08-2026: 2.00 in for padding, quilting, fleece,
+                   sherpa, mesh, spandex, needle; 1.00 otherwise
+                   before that:     1.50 in for padding, quilting, fleece,
+                   sherpa; 1.00 otherwise
    ===================================================================== */
 
 var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
@@ -411,7 +415,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281
    column shifted every marker/roll field along by one. A sessionStorage
    copy saved before that change has the old shape and would paint garbage,
    so changing the key throws it away instead of trying to read it. */
-var SNAP_KEY='fabric_snapshot_v2', DAYPFX='fabric_day_v2_', DETPFX='fabric_det_v2_';
+var SNAP_KEY='fabric_snapshot_v3', DAYPFX='fabric_day_v3_', DETPFX='fabric_det_v3_';
 
 var MARKERS=[], FLOORRATES={}, DATES=[], LATEST='', DAY='', STAMP='';
 var floorFilter='', fabricFilter='', query='', compFilter='all';
@@ -425,18 +429,40 @@ var FACTORY={SOL:['1A','1B','1C','1D','1E','3A'],SSL:['2A','2B','2C','2D','2E']}
 var factFilter='';
 function scopeFloors(){ return factFilter ? FACTORY[factFilter] : FLOOR_ORDER; }
 function inScope(f){ return !factFilter || FACTORY[factFilter].indexOf(f)>-1; }
-/* Width allowance, mirrored from Code.gs. The server prices the waste, but
-   this page still decides which Excess figures to flag red, so it has to use
-   the same rule or the two would disagree on screen.
-   Matched on a name FRAGMENT, so "Fleece Check Match" also gets 1.50. */
-var TOLERANCE=1.00, TOLERANCE_WIDE=1.50;
-var WIDE_WORDS=['padding','quilting','fleece','sherpa'];
-function allowanceFor(fab){
-  var f=String(fab||'').toLowerCase();
-  for(var i=0;i<WIDE_WORDS.length;i++) if(f.indexOf(WIDE_WORDS[i])>-1) return TOLERANCE_WIDE;
-  return TOLERANCE;
+/* Width allowance, mirrored from Code.gs and EFFECTIVE DATED the same way.
+   The server prices the waste, but this page still decides which Excess
+   figures to flag red, so it has to use the identical rule or the two would
+   disagree on screen.
+
+   Keep this list byte for byte in step with TOLERANCE_RULES in Code.gs.
+   Newest first, first match wins, never edit an older row.
+   Matched on a name FRAGMENT, so "Fleece Check Match" also matches. */
+var TOLERANCE_RULES=[
+  { from:'2026-08-12', narrow:1.00, wide:2.00,
+    wideWords:['padding','quilting','fleece','sherpa','mesh','spandex','needle'] },
+  { from:'0000-00-00', narrow:1.00, wide:1.50,
+    wideWords:['padding','quilting','fleece','sherpa'] }
+];
+function toleranceRule(dateStr){
+  var d=String(dateStr||'9999-12-31');
+  for(var i=0;i<TOLERANCE_RULES.length;i++) if(d>=TOLERANCE_RULES[i].from) return TOLERANCE_RULES[i];
+  return TOLERANCE_RULES[TOLERANCE_RULES.length-1];
 }
-var ALLOW_TEXT='1.50&Prime; for padding, quilting, fleece and sherpa, 1.00&Prime; otherwise';
+function allowanceFor(fab,dateStr){
+  var rule=toleranceRule(dateStr);
+  var f=String(fab||'').toLowerCase();
+  for(var i=0;i<rule.wideWords.length;i++) if(f.indexOf(rule.wideWords[i])>-1) return rule.wide;
+  return rule.narrow;
+}
+/* Footnote text follows the rule for the date on screen, so a July report
+   never claims the August allowance was applied to it. */
+function allowText(dateStr){
+  var r=toleranceRule(dateStr);
+  var w=r.wideWords.slice();
+  var last=w.pop();
+  return r.wide.toFixed(2)+'&Prime; for '+w.join(', ')+' and '+last
+       + ', '+r.narrow.toFixed(2)+'&Prime; otherwise';
+}
 
 function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
 /* Compliance bands: red below 90, green 90 to 98, blue above 98. */
@@ -970,7 +996,7 @@ function render(){
     if(isOpen) h+=detailBlock(m,12);
   });
   h+='</tbody></table></div><div class="foot">'+S.mkShown.length+' of '+MARKERS.length+' marker(s) shown &bull; '
-    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+ALLOW_TEXT+' &bull; '
+    +'Compliance% is read from the sheet &bull; A roll fails when Roll Width exceeds MW by more than its allowance, '+allowText(DAY)+' &bull; '
     +'Wasted Yds = Used Yds &times; (Excess &minus; Allowance) &divide; Roll Width, failed rolls only</div></div>';
 
   h+='<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803 &bull; Generated '+prettyStamp()+'</div>';
@@ -1038,7 +1064,7 @@ function detailBlock(m,colspan){
       +'<td>'+fmt(r[11],2)+'</td>'
       +'<td>'+fmt(r[12],2)+'</td>'
       +'<td>'+fmt(r[3],2)+'</td>'
-      +'<td class="'+(r[19]>allowanceFor(r[2])?'bad':'')+'">'+fmt(r[19],2)+'</td>'
+      +'<td class="'+(r[19]>allowanceFor(r[2],DAY)?'bad':'')+'">'+fmt(r[19],2)+'</td>'
       +'<td>'+fmt(r[13],0)+'</td>'
       +'<td>'+fmt(r[14],0)+'</td>'
       +'<td>'+fmt(r[15],2)+'</td>'

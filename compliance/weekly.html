@@ -392,7 +392,8 @@ var LS_STAMP = 'fabwk_stamp';   /* last server timestamp, for the header clock *
    will quietly lack the newer fields. That is what produced a Fabric Type list
    full of zeroes: the day had no floor x fabric cross-tab in it at all. Any
    locally held day that is not this version is thrown away and refetched. */
-var DAY_SCHEMA = 4;   /* 4 = Buyer bucket 'b' added 12-Aug-2026 */
+var DAY_SCHEMA = 5;   /* 5 = 2 inch width allowance from 12-Aug-2026
+                         4 = Buyer bucket 'b' added 12-Aug-2026 */
 var KEEP_DAYS = 220;            /* prune older entries so localStorage cannot fill */
 var FETCH_CHUNK = 45;           /* dates per request, keeps the URL short */
 /* After the page has painted, quietly pull this many recent days in the
