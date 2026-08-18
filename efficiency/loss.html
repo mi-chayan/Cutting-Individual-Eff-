@@ -26,6 +26,18 @@
   #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:200;
        pointer-events:none;opacity:0;transition:opacity .18s}
   #bar.on{opacity:1}
+  /* The chip that says WHAT is loading. */
+  .barmsg{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-140%);
+          z-index:199;background:var(--navy);color:#fff;border-radius:0 0 10px 10px;
+          padding:7px 16px 8px;font-size:11.5px;font-weight:800;
+          box-shadow:0 5px 16px rgba(37,42,69,.28);white-space:nowrap;max-width:92vw;
+          overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+          transition:transform .2s cubic-bezier(.2,.8,.3,1)}
+  .barmsg.on{transform:translateX(-50%) translateY(0)}
+  .barmsg i{display:inline-block;width:7px;height:7px;border-radius:50%;
+            background:#B07CFF;margin-right:8px;vertical-align:middle;
+            animation:barblink .9s ease-in-out infinite}
+  @keyframes barblink{0%,100%{opacity:.35}50%{opacity:1}}
   #bar i{display:block;height:100%;width:40%;border-radius:0 3px 3px 0;
          background:linear-gradient(90deg,var(--violet),#B07CFF,var(--violet));
          box-shadow:0 0 8px rgba(114,62,195,.55);
@@ -101,7 +113,7 @@
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
   .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
   .kpi.k4:before{background:var(--blue)}  .kpi.k5:before{background:var(--green)}
-  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .k{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
   .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px}
 
@@ -129,11 +141,27 @@
   /* Hover must light the WHOLE row. The coloured state rules above outrank a
      plain tr:hover, so this one needs !important or the row looks split. */
   tbody tr:hover td{background:#EEF0FA !important;cursor:pointer}
+  /* ---------- the row you were just in ----------
+     Closing the popup used to drop you back into thirty four identical rows
+     with no idea which one you had just edited. The last row opened keeps a
+     marker until another one is opened. */
+  tbody tr.picked td{box-shadow:inset 0 -1px 0 #723EC3, inset 0 1px 0 #723EC3}
+  tbody tr.picked td:first-child{box-shadow:inset 0 -1px 0 #723EC3, inset 0 1px 0 #723EC3,
+                                 inset 4px 0 0 #723EC3}
+  tbody tr.picked td:last-child{box-shadow:inset 0 -1px 0 #723EC3, inset 0 1px 0 #723EC3,
+                                inset -4px 0 0 #723EC3}
+  tbody tr.picked .nm{color:var(--violet)}
+  @keyframes rowflash{0%{background:#EDE2FF}100%{background:transparent}}
+  tbody tr.flash td{animation:rowflash 1.1s ease-out}
+  .pill.ed{background:#FFF0D9;color:#8A5B12}
   .mono{font-variant-numeric:tabular-nums}
   .sl{color:var(--mut);font-weight:700;text-align:right}
   .chk{width:17px;height:17px;accent-color:var(--violet);cursor:pointer}
-  /* The Unavailable column is a tick, nothing more. It does not need width. */
-  .chk.sm{width:13px;height:13px}
+  /* The Unavailable column is a tick, nothing more. It does not need width.
+     The box stays small on screen but the TAP AREA does not: a 13px target on
+     a factory floor tablet is a missed tap, so padding grows the hit box to
+     about 33px without changing what anyone sees. */
+  .chk.sm{width:13px;height:13px;padding:10px;margin:-10px}
   .whhint{font-size:9px;font-weight:700;opacity:.65}
   .whv{font-variant-numeric:tabular-nums;font-weight:700}
   .whna{color:var(--mut);opacity:.6}
@@ -152,6 +180,9 @@
   .tag{background:#EFE8FB;color:var(--violet);border-radius:5px;padding:2px 6px;
        font-size:9.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
   .tag b{font-weight:800}
+  /* Outlined means typed here and NOT submitted yet. Solid means it is in the
+     report already. */
+  .tag.new{background:#fff;border:1px dashed var(--violet)}
   .more{color:var(--mut);font-size:9.5px;font-weight:800;flex:0 0 auto}
 
   .ec{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11px;text-align:center}
@@ -246,8 +277,6 @@
   .unavrow.on{background:#F4EDFB;border-color:var(--violet)}
   .unavrow b{font-weight:800;font-size:13px;color:var(--navy)}
   .unavrow span{font-size:10.5px;color:var(--mut);font-weight:600}
-  .unavrow .keep{display:none;font-size:10px;font-weight:800;color:var(--violet);margin-top:3px}
-  .unavrow.on .keep{display:block}
 
   /* Each loss line is a card. Fourteen bare inputs in a column all looked the
      same and there was no way to see at a glance which line was which. */
@@ -267,6 +296,22 @@
   .addrow{background:#fff;border:2px dashed #C8CDE4;border-radius:10px;color:var(--violet);
           padding:11px;width:100%;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer}
   .addrow:hover{border-color:var(--violet);background:#FAF7FF}
+  /* A line already in the report. Read only apart from the cross, which is
+     the one destructive action on this screen, so it is per line and stays
+     reversible until Submit. */
+  .srow{display:grid;grid-template-columns:24px 1fr 74px 96px 32px;gap:8px;align-items:center;
+        margin-bottom:7px;background:#F6F7FB;border:1px solid var(--line);border-radius:10px;
+        padding:8px 10px;font-size:12px}
+  .srow .no{width:24px;height:24px;border-radius:7px;background:#E7F4EC;color:var(--green);
+            font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .srow .rs{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srow .mn{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:var(--red)}
+  .srow .wh2{font-size:9.5px;color:var(--mut);font-weight:700;line-height:1.25;text-align:right}
+  .srow .wh2 span{font-weight:600;opacity:.8}
+  .srow.gone{background:#FBE9EB;border-color:#F3D6DA}
+  .srow.gone .rs,.srow.gone .mn{text-decoration:line-through;opacity:.6}
+  .srow.gone .no{background:#FBE9EB;color:var(--red)}
+
   .elab{display:grid;grid-template-columns:24px 1fr 78px 70px 32px;gap:8px;margin:0 10px 5px}
   .elab span{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   .mwarn{margin-top:11px;padding:10px 13px;border-radius:9px;font-size:11.5px;font-weight:700;display:none}
@@ -294,6 +339,7 @@
 <body>
 
 <div id="bar"><i></i></div>
+<div id="barmsg" class="barmsg"></div>
 
 <!-- ===== LOGIN ===== -->
 <div id="loginBox" class="card login hide">
@@ -433,13 +479,17 @@
         <input type="checkbox" class="chk" id="mUnav" onclick="event.stopPropagation();toggleUnav()">
         <div>
           <b>Unavailable all day</b><br>
-          <span>No loss minutes are recorded and individual PIB does not apply</span>
-          <div class="keep" id="mKeep"></div>
+          <span>Individual PIB does not apply. Anything already submitted stays on the record</span>
         </div>
       </div>
 
+      <div id="mSavedWrap" style="display:none">
+        <div class="sect">Already submitted</div>
+        <div id="mSaved"></div>
+      </div>
+
       <div id="mEntryArea">
-        <div class="sect">Loss time</div>
+        <div class="sect">Add new</div>
         <div class="elab"><span></span><span>Reason</span><span>Time</span><span>Unit</span><span></span></div>
         <div id="mRows"></div>
         <button class="addrow" onclick="addRow()">+ Add another reason</button>
@@ -514,14 +564,32 @@ var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
 var LOCKDATE='', LOCKED=false;
 var OVER=[];
 var WH={};
+/* The operator whose popup was opened last. Closing the popup used to drop
+   you back into a list of identical rows with nothing to say which one you
+   had just been in. */
+var PICKED='';
 
 /* ---------- the thin bar ----------
    Counted, not toggled. Two requests can overlap, and a naive hide on the
    first response would switch the bar off while the second is still running. */
-var BUSY = 0;
-function busy(on){
-  BUSY = Math.max(0, BUSY + (on ? 1 : -1));
+var BUSY = 0, BUSY_LABELS = [];
+/* The bar says something is happening. The chip says WHAT, and for which
+   date, because pressing a button and waiting with no idea what is coming is
+   the whole complaint. */
+function busy(on, label){
+  if(on){ BUSY++; if(label) BUSY_LABELS.push(label); }
+  else{
+    BUSY = Math.max(0, BUSY - 1);
+    if(label){ var i=BUSY_LABELS.indexOf(label); if(i>=0) BUSY_LABELS.splice(i,1); }
+    if(!BUSY) BUSY_LABELS = [];
+  }
   document.getElementById('bar').className = BUSY ? 'on' : '';
+  var c=document.getElementById('barmsg');
+  if(c){
+    var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length-1] : '';
+    c.innerHTML = txt ? ('<i></i>'+txt+'&hellip;') : '';
+    c.className = (BUSY && txt) ? 'barmsg on' : 'barmsg';
+  }
 }
 
 /* ---------- toasts ----------
@@ -581,7 +649,7 @@ function effCell(id){
   if(!f || f.inn===null || f.inn===undefined)
     return '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>';
 
-  var m=totMin(VAL[id]);
+  var m=totMin(VAL[id], id);
   var p=project(id, m);
   var savedLoss=Number(f.loss)||0;
   var cur=(f.eff===null||f.eff===undefined)?null:f.eff;
@@ -604,7 +672,7 @@ function effCell(id){
 function inCell(id){
   var f=facts(id);
   if(!f || f.inn===null || f.inn===undefined) return '<span class="whna">&ndash;</span>';
-  var m=totMin(VAL[id]);
+  var m=totMin(VAL[id], id);
   var p=project(id, m);
   var savedLoss=Number(f.loss)||0;
   if(!p || m===savedLoss) return '<span class="effnow">'+Math.round(f.inn)+'</span>';
@@ -642,13 +710,25 @@ function pretty(iso){
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ---------- the value shape ----------
-   One operator holds a LIST of entries now, not one figure.
-     { unav:false, entries:[ {reason:'No fabric', min:'45', unit:'Min'}, ... ] } */
-/* stash: the entries put aside when Unavailable is ticked. Untick and they
-   come straight back. Deleting them instead was wrong: a leader ticks the box
-   to SEE what N/A looks like, unticks it, and his typing is gone. The stash
-   lives until Submit, exactly like everything else on this page. */
-function blank(){ return {unav:false, entries:[], stash:null}; }
+   ADDITIVE, changed 18-Aug-2026. A submit ADDS to what an operator already
+   has, it does not replace it. Ten minutes now, fifteen later, total twenty
+   five. That is how the floor actually works, and it makes the whole
+   concurrency problem disappear rather than needing to be policed: two people
+   adding at the same time both land, and the sum is right either way.
+
+   So one operator holds three things, not one list:
+     unav    the whole day out, a property of the day
+     add     new lines typed here and NOT sent yet
+     remove  already saved lines the user has crossed out, a deliberate
+             correction, matched on reason + minutes + timestamp so a row
+             shifting up or down in the sheet cannot make it hit the wrong one
+
+   SAVEDE holds what the sheet already has, keyed by operator. It is never
+   edited in place. */
+function blank(){ return {unav:false, add:[], remove:[]}; }
+
+/* opId -> [{reason, min, by, ts, unav}] straight from the server. */
+var SAVEDE = {};
 
 function entryMin(e){
   if(!e) return 0;
@@ -656,23 +736,46 @@ function entryMin(e){
   if(isNaN(n)||n<0) n=0;
   return Math.round(e.unit==='Hr' ? n*60 : n);
 }
-/* Total minutes for one operator. Unavailable records NO minutes at all: the
-   whole day is out, there is nothing to deduct from. */
-function totMin(v){
-  if(!v || v.unav) return 0;
-  var t=0;
-  (v.entries||[]).forEach(function(e){ t+=entryMin(e); });
-  return t;
+/* A saved line and a pending removal are the same line when the reason, the
+   minutes and the timestamp all match. */
+function sameSaved(a,b){
+  return String(a.reason||'').trim().toLowerCase()===String(b.reason||'').trim().toLowerCase()
+      && Math.round(Number(a.min)||0)===Math.round(Number(b.min)||0)
+      && String(a.ts||'')===String(b.ts||'');
 }
-/* Only the lines that carry both a reason and a real figure count. A half
+/* The saved lines that are still standing, ie not crossed out here. */
+function savedLive(id){
+  var v=VAL[id]||blank();
+  return (SAVEDE[id]||[]).filter(function(e){
+    if(Number(e.min)<=0 && !String(e.reason||'').trim()) return false;   /* the unavailable marker */
+    return !(v.remove||[]).some(function(r){ return sameSaved(e,r); });
+  });
+}
+/* Only the new lines that carry both a reason and a real figure. A half
    filled line the leader abandoned is not an entry. */
-function realEntries(v){
-  if(!v || v.unav) return [];
-  return (v.entries||[]).filter(function(e){
+function addEntries(v){
+  return ((v&&v.add)||[]).filter(function(e){
     return entryMin(e)>0 && String(e.reason||'').trim();
   });
 }
-
+/* What this operator's day totals once this screen is submitted. Unavailable
+   records NO minutes: the whole day is out, there is nothing to deduct from. */
+function totMin(v, id){
+  if(!v || v.unav) return 0;
+  var t=0;
+  savedLive(id).forEach(function(e){ t+=Math.round(Number(e.min)||0); });
+  addEntries(v).forEach(function(e){ t+=entryMin(e); });
+  return t;
+}
+/* What the sheet holds RIGHT NOW for this operator, before this screen. */
+function savedMin(id){
+  var t=0;
+  (SAVEDE[id]||[]).forEach(function(e){ t+=Math.round(Number(e.min)||0); });
+  return t;
+}
+function savedUnav(id){
+  return (SAVEDE[id]||[]).some(function(e){ return !!e.unav; });
+}
 /* ---------- transport ---------- */
 function readJson(r){
   return r.text().then(function(t){
@@ -702,26 +805,26 @@ function withRetry(run){
   });
 }
 
-function api(params){
+function api(params, label){
   var q=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k])}).join('&');
-  busy(true);
+  busy(true, label);
   return withRetry(function(){
     return fetch(LOSS_API+'?'+q,{cache:'no-store'}).then(readJson);
-  }).then(function(r){ busy(false); return r; },
-    function(e){ busy(false); throw e; });
+  }).then(function(r){ busy(false, label); return r; },
+    function(e){ busy(false, label); throw e; });
 }
 
 /* Saves are NOT retried automatically. The write is an idempotent upsert so a
    repeat is harmless to the sheet, but a silent retry would leave the user
    unsure whether their entry landed. They are told, and they decide. */
-function apiPost(body){
-  busy(true);
+function apiPost(body, label){
+  busy(true, label);
   return fetch(LOSS_API,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(body)
-  }).then(readJson).then(function(r){ busy(false); return r; },
-    function(e){ busy(false); throw e; });
+  }).then(readJson).then(function(r){ busy(false, label); return r; },
+    function(e){ busy(false, label); throw e; });
 }
 
 /* ---------- start ---------- */
@@ -787,7 +890,8 @@ function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
 
 function boot(){
   el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
-  api({action:'boot',token:TOKEN,floor:FLOOR}).then(function(r){
+  api({action:'boot',token:TOKEN,floor:FLOOR},
+      'Loss Time, floor '+FLOOR+', '+pretty(el('dt').value||TODAY)).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
     LOCKDATE=r.lockDate||'';
@@ -813,7 +917,7 @@ function loadDay(fresh){
   el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
   var q={action:'day',token:TOKEN,floor:FLOOR,date:d};
   if(fresh===true) q.fresh=1;
-  api(q).then(function(r){
+  api(q, 'Loss Time, floor '+FLOOR+', '+pretty(d)).then(function(r){
     if(!r.ok){ fail(r.msg); return; }
     if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
     WH={};
@@ -860,51 +964,39 @@ function fail(m){
 
 /* ---------- state ---------- */
 
-/* Baseline: what the sheet held when this day was loaded. Everything sent is
-   the DIFFERENCE against this, so an untouched operator is never rewritten.
-
-   That matters for more than speed. A full rewrite re-stamped every row on the
-   floor with the current user and time, so one leader correcting a single
-   operator destroyed the Submitted By and Timestamp of every row somebody else
-   had entered that morning. */
-var BASE = {};
-
-/* A comparable fingerprint. Reasons are SORTED, so re-ordering the lines in
-   the popup without changing anything does not read as a change. */
-function snap(v){
-  var list=realEntries(v).map(function(e){
-    return String(e.reason).trim().toLowerCase()+'|'+entryMin(e);
-  }).sort();
-  return { unav: !!(v && v.unav), key: list.join(';'), min: totMin(v) };
+/* ---------- what counts as unsaved ----------
+   With an additive model there is no baseline to diff against. An operator is
+   unsaved when this screen holds something it has not sent: a new line, a
+   crossed out line, or an Unavailable tick that differs from the sheet. */
+function isDirty(id){
+  var v=VAL[id]||blank();
+  if(addEntries(v).length) return true;
+  if((v.remove||[]).length) return true;
+  if(!!v.unav !== savedUnav(id)) return true;
+  return false;
 }
-function sameEntry(a,b){ return a.unav===b.unav && a.key===b.key; }
-
 function changedOps(){
   var out=[];
-  OPS.forEach(function(o){
-    var now  = snap(VAL[o.id]||blank());
-    var was  = BASE[o.id] || {unav:false,key:'',min:0};
-    if(!sameEntry(now,was)) out.push({op:o, now:now});
-  });
+  OPS.forEach(function(o){ if(isDirty(o.id)) out.push({op:o}); });
   return out;
 }
 
-/* The server sends a FLAT list of loss rows. One operator can hold several, one
-   per reason, so they are grouped here. */
+/* The server sends a FLAT list of loss rows. One operator holds several, one
+   per reason per submission, so they are grouped here. Nothing is merged: two
+   lines with the same reason are two events at two times of day. */
 function apply(day){
-  VAL={}; SAVED={};
+  VAL={}; SAVED={}; SAVEDE={};
   OPS.forEach(function(o){ VAL[o.id]=blank(); });
   (day.entries||[]).forEach(function(e){
     var id=e.opId;
-    if(!VAL[id]) VAL[id]=blank();
+    if(!SAVEDE[id]) SAVEDE[id]=[];
+    SAVEDE[id].push({
+      reason:String(e.reason||''), min:Math.round(Number(e.min)||0),
+      by:String(e.by||''), ts:String(e.ts||''), unav:!!e.unav
+    });
     SAVED[id]=true;
-    if(e.unav) VAL[id].unav=true;
-    if(Number(e.min)>0 || String(e.reason||'').trim()){
-      VAL[id].entries.push({ reason:String(e.reason||''), min:String(e.min||''), unit:'Min' });
-    }
   });
-  BASE={};
-  OPS.forEach(function(o){ BASE[o.id] = snap(VAL[o.id]); });
+  OPS.forEach(function(o){ VAL[o.id].unav = savedUnav(o.id); });
   el('hdDate').textContent = pretty(day.dateStr);
 }
 
@@ -924,11 +1016,11 @@ function capOf(id){
 }
 function overCap(id,v){
   if(!v || v.unav) return false;
-  var cap=capOf(id), m=totMin(v);
+  var cap=capOf(id), m=totMin(v,id);
   return (cap!==null && m>0 && m>cap);
 }
 function rowCls(id,v){
-  var m=totMin(v);
+  var m=totMin(v,id);
   if(v.unav) return 'unav';
   if(overCap(id,v)) return 'over';
   return m>WARN_MIN ? 'warn' : (m>0 ? 'has' : '');
@@ -940,8 +1032,8 @@ function lossCell(id){
   var v=VAL[id]||blank();
   if(v.unav) return '<span class="pill un">PIB N/A</span>';
 
-  var list=realEntries(v), m=totMin(v);
-  if(!list.length && !m) return '<span class="lossnone">&ndash;</span>';
+  var live=savedLive(id), pend=addEntries(v), m=totMin(v,id);
+  if(!live.length && !pend.length) return '<span class="lossnone">&ndash;</span>';
 
   var h='<div class="losswrap">';
   if(overCap(id,v)){
@@ -952,22 +1044,35 @@ function lossCell(id){
   }else{
     h+='<span class="lossmin">'+m+'</span>';
   }
+
+  /* Saved lines solid, lines not sent yet outlined, so a glance says what is
+     already in the report and what is still only on this screen. */
   h+='<span class="tags">';
-  list.slice(0,2).forEach(function(e){
-    h+='<span class="tag" title="'+esc(e.reason)+' '+entryMin(e)+' min">'
+  var shown=0, total=live.length+pend.length;
+  live.forEach(function(e){
+    if(shown>=2) return; shown++;
+    h+='<span class="tag" title="'+esc(e.reason)+' '+e.min+' min, submitted by '+esc(e.by||'-')+'">'
+      + esc(e.reason)+' <b>'+e.min+'</b></span>';
+  });
+  pend.forEach(function(e){
+    if(shown>=2) return; shown++;
+    h+='<span class="tag new" title="Not submitted yet">'
       + esc(e.reason)+' <b>'+entryMin(e)+'</b></span>';
   });
   h+='</span>';
-  if(list.length>2) h+='<span class="more">+'+(list.length-2)+'</span>';
+  if(total>shown) h+='<span class="more">+'+(total-shown)+'</span>';
   return h+'</div>';
 }
 
-/* Submitted means this operator already has loss time recorded for this date,
-   Pending means he does not. It deliberately does NOT say where it is stored:
-   a floor leader has no reason to know a Google Sheet exists. */
+function rowState(id){
+  if(isDirty(id)) return 'edited';
+  return SAVED[id] ? 'submitted' : 'pending';
+}
 function statCell(id){
-  return SAVED[id] ? '<span class="pill sv">Submitted</span>'
-                   : '<span class="pill no">Pending</span>';
+  var st=rowState(id);
+  if(st==='edited')    return '<span class="pill ed">Edited</span>';
+  if(st==='submitted') return '<span class="pill sv">Submitted</span>';
+  return '<span class="pill no">Pending</span>';
 }
 
 function render(){
@@ -978,7 +1083,7 @@ function render(){
     VIEW.push(o.id); sl++;
     var v=VAL[o.id]||blank();
 
-    h+='<tr id="tr_'+o.id+'" class="'+rowCls(o.id,v)+'" onclick="openModal(\''+o.id+'\')">'
+    h+='<tr id="tr_'+o.id+'" class="'+rowCls(o.id,v)+(o.id===PICKED?' picked':'')+'" onclick="openModal(\''+o.id+'\')">'
      + '<td class="sl">'+sl+'</td>'
      + '<td class="mono">'+esc(o.id)+'</td>'
      + '<td title="Click to enter loss time"><span class="nm">'+esc(o.name)
@@ -995,7 +1100,7 @@ function render(){
      + '<td class="ctr ec" id="in_'+o.id+'">'+inCell(o.id)+'</td>'
      + '<td class="ctr ec" id="ot_'+o.id+'">'+outCell(o.id)+'</td>'
      + '<td class="ctr ec" id="ef_'+o.id+'">'+effCell(o.id)+'</td>'
-     + '<td class="ctr">'+statCell(o.id)+'</td></tr>';
+     + '<td class="ctr" id="st_'+o.id+'">'+statCell(o.id)+'</td></tr>';
   });
   el('tb').innerHTML = h || '<tr><td colspan="12" class="loading">No operators match.</td></tr>';
   updateKpis();
@@ -1010,24 +1115,40 @@ function touch(id){
   if((c=el('ls_'+id))) c.innerHTML=lossCell(id);
   if((c=el('in_'+id))) c.innerHTML=inCell(id);
   if((c=el('ef_'+id))) c.innerHTML=effCell(id);
-  if((c=el('tr_'+id))) c.className=rowCls(id,v);
+  if((c=el('st_'+id))) c.innerHTML=statCell(id);
+  if((c=el('tr_'+id))) c.className=rowCls(id,v)+(id===PICKED?' picked':'');
   if((c=el('c_'+id)))  c.checked=!!v.unav;
   updateKpis();
   syncAllUnav();
 }
 
+/* Mark the row just left, bring it into view, and flash it once so the eye
+   lands on it without having to hunt. */
+function markPicked(id, flash){
+  var old = PICKED;
+  PICKED = id;
+  if(old && old!==id){
+    var oc=el('tr_'+old);
+    if(oc) oc.className=rowCls(old, VAL[old]||blank());
+  }
+  var tr=el('tr_'+id);
+  if(!tr) return;
+  tr.className = rowCls(id, VAL[id]||blank()) + ' picked' + (flash ? ' flash' : '');
+  try{ tr.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(e){ tr.scrollIntoView(); }
+  if(flash) setTimeout(function(){
+    var t=el('tr_'+id);
+    if(t) t.className = rowCls(id, VAL[id]||blank()) + (id===PICKED?' picked':'');
+  }, 1200);
+}
+
+/* Unavailable marks the DAY, it does not delete anything. Lines already
+   submitted stay on the record, lines typed here stay typed, and the day
+   simply reads PIB N/A. Destroying somebody's recorded minutes as a side
+   effect of a tick is the kind of thing nobody expects. */
 function setUnav(id,on){
   if(LOCKED) return;
   if(!VAL[id]) VAL[id]=blank();
-  var v=VAL[id];
-  if(on && !v.unav){
-    /* Put the lines aside, do not destroy them. */
-    if(v.entries.length) v.stash=v.entries;
-    v.entries=[];
-  }else if(!on && v.unav){
-    if(v.stash && v.stash.length){ v.entries=v.stash; v.stash=null; }
-  }
-  v.unav=!!on;
+  VAL[id].unav=!!on;
   touch(id);
 }
 
@@ -1053,7 +1174,7 @@ function syncAllUnav(){
 function updateKpis(){
   var tot=0, cnt=0, warn=[], over=[];
   OPS.forEach(function(o){
-    var v=VAL[o.id]||blank(), m=totMin(v);
+    var v=VAL[o.id]||blank(), m=totMin(v,o.id);
     if(m>0){ tot+=m; cnt++; }
     /* The 10 hour rule only earns its keep when the real cap is unknown, which
        is the case until that day's efficiency report is pushed. Once the cap IS
@@ -1078,7 +1199,7 @@ function updateKpis(){
 
   OVER=over;
   var sb=el('saveBtn');
-  if(sb) sb.disabled = LOCKED || over.length>0;
+  if(sb) sb.disabled = LOCKED || SAVING || over.length>0;
 
   if(LOCKED) return;                    /* the lock notice owns the strip */
 
@@ -1096,6 +1217,7 @@ function updateKpis(){
 
 var MID=null;        /* operator being edited */
 var MDRAFT=null;     /* a working copy. Cancel must leave the row untouched. */
+var RESUB=false;     /* true when this operator already has an entry saved */
 
 function opById(id){
   for(var i=0;i<OPS.length;i++) if(String(OPS[i].id)===String(id)) return OPS[i];
@@ -1114,11 +1236,12 @@ function openModal(id){
   /* Edited on a COPY. Pressing Cancel then has to do nothing at all, rather
      than trying to reverse a half finished set of changes. */
   var v=VAL[id]||blank();
-  function copy(list){
-    return (list||[]).map(function(e){ return {reason:e.reason, min:e.min, unit:e.unit||'Min'}; });
-  }
-  MDRAFT={ unav:!!v.unav, entries:copy(v.entries), stash:copy(v.stash) };
-  if(!MDRAFT.unav && !MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
+  MDRAFT={
+    unav: !!v.unav,
+    add: (v.add||[]).map(function(e){ return {reason:e.reason, min:e.min, unit:e.unit||'Min'}; }),
+    remove: (v.remove||[]).slice()
+  };
+  if(!MDRAFT.add.length) MDRAFT.add.push({reason:'',min:'',unit:'Min'});
 
   el('mName').textContent=o.name;
   var wh=whOf(id);
@@ -1129,6 +1252,19 @@ function openModal(id){
     + '<span class="chip">'+esc(pretty(el('dt').value))+'</span>'
     + '<span class="chip">WH '+(wh===null?'not loaded':wh.toFixed(2))+'</span>';
 
+  /* Already in the report? Then this submit ADDS to it, and the button says
+     so. "Done" on a man who already holds 40 minutes reads like a fresh
+     entry, which is how somebody double counts without realising. */
+  var already = savedMin(id);
+  RESUB = !!(SAVEDE[id] && SAVEDE[id].length);
+  if(already){
+    el('mChips').innerHTML +=
+      '<span class="chip" style="background:rgba(255,255,255,.30)">Already submitted &middot; '
+      + already + ' min</span>';
+  }
+  el('mDone').textContent = RESUB ? 'Add to this operator' : 'Done';
+
+  markPicked(id, false);
   el('ovl').classList.add('on');
   renderModal();
   setTimeout(function(){
@@ -1138,33 +1274,23 @@ function openModal(id){
 }
 
 function closeModal(){
+  var id=MID;
   el('ovl').classList.remove('on');
-  MID=null; MDRAFT=null;
+  MID=null; MDRAFT=null; RESUB=false;
+  /* Cancel still leaves the marker. You looked at that operator, so that is
+     where you should land, even if you changed nothing. */
+  if(id) markPicked(id, false);
 }
 
-/* Ticking Unavailable STASHES the lines, it does not delete them. Untick and
-   they come straight back, exactly as typed. They survive until Submit. */
 function toggleUnav(){
   if(!MDRAFT) return;
-  if(!MDRAFT.unav){
-    var keep=(MDRAFT.entries||[]).filter(function(e){
-      return entryMin(e)>0 || String(e.reason||'').trim();
-    });
-    MDRAFT.stash = keep.length ? keep : MDRAFT.stash;
-    MDRAFT.entries=[];
-    MDRAFT.unav=true;
-  }else{
-    MDRAFT.unav=false;
-    MDRAFT.entries = (MDRAFT.stash && MDRAFT.stash.length) ? MDRAFT.stash : [];
-    MDRAFT.stash=null;
-    if(!MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
-  }
+  MDRAFT.unav=!MDRAFT.unav;
   renderModal();
 }
 
 function addRow(){
   if(!MDRAFT) return;
-  MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
+  MDRAFT.add.push({reason:'',min:'',unit:'Min'});
   renderModal();
   setTimeout(function(){
     var s=document.querySelectorAll('#mRows select.rsel');
@@ -1174,39 +1300,95 @@ function addRow(){
 
 function delRow(i){
   if(!MDRAFT) return;
-  MDRAFT.entries.splice(i,1);
-  if(!MDRAFT.entries.length) MDRAFT.entries.push({reason:'',min:'',unit:'Min'});
+  MDRAFT.add.splice(i,1);
+  if(!MDRAFT.add.length) MDRAFT.add.push({reason:'',min:'',unit:'Min'});
   renderModal();
+}
+
+/* Cross out a line that is ALREADY in the report. This is the one destructive
+   action in the whole screen, so it is per line, reversible until Submit, and
+   the line stays visible struck through rather than vanishing. */
+function toggleRemove(i){
+  if(!MDRAFT) return;
+  var list=SAVEDE[MID]||[];
+  var e=list[i];
+  if(!e) return;
+  var at=-1;
+  (MDRAFT.remove||[]).forEach(function(r,j){ if(sameSaved(e,r)) at=j; });
+  if(at>=0) MDRAFT.remove.splice(at,1);
+  else MDRAFT.remove.push({reason:e.reason, min:e.min, ts:e.ts});
+  renderModal();
+}
+function isRemoved(e){
+  return (MDRAFT.remove||[]).some(function(r){ return sameSaved(e,r); });
 }
 
 /* Typing must NOT rebuild the rows: doing so destroys the input and the caret
    jumps out after a single digit. Only the derived numbers are refreshed. */
 function setEntry(i,k,val){
-  if(!MDRAFT || !MDRAFT.entries[i]) return;
-  MDRAFT.entries[i][k]=val;
-  var e=MDRAFT.entries[i], card=el('er_'+i);
+  if(!MDRAFT || !MDRAFT.add[i]) return;
+  MDRAFT.add[i][k]=val;
+  var e=MDRAFT.add[i], card=el('er_'+i);
   if(card) card.classList.toggle('filled', entryMin(e)>0 && !!String(e.reason||'').trim());
   refreshModalTotals();
 }
 
+/* Minutes standing in the sheet for this operator after whatever is crossed
+   out here, plus whatever is being added. */
+function draftSavedMin(){
+  var t=0;
+  (SAVEDE[MID]||[]).forEach(function(e){
+    if(Number(e.min)<=0 && !String(e.reason||'').trim()) return;
+    if(!isRemoved(e)) t+=Math.round(Number(e.min)||0);
+  });
+  return t;
+}
+function draftAddMin(){
+  var t=0;
+  ((MDRAFT&&MDRAFT.add)||[]).forEach(function(e){
+    if(entryMin(e)>0 && String(e.reason||'').trim()) t+=entryMin(e);
+  });
+  return t;
+}
+function draftTotal(){
+  return MDRAFT && MDRAFT.unav ? 0 : (draftSavedMin() + draftAddMin());
+}
+
 function renderModal(){
-  var box=el('mRows'), h='';
   el('mUnav').checked=!!MDRAFT.unav;
   el('mUnavRow').classList.toggle('on', !!MDRAFT.unav);
-  el('mEntryArea').style.display = MDRAFT.unav ? 'none' : '';
 
-  /* Say out loud that the lines are being held, or ticking the box looks like
-     it threw the typing away. */
-  var st=(MDRAFT.stash||[]).filter(function(e){ return entryMin(e)>0; });
-  el('mKeep').textContent = (MDRAFT.unav && st.length)
-    ? ('Holding '+st.length+' loss line'+(st.length===1?'':'s')
-       +'. Untick to bring them back.')
-    : '';
+  /* ---- section 1: what is already in the report ---- */
+  var saved=(SAVEDE[MID]||[]).filter(function(e){
+    return Number(e.min)>0 || String(e.reason||'').trim();
+  });
+  var sh='';
+  if(saved.length){
+    saved.forEach(function(e,i){
+      var gone=isRemoved(e);
+      sh+='<div class="srow'+(gone?' gone':'')+'">'
+        + '<div class="no">'+(i+1)+'</div>'
+        + '<div class="rs">'+esc(e.reason||'&ndash;')+'</div>'
+        + '<div class="mn">'+e.min+' min</div>'
+        + '<div class="wh2">'+esc(e.by||'-')+(e.ts?('<br><span>'+esc(e.ts)+'</span>'):'')+'</div>'
+        + '<button class="del" onclick="toggleRemove('+i+')" title="'
+        +   (gone?'Keep this line':'Remove this line when you submit')+'">'
+        +   (gone?'&#8635;':'&times;')+'</button>'
+        + '</div>';
+    });
+    el('mSavedWrap').style.display='';
+    el('mSaved').innerHTML=sh;
+  }else{
+    el('mSavedWrap').style.display='none';
+    el('mSaved').innerHTML='';
+  }
 
-  MDRAFT.entries.forEach(function(e,i){
+  /* ---- section 2: what is being added now ---- */
+  var h='';
+  MDRAFT.add.forEach(function(e,i){
     var filled = entryMin(e)>0 && String(e.reason||'').trim();
     h+='<div class="erow'+(filled?' filled':'')+'" id="er_'+i+'">'
-     + '<div class="no">'+(i+1)+'</div>'
+     + '<div class="no">+</div>'
      + '<select class="rsel" onchange="setEntry('+i+',\'reason\',this.value)">'
      +   '<option value="">Select a reason</option>'
      +   RSN.map(function(r){return '<option'+(e.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
@@ -1216,43 +1398,39 @@ function renderModal(){
      + '<select onchange="setEntry('+i+',\'unit\',this.value)">'
      +   '<option'+(e.unit==='Min'?' selected':'')+'>Min</option>'
      +   '<option'+(e.unit==='Hr'?' selected':'')+'>Hr</option></select>'
-     + '<button class="del" onclick="delRow('+i+')" title="Remove this line">&times;</button>'
+     + '<button class="del" onclick="delRow('+i+')" title="Drop this line">&times;</button>'
      + '</div>';
   });
-  box.innerHTML=h;
+  el('mRows').innerHTML=h;
   refreshModalTotals();
 }
 
-/* ---------- the summary, three lines ----------
-   The sheet works Adjusted Input Min out as
+/* ---------- the summary ----------
+   Available, then what is already saved, then what is being added, then the
+   result. Four lines at most, and the middle two only appear when they have
+   something to say.
 
-     WH x 60  -  fixed break  -  unavailable time  -  loss time
-
-   The page cannot see the break and the unavailable allowance separately. All
-   it is given is
+   The page cannot see the fixed break and the unavailable allowance
+   separately. All it is given is
 
      available = Adjusted Input Min now + loss already submitted
 
-   so those two are shown as one caption under Available rather than invented
-   as two separate rows.
-
-   ONE loss line, not two. It reads "170" when nothing is being changed, and
-   "170 -> 200" while it is. The old version had a "Loss already submitted"
-   row AND a "Loss on this screen" row, both formatted as deductions, so it
-   looked like 340 minutes should have come off when only 170 did. */
+   so those two are one caption under Available rather than invented as two
+   rows. */
 function refreshModalTotals(){
   if(!MDRAFT) return;
-  var m=totMin(MDRAFT);
 
   var f=facts(MID);
   var cap=capOf(MID);
   var wmin=workMin(MID);
   var tbl=el('mBreak'), capEl=el('mCap');
 
-  /* The day has not been loaded, so there are no minutes to show. The entry
-     is still recorded and applies as soon as the day is loaded. */
+  var keptSaved = draftSavedMin();
+  var adding    = draftAddMin();
+  var m         = draftTotal();
+
   if(!f || f.inn===null || f.inn===undefined){
-    tbl.innerHTML='<tr class="sub"><td>Loss time</td><td class="n">'+m+' min</td></tr>';
+    tbl.innerHTML='<tr class="sub"><td>Loss time after this</td><td class="n">'+m+' min</td></tr>';
     capEl.textContent='This date has not been loaded into the report yet, so the '
       + 'minutes cannot be shown. The entry is still recorded.';
     el('mOut').innerHTML='&ndash;'; el('mEff').innerHTML='&ndash;';
@@ -1261,12 +1439,11 @@ function refreshModalTotals(){
     return;
   }
 
-  var savedLoss = Math.round(Number(f.loss)||0);   /* already in the report */
-  var avail     = Math.round(f.inn + savedLoss);   /* WH x 60 less break and unavailable */
+  var savedLoss = Math.round(Number(f.loss)||0);   /* what the report holds now */
+  var avail     = Math.round(f.inn + savedLoss);
   var newInput  = avail - m;
   var changed   = (m !== savedLoss);
 
-  /* "170" normally, "170 -> 200" only while it is actually being changed. */
   function pair(a,b,cls){
     if(!changed) return String(b);
     return '<span class="effnow">'+a+'</span><span class="effarr">&rarr;</span>'
@@ -1279,7 +1456,11 @@ function refreshModalTotals(){
     rows+='<tr class="sub"><td>Unavailable all day</td><td class="n">&ndash;</td></tr>'
         + '<tr class="fin"><td>Individual PIB</td><td class="n">N/A</td></tr>';
   }else{
-    rows+='<tr class="sub"><td>Loss time</td><td class="n">'
+    if(keptSaved || adding){
+      rows+='<tr class="sub"><td>Already submitted</td><td class="n">'+keptSaved+'</td></tr>';
+      if(adding) rows+='<tr class="sub"><td>Adding now</td><td class="n">'+adding+'</td></tr>';
+    }
+    rows+='<tr class="sub"><td><b>Loss time total</b></td><td class="n">'
         + pair(savedLoss, m, 'effbad') + '</td></tr>';
     if(newInput<=0){
       rows+='<tr class="fin"><td>Adjusted Input Min</td>'
@@ -1291,7 +1472,6 @@ function refreshModalTotals(){
   }
   tbl.innerHTML=rows;
 
-  /* The arithmetic behind Available, small and out of the way. */
   capEl.textContent = (wmin===null)
     ? ''
     : (whOf(MID).toFixed(2)+' hr x 60 = '+wmin+' min, less '
@@ -1313,12 +1493,13 @@ function refreshModalTotals(){
 
   /* Warnings inside the popup, where the person can still act on them. */
   var w=el('mWarn'), txt='', cls2='';
-  var missing=(MDRAFT.entries||[]).some(function(e){
+  var missing=(MDRAFT.add||[]).some(function(e){
     return entryMin(e)>0 && !String(e.reason||'').trim();
   });
-  var noMin=(MDRAFT.entries||[]).some(function(e){
+  var noMin=(MDRAFT.add||[]).some(function(e){
     return entryMin(e)<=0 && String(e.reason||'').trim();
   });
+  var removing=(MDRAFT.remove||[]).length;
   if(cap!==null && m>cap){
     txt='Only <b>'+Math.floor(cap)+' minutes</b> were available on this date. '
       + 'More than that would leave no input minutes at all. Check the Min / Hr unit, '
@@ -1327,6 +1508,10 @@ function refreshModalTotals(){
   }else if(missing){
     txt='One line has minutes but no reason. It will not be saved until a reason is picked.';
     cls2='r';
+  }else if(removing){
+    txt='<b>'+removing+' submitted line'+(removing===1?'':'s')+' will be removed</b> when you press Submit. '
+      + 'Press the arrow to keep it instead.';
+    cls2='i';
   }else if(noMin){
     txt='One line has a reason but no time. It will be ignored.';
     cls2='i';
@@ -1339,18 +1524,17 @@ function refreshModalTotals(){
 }
 
 /* Done copies the draft onto the real value. Nothing is sent yet: Submit is
-   still the one action that writes to the sheet. */
+   still the one action that writes. */
 function applyModal(){
   if(!MID || !MDRAFT) return;
-  var keep=MDRAFT.unav ? [] : MDRAFT.entries.filter(function(e){
+  var keep=MDRAFT.add.filter(function(e){
     return entryMin(e)>0 && String(e.reason||'').trim();
   });
-  /* The stash travels with the value, so unticking Unavailable on the row
-     itself restores the same lines the popup was holding. */
-  VAL[MID]={ unav:!!MDRAFT.unav, entries:keep, stash:(MDRAFT.stash||null) };
+  VAL[MID]={ unav:!!MDRAFT.unav, add:keep, remove:(MDRAFT.remove||[]).slice() };
   var id=MID;
   closeModal();
   touch(id);
+  markPicked(id, true);      /* flash it so the eye lands where you just were */
 }
 
 /* ================= save, in the background ================= */
@@ -1360,27 +1544,29 @@ function applyModal(){
    actually about. Anything edited in the meantime keeps its new value and
    stays flagged as unsaved. */
 var INFLIGHT = {};
+var SAVING = false;
 
 function doSave(){
   if(LOCKED){ toast('This date is locked.','r'); return; }
+  if(SAVING){ toast('A save is already on its way. Give it a moment.',''); return; }
 
   var rows=[], bad=[], over=[], seen={};
-  var changed=changedOps();
 
-  changed.forEach(function(c){
-    var o=c.op, v=VAL[o.id]||blank();
+  OPS.forEach(function(o){
+    if(!isDirty(o.id)) return;
+    var v=VAL[o.id]||blank();
 
     /* HARD STOP. Checked again here and not only in updateKpis, because the
        button state is a convenience and this is the actual gate. */
     if(overCap(o.id,v)){
-      over.push(esc(o.name)+' ('+totMin(v)+' min, only '+Math.floor(capOf(o.id))+' available)');
+      over.push(esc(o.name)+' ('+totMin(v,o.id)+' min, only '+Math.floor(capOf(o.id))+' available)');
       return;
     }
 
-    var list=realEntries(v);
-    /* A reason is required to RECORD something. Clearing needs none, there is
-       nothing left to explain. */
-    if(!v.unav && totMin(v)>0 && !list.length){ bad.push(o.name); return; }
+    var add=addEntries(v);
+    /* A reason is required to record something. Removing or ticking
+       Unavailable needs none, there is nothing left to explain. */
+    if(add.length===0 && (v.remove||[]).length===0 && (!!v.unav===savedUnav(o.id))) return;
 
     var k=String(o.id).replace(/^0+/,'');
     if(seen[k]) return;
@@ -1389,7 +1575,16 @@ function doSave(){
     rows.push({
       opId:o.id,
       unav:!!v.unav,
-      entries:list.map(function(e){ return {reason:e.reason, min:entryMin(e)}; })
+      /* ADD, never replace. The server appends these and leaves everything
+         else alone, which is why two people entering at once is simply not a
+         problem here. */
+      add:add.map(function(e){ return {reason:e.reason, min:entryMin(e)}; }),
+      /* Lines already in the report that the user crossed out. Matched on
+         reason, minutes and timestamp so a row moving up or down in the sheet
+         cannot make a removal hit the wrong one. */
+      remove:(v.remove||[]).map(function(r){
+        return {reason:r.reason, min:Math.round(Number(r.min)||0), ts:r.ts};
+      })
     });
   });
 
@@ -1405,43 +1600,54 @@ function doSave(){
     return;
   }
 
+  SAVING = true;
+  el('saveBtn').disabled = true;
+
   var theDate=el('dt').value, theFloor=FLOOR;
   var sending={};
-  rows.forEach(function(r){ sending[r.opId]=snap(VAL[r.opId]); INFLIGHT[r.opId]=1; });
+  rows.forEach(function(r){ sending[r.opId]=1; INFLIGHT[r.opId]=1; });
 
-  toast('Saving '+rows.length+' operator'+(rows.length===1?'':'s')+' in the background…','');
+  var nAdd=0, nDel=0;
+  rows.forEach(function(r){ nAdd+=r.add.length; nDel+=r.remove.length; });
+  toast('Saving '+rows.length+' operator'+(rows.length===1?'':'s')
+    +' in the background…','');
   say('smsg','','');
 
-  /* partial:1 scopes the server's delete to the operators named in rows.
-     Without it the server clears the whole floor and date, which would wipe
-     every operator this save is deliberately not mentioning. */
-  apiPost({action:'save',token:TOKEN,floor:theFloor,date:theDate,
-           rows:rows,partial:1})
+  apiPost({action:'save',token:TOKEN,floor:theFloor,date:theDate,rows:rows},
+          'Saving '+rows.length+' operator'+(rows.length===1?'':'s')+', '+pretty(theDate))
   .then(function(r){
     rows.forEach(function(x){ delete INFLIGHT[x.opId]; });
+    SAVING = false;
 
     if(!r.ok){
       if(r.locked){ LOCKDATE=r.lockDate||LOCKDATE; applyLock(theDate); }
-      toast('Not saved. '+esc(r.msg||'Unknown error'),'r',7000);
+      /* Somebody else holds the write lock. Nothing is wrong, it is worth one
+         plain sentence and another tap, not an error. */
+      toast(esc(r.msg||'Unknown error'), r.busy?'':'r', r.busy?5000:7000);
+      updateKpis();
       return;
     }
     settle(r, rows, sending, theDate, theFloor);
   })
   .catch(function(e){
     rows.forEach(function(x){ delete INFLIGHT[x.opId]; });
+    SAVING = false;
+    updateKpis();
 
     /* ---------- the write may well have SUCCEEDED ----------
        Apps Script can finish writing and still miss the response window, and
        Google then serves an HTML page. Treating that as a failure is how a
-       submit ended up in the LossTime sheet while the efficiency sheet never
-       moved. So do not guess: read the day back and compare. The save is an
-       idempotent upsert, so re-reading is safe and cheap. */
+       submit ended up recorded while the report never moved.
+
+       Do not guess and do not blindly resend: with an ADD model a blind retry
+       would double the minutes. Read the day back instead and compare. */
     if(!e || !e.isHtml){
       toast('Submit failed. '+esc(e.message),'r',8000);
       return;
     }
     toast('The server was slow. Checking whether it saved…','');
-    api({action:'day',token:TOKEN,floor:theFloor,date:theDate,fresh:1}).then(function(chk){
+    api({action:'day',token:TOKEN,floor:theFloor,date:theDate,fresh:1},
+        'Checking what was saved').then(function(chk){
       if(!chk || !chk.ok) throw new Error('could not read the day back');
 
       var got={};
@@ -1451,19 +1657,19 @@ function doSave(){
       });
       var missing=rows.filter(function(r){
         var k=String(r.opId).replace(/^0+/,'');
-        var want=0; r.entries.forEach(function(e){ want+=Math.round(Number(e.min)||0); });
-        if(want<=0 && !r.unav) return got[k]!==undefined;   /* cleared: must be gone */
-        if(r.unav) return got[k]===undefined;               /* a row must exist */
-        return (got[k]||0)!==want;
+        var want=totMin(VAL[r.opId]||blank(), r.opId);
+        return Math.round(got[k]||0)!==Math.round(want);
       });
 
       if(!missing.length){
         toast('Saved. The server was just slow to answer.','g');
-        settle({day:chk.day, eff:null}, rows, sending, theDate, theFloor);
+        settle({day:chk.day, eff:null, msg:''}, rows, sending, theDate, theFloor);
         return;
       }
-      toast('The server was slow and '+missing.length+' entr'
-        +(missing.length===1?'y was':'ies were')+' not saved. Press Submit again.','r',9000);
+      toast('The server was slow and '+missing.length+' operator'
+        +(missing.length===1?' is':'s are')+' not recorded as expected. '
+        +'Press Reload to see what was saved, then submit again only if it is missing.',
+        'r',11000);
     }).catch(function(){
       toast('Could not confirm the save. Press Reload to see what was saved, '
         +'then submit again only if it is missing.','r',9000);
@@ -1482,17 +1688,49 @@ function settle(r, rows, sending, theDate, theFloor){
     return;
   }
 
-  rows.forEach(function(x){
-    var id=x.opId;
-    SAVED[id]=true;
-    /* Only move the baseline if the row has not been edited AGAIN since it was
-       sent. If it has, it is genuinely still unsaved and must stay flagged. */
-    var now=snap(VAL[id]||blank());
-    if(sameEntry(now, sending[id])) BASE[id]=now;
+  /* ---------- rebuild what the sheet now holds ----------
+     The save answers with the WHOLE day, so this is a free way to stay current
+     with no polling: another leader's entries appear as you work. An operator
+     still open in the popup is left alone, and so is one edited again since
+     this save was sent. */
+  var fresh={};
+  ((r.day&&r.day.entries)||[]).forEach(function(e){
+    if(!fresh[e.opId]) fresh[e.opId]=[];
+    fresh[e.opId].push({
+      reason:String(e.reason||''), min:Math.round(Number(e.min)||0),
+      by:String(e.by||''), ts:String(e.ts||''), unav:!!e.unav
+    });
+  });
+
+  var pulled=0;
+  OPS.forEach(function(o){
+    var id=o.id;
+    if(id===MID) return;                       /* open right now */
+    var wasSaved = SAVEDE[id];
+    SAVEDE[id] = fresh[id] || [];
+    SAVED[id]  = !!(fresh[id] && fresh[id].length);
+
+    if(sending[id]){
+      /* This one was just sent. Its pending add and remove are now in the
+         sheet, so the screen starts clean again. */
+      VAL[id] = {unav: savedUnav(id), add: [], remove: []};
+    }else{
+      /* Untouched here. Keep whatever is typed, but follow the sheet on the
+         unavailable flag and drop removals whose line is already gone. */
+      var v=VAL[id]||blank();
+      v.remove=(v.remove||[]).filter(function(rm){
+        return (SAVEDE[id]||[]).some(function(e){ return sameSaved(e,rm); });
+      });
+      if(!addEntries(v).length && !v.remove.length) v.unav = savedUnav(id);
+      VAL[id]=v;
+      var before=(wasSaved||[]).length, after=(SAVEDE[id]||[]).length;
+      if(before!==after) pulled++;
+    }
+    touch(id);
   });
 
   /* The Apps Script recomputes AB and AD for this floor and date and sends the
-     new figures back, so the projection arrows can be replaced with the real
+     new figures back, so the projection arrows are replaced with the real
      numbers straight away. No second round trip, no refresh. */
   if(r.eff){
     for(var k in r.eff) if(r.eff.hasOwnProperty(k)){
@@ -1502,9 +1740,10 @@ function settle(r, rows, sending, theDate, theFloor){
     }
   }
 
-  rows.forEach(function(x){ touch(x.opId); });
-  updateKpis();
-  toast('Saved. '+esc(r.msg||'')+'','g');
+  render();      /* safe here: every pending edit was folded back in above */
+  toast('Saved. '+esc(r.msg||''),'g');
+  if(pulled) toast(pulled+' operator'+(pulled===1?'':'s')
+    +' updated by someone else on another device.','',6000);
 
   /* Ask the efficiency dashboard to rebuild its snapshot for this floor and
      date. Fire and forget: if it fails the loss is still saved and the morning
