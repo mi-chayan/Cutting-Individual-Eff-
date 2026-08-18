@@ -322,48 +322,86 @@
                 .bars,.tscroll,.mx{max-height:none;overflow:visible}
                 th,tfoot td{position:static;box-shadow:none} }
 
-  /* ---------- GitHub style progress bar ----------
-     A thin line across the very top that runs left to right while anything is
-     in flight. It replaces the spinner that used to blank the whole report:
-     a page you cannot read is a worse answer than a page you can read with a
-     line moving above it. Purely visual, it never disables anything. */
+
+  /* ================= the loading island =================
+     Two pieces that work together.
+
+     1. A REAL progress bar across the very top. It used to be a block sliding
+        left to right for ever, which says "something is happening" and
+        nothing else. Left is 0, right is 100, and it only ever moves
+        forwards.
+
+        Most of these fetches are ONE request, so there is no honest fraction
+        to report until it lands. Rather than lie with a fake percentage, it
+        eases toward 90 and waits there: fast at first, slower the longer it
+        takes, which is the same trick GitHub uses and it reads as real
+        because it never goes backwards and never completes early. Where a
+        genuine fraction IS known, the weekly report fetching six days in
+        chunks, barSet() overrides the easing with the true number.
+
+     2. An island under the header saying WHAT is loading. Detached from the
+        title bar, dark, rounded, with a progress ring on the left. It springs
+        in, morphs when the text changes, and springs out.
+     ---------------------------------------------------------------- */
   #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
-       pointer-events:none;opacity:0;transition:opacity .18s}
+       pointer-events:none;opacity:0;transition:opacity .3s ease}
   #bar.on{opacity:1}
-  #bar i{display:block;height:100%;width:40%;border-radius:0 3px 3px 0;
-         background:linear-gradient(90deg,#723EC3,#B07CFF,#723EC3);
-         box-shadow:0 0 8px rgba(114,62,195,.55);
-         animation:barslide 1.1s cubic-bezier(.45,.05,.55,.95) infinite}
-  @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  #bar i{display:block;height:100%;width:0;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#5B33A8,#723EC3 55%,#B07CFF);
+         box-shadow:0 0 10px rgba(176,124,255,.7);
+         transition:width .34s cubic-bezier(.22,.61,.36,1)}
+  /* A highlight travelling along the filled part, so a long wait still looks
+     alive even while the number is barely moving. */
+  #bar i:after{content:'';position:absolute;top:0;right:0;width:90px;height:100%;
+       background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55));
+       animation:barsheen 1.1s ease-in-out infinite}
+  #bar i{position:relative;overflow:hidden}
+  @keyframes barsheen{0%{opacity:.15}50%{opacity:.8}100%{opacity:.15}}
+
+  .island{position:fixed;top:12px;left:50%;z-index:401;
+          display:inline-flex;align-items:center;gap:11px;
+          background:rgba(12,12,18,.94);color:#fff;
+          -webkit-backdrop-filter:blur(14px) saturate(160%);
+          backdrop-filter:blur(14px) saturate(160%);
+          border-radius:999px;padding:9px 18px 9px 13px;
+          font-size:12px;font-weight:700;letter-spacing:.1px;white-space:nowrap;
+          max-width:min(560px,90vw);overflow:hidden;
+          box-shadow:0 10px 30px rgba(0,0,0,.34), inset 0 0 0 .5px rgba(255,255,255,.14);
+          pointer-events:none;
+          transform:translateX(-50%) translateY(-26px) scale(.80);
+          opacity:0;
+          transition:transform .46s cubic-bezier(.34,1.56,.64,1),
+                     opacity .2s ease}
+  .island.on{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
+
+  /* The progress ring. One CSS variable drives it, set from the same number
+     that drives the bar, so the two can never disagree. */
+  .island .ring{width:17px;height:17px;border-radius:50%;flex:0 0 auto;position:relative;
+       background:conic-gradient(#B07CFF calc(var(--p,0) * 1%), rgba(255,255,255,.16) 0);
+       transition:background .34s linear}
+  .island .ring:after{content:'';position:absolute;inset:3.5px;border-radius:50%;
+       background:#0C0C12}
+  .island .ring:before{content:'';position:absolute;inset:-3px;border-radius:50%;
+       border:1px solid rgba(176,124,255,.35);animation:islepulse 1.6s ease-in-out infinite}
+  @keyframes islepulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.7;transform:scale(1.12)}}
+
+  /* The label morphs rather than cutting, so switching from one report to
+     another feels like the same object changing its mind. */
+  .island .txt{display:inline-block;overflow:hidden;text-overflow:ellipsis;
+       transition:opacity .16s ease}
+  .island.swap .txt{opacity:0}
+  .island .pct{font-variant-numeric:tabular-nums;opacity:.55;font-weight:800;
+       font-size:10.5px;min-width:30px;text-align:right}
+
+  @media (prefers-reduced-motion: reduce){
+    .island{transition:opacity .2s ease}
+    .island .ring:before{animation:none}
+    #bar i:after{animation:none}
+  }
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
-
-  /* ---------- the range is committed ONCE ----------
-     Picking From used to fire a load, then picking To fired a second one, so a
-     two date choice always cost two loads and the first was always the wrong
-     answer. Nothing loads until the pair settles. */
-  .rpend{display:none;align-items:center;gap:8px;background:#FFF0D9;color:#8A5B12;
-         border:1px solid #F2DDB6;border-radius:8px;padding:5px 8px 5px 11px;
-         font-size:11px;font-weight:800;white-space:nowrap}
-  .rpend.on{display:inline-flex}
-  .rpend button{background:#333D6D;color:#fff;border:0;border-radius:6px;
-                padding:6px 13px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer}
-  .rpend button:hover{background:#723EC3}
-  .showing{font-size:10.5px;color:var(--mut);font-weight:700;white-space:nowrap}
   .spin{display:none !important}
 
-  /* The chip that says WHAT is loading. */
-  .barmsg{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-140%);
-          z-index:399;background:#333D6D;color:#fff;border-radius:0 0 10px 10px;
-          padding:7px 16px 8px;font-size:11.5px;font-weight:800;letter-spacing:.2px;
-          box-shadow:0 5px 16px rgba(37,42,69,.28);white-space:nowrap;max-width:92vw;
-          overflow:hidden;text-overflow:ellipsis;pointer-events:none;
-          transition:transform .2s cubic-bezier(.2,.8,.3,1)}
-  .barmsg.on{transform:translateX(-50%) translateY(0)}
-  .barmsg i{display:inline-block;width:7px;height:7px;border-radius:50%;
-            background:#B07CFF;margin-right:8px;vertical-align:middle;
-            animation:barblink .9s ease-in-out infinite}
-  @keyframes barblink{0%,100%{opacity:.35}50%{opacity:1}}
   .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
          background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
          font-size:11.5px;font-weight:700}
@@ -373,7 +411,11 @@
 <body>
 
 <div id="bar"><i></i></div>
-<div id="barmsg" class="barmsg"></div>
+<div id="island" class="island">
+  <span class="ring" id="isleRing"></span>
+  <span class="txt" id="isleTxt"></span>
+  <span class="pct" id="islePct"></span>
+</div>
 
 
 <div class="strip">
@@ -438,36 +480,90 @@
       this morning's report has been pulled yet.
    ================================================================== */
 
-var BUSY_N = 0, BUSY_LABELS = [];
-/* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
-   the report with a message, and two functions of the same name in one file
-   means the second one silently wins.
+/* ---------- the bar and the island ----------
+   Counted, not toggled: two requests can overlap and a naive hide on the
+   first response would switch it off while the second is still running.
 
-   THE LABEL MATTERS AS MUCH AS THE BAR. A moving line says something is
-   happening. It does not say WHICH report, or for WHICH date, so pressing a
-   button and waiting felt like pressing a button and hoping. */
+   PROGRESS. A single fetch gives no honest fraction, so the number eases
+   toward 90 and waits, fast at first and slower the longer it takes. It never
+   goes backwards and never reaches 100 until the work is actually done, which
+   is what keeps it honest. Where a real fraction is known, call barSet(). */
+var BUSY_N = 0, BUSY_LABELS = [], BAR_P = 0, BAR_T = null, BAR_HIDE = null;
+
+function barPaint(){
+  var b=document.getElementById('bar'), i=b?b.firstChild:null;
+  if(i) i.style.width = BAR_P + '%';
+  var r=document.getElementById('isleRing');
+  if(r) r.style.setProperty('--p', Math.round(BAR_P));
+  var p=document.getElementById('islePct');
+  if(p) p.textContent = BAR_P>=100 ? '100%' : Math.round(BAR_P)+'%';
+}
+
+/* Ease toward 90 and stop. The step shrinks as it climbs, so a slow request
+   crawls rather than stalling dead or pretending to finish. */
+function barTick(){
+  if(BAR_P < 90) BAR_P += Math.max(0.4, (90 - BAR_P) * 0.10);
+  barPaint();
+}
+
+/** A real fraction, 0 to 1. Only ever moves the bar forwards. */
+function barSet(frac){
+  var v = Math.max(0, Math.min(1, Number(frac)||0)) * 100;
+  if(v > BAR_P) { BAR_P = v; barPaint(); }
+}
+
+function islandShow(label){
+  var isle=document.getElementById('island'), t=document.getElementById('isleTxt');
+  if(!isle||!t) return;
+  if(t.textContent && t.textContent !== label){
+    /* Morph rather than cut: fade the old label out, swap, fade in. */
+    isle.classList.add('swap');
+    setTimeout(function(){ t.textContent=label; isle.classList.remove('swap'); },160);
+  }else{
+    t.textContent=label;
+  }
+  isle.classList.add('on');
+}
+function islandHide(){
+  var isle=document.getElementById('island');
+  if(isle) isle.classList.remove('on');
+}
+
 function barBusy(on, label){
   if(on){
     BUSY_N++;
     if(label) BUSY_LABELS.push(label);
+    if(BUSY_N === 1){
+      if(BAR_HIDE){ clearTimeout(BAR_HIDE); BAR_HIDE=null; }
+      BAR_P = 8; barPaint();
+      var b=document.getElementById('bar'); if(b) b.className='on';
+      if(BAR_T) clearInterval(BAR_T);
+      BAR_T = setInterval(barTick, 280);
+    }
   }else{
     BUSY_N = Math.max(0, BUSY_N - 1);
     if(label){
       var i = BUSY_LABELS.indexOf(label);
       if(i >= 0) BUSY_LABELS.splice(i, 1);
     }
-    if(!BUSY_N) BUSY_LABELS = [];
+    if(!BUSY_N){
+      BUSY_LABELS = [];
+      if(BAR_T){ clearInterval(BAR_T); BAR_T=null; }
+      BAR_P = 100; barPaint();
+      islandHide();
+      /* Let 100% be seen before it disappears, or the bar looks like it
+         vanished at 80 and the work was abandoned. */
+      BAR_HIDE = setTimeout(function(){
+        var b=document.getElementById('bar'); if(b) b.className='';
+        setTimeout(function(){ BAR_P=0; barPaint(); }, 320);
+      }, 360);
+      return;
+    }
   }
-  var b = document.getElementById('bar');
-  if(b) b.className = BUSY_N ? 'on' : '';
-
-  var c = document.getElementById('barmsg');
-  if(c){
-    var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length - 1] : '';
-    c.innerHTML = txt ? ('<i></i>' + txt + '&hellip;') : '';
-    c.className = (BUSY_N && txt) ? 'barmsg on' : 'barmsg';
-  }
+  var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length - 1] : '';
+  if(txt) islandShow(txt); else islandHide();
 }
+
 /* Wrap any promise so the bar follows it, whatever the outcome. */
 function track(p, label){
   barBusy(true, label);
@@ -900,9 +996,22 @@ function load(){
 
   var lbl='Fabric Weekly, '+prettyDate($('f1').value)+' to '+prettyDate($('t1').value);
   barBusy(true, lbl);
+
+  /* A REAL fraction, the only one in the whole dashboard. The days are
+     fetched in chunks, so each chunk that lands is a known share of the work
+     and barSet() reports it instead of the eased guess. */
+  var doneChunks = 0;
   Promise.all(chunks.map(function(c){
     return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
-      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() });
+      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+      .then(function(j){
+        doneChunks++;
+        /* Capped at 0.95: the rows still have to be parsed and painted after
+           the last chunk arrives, and claiming 100 before that is a lie the
+           user can see. */
+        barSet(Math.min(0.95, doneChunks / chunks.length));
+        return j;
+      });
   })).then(function(all){
     barBusy(false, lbl);
     var oldServer=false;
