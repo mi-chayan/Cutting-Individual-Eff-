@@ -232,12 +232,39 @@
   @keyframes barslide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
+
+  /* The chip that says WHAT is loading. Sits just under the control strip so
+     it never covers the data, and disappears the moment the answer lands. */
+  .barmsg{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-140%);
+          z-index:399;background:#333D6D;color:#fff;border-radius:0 0 10px 10px;
+          padding:7px 16px 8px;font-size:11.5px;font-weight:800;letter-spacing:.2px;
+          box-shadow:0 5px 16px rgba(37,42,69,.28);white-space:nowrap;max-width:92vw;
+          overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+          transition:transform .2s cubic-bezier(.2,.8,.3,1)}
+  .barmsg.on{transform:translateX(-50%) translateY(0)}
+  .barmsg i{display:inline-block;width:7px;height:7px;border-radius:50%;
+            background:#B07CFF;margin-right:8px;vertical-align:middle;
+            animation:barblink .9s ease-in-out infinite}
+  @keyframes barblink{0%,100%{opacity:.35}50%{opacity:1}}
+
+  /* ---------- the range is committed ONCE ----------
+     Picking From used to fire a load, then picking To fired a second one, so a
+     two date choice always cost two loads and the first was always the wrong
+     answer. Nothing loads until the pair settles. */
+  .rpend{display:none;align-items:center;gap:8px;background:#FFF0D9;color:#8A5B12;
+         border:1px solid #F2DDB6;border-radius:8px;padding:5px 8px 5px 11px;
+         font-size:11px;font-weight:800;white-space:nowrap}
+  .rpend.on{display:inline-flex}
+  .rpend button{background:#333D6D;color:#fff;border:0;border-radius:6px;
+                padding:5px 12px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer}
+  .rpend button:hover{background:#723EC3}
   .spin{display:none !important}
 </style>
 </head>
 <body>
 
 <div id="bar"><i></i></div>
+<div id="barmsg" class="barmsg"></div>
 
 
 <div class="strip">
@@ -251,14 +278,16 @@
     <span class="dpick">
       <span id="f1label">&ndash;</span>
       <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-      <input type="date" id="f1" onchange="load()" onclick="openPicker(this)" aria-label="From date">
+      <input type="date" id="f1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="From date">
     </span>
     <span style="font-size:11px;color:var(--mut);font-weight:800">to</span>
     <span class="dpick">
       <span id="f2label">&ndash;</span>
       <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-      <input type="date" id="f2" onchange="load()" onclick="openPicker(this)" aria-label="To date">
+      <input type="date" id="f2" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="To date">
     </span>
+    <span class="rpend" id="rpend"><span id="rpendtxt"></span>
+      <button onclick="rangeCommit()">Load now</button></span>
   </span>
 
   <div class="sep"></div>
@@ -320,7 +349,10 @@
 </div>
 
 <!-- ===== floor grid modal ===== -->
-<div class="ovl" id="ovl">
+<!-- Clicking the backdrop closes it, the same as the popup on the Loss Time
+     page and the dialog in the shell. This one only closed from the X, which
+     surprises anyone trained by the other two. -->
+<div class="ovl" id="ovl" onclick="if(event.target===this)closeGrid()">
   <div class="modal">
     <div class="mh">
       <b id="mTitle">Floor Efficiency</b>
@@ -359,20 +391,44 @@
       this morning's report has been pulled yet.
    ================================================================== */
 
-var BUSY_N = 0;
+var BUSY_N = 0, BUSY_LABELS = [];
 /* Named barBusy, not busy. weekly.html already owns a busy(msg) that blanks
    the report with a message, and two functions of the same name in one file
-   means the second one silently wins. */
-function barBusy(on){
-  BUSY_N = Math.max(0, BUSY_N + (on ? 1 : -1));
+   means the second one silently wins.
+
+   THE LABEL MATTERS AS MUCH AS THE BAR. A moving line says something is
+   happening. It does not say WHICH report, or for WHICH date, so pressing a
+   button and waiting felt like pressing a button and hoping. Every call
+   passes what it is fetching, and that text sits in a chip under the strip
+   until it arrives. */
+function barBusy(on, label){
+  if(on){
+    BUSY_N++;
+    if(label) BUSY_LABELS.push(label);
+  }else{
+    BUSY_N = Math.max(0, BUSY_N - 1);
+    if(label){
+      var i = BUSY_LABELS.indexOf(label);
+      if(i >= 0) BUSY_LABELS.splice(i, 1);
+    }
+    if(!BUSY_N) BUSY_LABELS = [];
+  }
   var b = document.getElementById('bar');
   if(b) b.className = BUSY_N ? 'on' : '';
+
+  var c = document.getElementById('barmsg');
+  if(c){
+    /* The newest thing asked for is the one worth naming. */
+    var txt = BUSY_LABELS.length ? BUSY_LABELS[BUSY_LABELS.length - 1] : '';
+    c.innerHTML = txt ? ('<i></i>' + txt + '&hellip;') : '';
+    c.className = (BUSY_N && txt) ? 'barmsg on' : 'barmsg';
+  }
 }
 /* Wrap any promise so the bar follows it, whatever the outcome. */
-function track(p){
-  barBusy(true);
-  return p.then(function(v){ barBusy(false); return v; },
-                function(e){ barBusy(false); throw e; });
+function track(p, label){
+  barBusy(true, label);
+  return p.then(function(v){ barBusy(false, label); return v; },
+                function(e){ barBusy(false, label); throw e; });
 }
 
 var SD_DAY='sosl_dash_day', SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to';
@@ -453,10 +509,14 @@ function openPicker(i){ if(i.showPicker){ try{i.showPicker()}catch(e){} } }
 
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* House date format, the SAME one every other report uses: "18 Aug, 2026".
+   This page rendered "18-Aug-26" instead, so the one date the whole dashboard
+   now shares appeared in two different formats depending which report you had
+   open. */
 function prettyDate(iso){
   if(!iso) return '';
   var p=String(iso).split('-'); if(p.length!==3) return iso;
-  return Number(p[2])+'-'+MON[Number(p[1])-1]+'-'+p[0].slice(2);
+  return Number(p[2])+' '+MON[Number(p[1])-1]+', '+p[0];
 }
 function shortDate(iso){
   var p=String(iso).split('-'); if(p.length!==3) return iso;
@@ -517,7 +577,7 @@ window.addEventListener('load', function(){
 });
 
 function getSnapshot(initial){
-  track(fetch(PIB_API+'?action=snapshot')).then(function(r){return r.json()}).then(function(s){
+  track(fetch(PIB_API+'?action=snapshot'), 'Weekly Individual PIB, checking periods').then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ if(initial) fail(s.msg); return; }
     ssSet(SNAP_KEY,s);
     SNAP=s; if(s.roster) ROSTER=s.roster;
@@ -553,7 +613,7 @@ function refreshNow(){
   }catch(e){}
 
   /* Phase 1: re-pull the period on screen, cache bypassed. */
-  track(fetch(PIB_API+'?action=snapshot',{cache:'no-store'}))
+  track(fetch(PIB_API+'?action=snapshot',{cache:'no-store'}), 'Refreshing Weekly Individual PIB')
     .then(function(r){ return r.json() })
     .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; if(sn.roster) ROSTER=sn.roster; } })
     .catch(function(){})
@@ -674,6 +734,7 @@ function setView(v){
 }
 
 function periodChanged(){
+  rangeCancelPending();
   el('customWrap').classList.toggle('hide', el('period').value!=='custom');
   load();
 }
@@ -699,6 +760,52 @@ function applyData(d){
    follows it, which reads as "just that day" and is what people actually do.
    Filling the second one then widens it. Reversed dates are swapped rather
    than refused, because a range typed backwards is a slip, not a question. */
+
+/* ---------- commit the date range once, not once per box ----------
+   Every change restarts a short timer. Pick From and To one after the other
+   and only ONE load happens, on the pair. Pick just one and it loads that
+   single day when the timer runs out. The chip says which, and offers a Load
+   button for anyone who does not want to wait. */
+var RPEND_T = null, RPEND_MS = 2200;
+
+function rangeShowPending(msg){
+  var c = document.getElementById('rpend');
+  if(!c) return;
+  document.getElementById('rpendtxt').textContent = msg || '';
+  c.className = msg ? 'rpend on' : 'rpend';
+}
+
+function rangeCancelPending(){
+  if(RPEND_T){ clearTimeout(RPEND_T); RPEND_T = null; }
+  rangeShowPending('');
+}
+
+/* Called by BOTH date boxes. */
+function onRangeEdit(){
+  if(RPEND_T) clearTimeout(RPEND_T);
+  rangeSyncLabels();
+
+  var a = rangeBoxes().a.value, b = rangeBoxes().b.value;
+  rangeShowPending(
+    (a && b) ? ('Loading ' + prettyDate(a) + ' to ' + prettyDate(b))
+             : ('Pick the other date, or load ' + prettyDate(a || b) + ' on its own')
+  );
+
+  RPEND_T = setTimeout(function(){ rangeCommit(); }, RPEND_MS);
+}
+
+function rangeCommit(){
+  rangeCancelPending();
+  rangeLoadNow();
+}
+
+function rangeBoxes(){ return { a: el('f1'), b: el('f2') }; }
+function rangeSyncLabels(){
+  el('f1label').textContent=prettyDate(el('f1').value);
+  el('f2label').textContent=prettyDate(el('f2').value);
+}
+function rangeLoadNow(){ load(); }
+
 function normaliseRange(){
   var a=el('f1'), b=el('f2');
   if(a.value && !b.value) b.value=a.value;
@@ -728,7 +835,7 @@ function load(force){
   if(cached && cached.ok) applyData(cached);
   else el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
 
-  track(fetch(PIB_API+q)).then(function(r){return r.json()}).then(function(d){
+  track(fetch(PIB_API+q), 'Weekly Individual PIB, '+periodLabel()).then(function(r){return r.json()}).then(function(d){
     if(!d.ok){ if(!cached) fail(d.msg); return; }
     ssSet(ck,d);
     applyData(d);
@@ -1446,6 +1553,10 @@ function openGrid(kind){
   el('ovl').classList.add('on');
 }
 function closeGrid(){ el('ovl').classList.remove('on'); }
+/* Escape closes it too. */
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape' && el('ovl') && el('ovl').classList.contains('on')) closeGrid();
+});
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGrid(); });
 function printGrid(){
   document.body.classList.add('pmodal');

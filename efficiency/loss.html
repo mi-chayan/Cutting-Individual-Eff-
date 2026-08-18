@@ -93,8 +93,9 @@
   select:disabled,input:disabled{background:#F1F2F7;color:#B2B7C9;cursor:not-allowed}
   input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
-  .pill{padding:3px 10px;border-radius:99px;font-size:10px;font-weight:800;
-        text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;display:inline-block}
+  .pill{padding:3px 9px;border-radius:99px;font-size:9.5px;font-weight:800;
+        text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;display:inline-block;
+        max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .pill.fl{background:#EFE8FB;color:var(--violet)}
   .pill.sv{background:#E7F4EC;color:var(--green)}
   .pill.no{background:#F1F2F7;color:var(--mut)}
@@ -124,8 +125,16 @@
             display:flex;align-items:center;gap:10px}
   .card .bd{padding:13px;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 
+  /* scrollbar-gutter reserves the strip the scrollbar lives in, so the last
+     column is never painted under it. Without it the Status pill was clipped
+     the moment the list grew long enough to scroll, which is always. */
   .scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
-          border:1px solid var(--line);border-radius:9px}
+          border:1px solid var(--line);border-radius:9px;
+          scrollbar-gutter:stable}
+  .scroll::-webkit-scrollbar{width:10px}
+  .scroll::-webkit-scrollbar-track{background:#F1F2F7;border-radius:0 9px 9px 0}
+  .scroll::-webkit-scrollbar-thumb{background:#C8CDE4;border-radius:6px;border:2px solid #F1F2F7}
+  .scroll::-webkit-scrollbar-thumb:hover{background:#A8B0D0}
   table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;font-size:12px}
   thead th{position:sticky;top:0;z-index:6;background:var(--navy);color:#fff;
            padding:7px 6px;text-align:left;font-weight:700;font-size:9.5px;
@@ -199,6 +208,8 @@
   .allchk input{width:15px;height:15px;accent-color:#fff;cursor:pointer;margin:0}
   .allchk input:disabled{cursor:not-allowed;opacity:.45}
   .ctr{text-align:center}
+  .stcell{padding-right:9px}
+  thead th:last-child{padding-right:9px}
 
   .msg{padding:10px 13px;border-radius:8px;margin-bottom:11px;font-size:12px;font-weight:700;display:none;flex:0 0 auto}
   .msg.g{background:#E7F4EC;color:var(--green);display:block}
@@ -414,19 +425,24 @@
             <!-- Percentages total exactly 100 so the table always fits its card
                  and never needs a left-right scroll. Chasing a report sideways
                  on a factory floor tablet is what made this screen unusable. -->
+            <!-- Percentages total exactly 100. Status was 5.5% and the word
+                 SUBMITTED did not fit, so it was clipped by the scrollbar and
+                 read as SUBMITTEC. It is 9% now, and .scroll reserves a gutter
+                 so the scrollbar sits BESIDE the last column instead of on
+                 top of it. -->
             <colgroup>
               <col style="width:3%">     <!-- #          -->
               <col style="width:8.5%">   <!-- Op ID      -->
-              <col style="width:15%">    <!-- Name       -->
-              <col style="width:7.5%">   <!-- Process    -->
+              <col style="width:14%">    <!-- Name       -->
+              <col style="width:7%">     <!-- Process    -->
               <col style="width:4.5%">   <!-- WH         -->
               <col style="width:5.5%">   <!-- Work Min   -->
-              <col style="width:4%">     <!-- Unavail    -->
-              <col style="width:18.5%">  <!-- Loss       -->
-              <col style="width:11%">    <!-- Adj Input  -->
-              <col style="width:7%">     <!-- Output     -->
-              <col style="width:10%">    <!-- Eff %      -->
-              <col style="width:5.5%">   <!-- Status     -->
+              <col style="width:3.5%">   <!-- Unavail    -->
+              <col style="width:19%">    <!-- Loss       -->
+              <col style="width:10%">    <!-- Adj Input  -->
+              <col style="width:6.5%">   <!-- Output     -->
+              <col style="width:9.5%">   <!-- Eff %      -->
+              <col style="width:9%">     <!-- Status     -->
             </colgroup>
             <thead><tr>
               <th class="sl">#</th>
@@ -873,8 +889,12 @@ function startApp(){
   boot();
 }
 
+/* The picker appears whenever this login holds MORE THAN ONE floor, whether
+   that came from a Central row or from several named rows in the Users tab.
+   It used to require CENTRAL, so a leader granted 1A and 1B saw a fixed pill
+   for 1A and had no way to reach 1B. */
 function setupFloorControl(){
-  if(CENTRAL && FLOORS.length>1){
+  if(FLOORS.length>1){
     el('floorSel').innerHTML=FLOORS.map(function(f){return '<option'+(f===FLOOR?' selected':'')+'>'+esc(f)+'</option>'}).join('');
     el('floorWrap').classList.remove('hide');
     el('floorPill').classList.add('hide');
@@ -1100,7 +1120,7 @@ function render(){
      + '<td class="ctr ec" id="in_'+o.id+'">'+inCell(o.id)+'</td>'
      + '<td class="ctr ec" id="ot_'+o.id+'">'+outCell(o.id)+'</td>'
      + '<td class="ctr ec" id="ef_'+o.id+'">'+effCell(o.id)+'</td>'
-     + '<td class="ctr" id="st_'+o.id+'">'+statCell(o.id)+'</td></tr>';
+     + '<td class="ctr stcell" id="st_'+o.id+'">'+statCell(o.id)+'</td></tr>';
   });
   el('tb').innerHTML = h || '<tr><td colspan="12" class="loading">No operators match.</td></tr>';
   updateKpis();
