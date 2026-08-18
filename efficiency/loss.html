@@ -297,7 +297,7 @@
       <div class="kpi k2"><div class="k">With Loss</div><div class="v" id="k2">0</div><div class="s">operators affected</div></div>
       <div class="kpi k3"><div class="k">Total Loss</div><div class="v" id="k3">0</div><div class="s">minutes</div></div>
       <div class="kpi k4"><div class="k">Equivalent</div><div class="v" id="k4">0.0</div><div class="s">hours</div></div>
-      <div class="kpi k5"><div class="k">Already Saved</div><div class="v" id="k5">0</div><div class="s">operators in sheet</div></div>
+      <div class="kpi k5"><div class="k">Already Submitted</div><div class="v" id="k5">0</div><div class="s">operators today</div></div>
     </div>
 
     <div class="card">
@@ -333,16 +333,16 @@
               <th>Op ID</th>
               <th>Name</th>
               <th>Process</th>
-              <th class="ctr" title="Working hour, read from the efficiency sheet for this date">WH<span class="whhint"> hrs</span></th>
+              <th class="ctr" title="Working hour for this operator on this date">WH<span class="whhint"> hrs</span></th>
               <th class="ctr"><label class="allchk"
                   title="Tick to mark every operator shown below as unavailable. Untick to clear them.">
                   <input type="checkbox" id="allUnav" onchange="setAllUnav(this.checked)">
                   <span>Unavail.</span></label></th>
               <th>Loss <span class="whhint">min &amp; reasons</span></th>
-              <th class="ctr" title="Indv. Input Min from the efficiency sheet. Shows now &rarr; projected.">Input<span class="whhint"> min</span></th>
-              <th class="ctr" title="Indv. Output Min. Loss time does not change this.">Output<span class="whhint"> min</span></th>
-              <th class="ctr" title="Output Min divided by Input Min. Shows now &rarr; projected.">Eff<span class="whhint"> %</span></th>
-              <th class="ctr">Sheet</th>
+              <th class="ctr" title="Working minutes after the fixed break, unavailable time and loss time are taken off. Shows now &rarr; projected.">Adjusted<span class="whhint"> input min</span></th>
+              <th class="ctr" title="Earned minutes. Loss time does not change this.">Output<span class="whhint"> min</span></th>
+              <th class="ctr" title="Output Min divided by Adjusted Input Min. Shows now &rarr; projected.">Eff<span class="whhint"> %</span></th>
+              <th class="ctr">Status</th>
             </tr></thead>
             <tbody id="tb"><tr><td colspan="11" class="loading">Loading&hellip;</td></tr></tbody>
           </table>
@@ -360,7 +360,7 @@
       <button class="x" onclick="closeModal()" title="Close, Esc">&times;</button>
     </div>
     <div class="fx">
-      <div><div class="k">Input Min</div><div class="v" id="mIn">&ndash;</div></div>
+      <div><div class="k">Adjusted Input Min</div><div class="v" id="mIn">&ndash;</div></div>
       <div><div class="k">Output Min</div><div class="v" id="mOut">&ndash;</div></div>
       <div><div class="k">Eff %</div><div class="v" id="mEff">&ndash;</div></div>
     </div>
@@ -474,7 +474,7 @@ function whOf(id){
 }
 function whCell(id){
   var v=whOf(id);
-  return v===null ? '<span class="whna" title="The efficiency report for this date has not been pushed yet">&ndash;</span>'
+  return v===null ? '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>'
                   : '<span class="whv">'+v.toFixed(2)+'</span>';
 }
 
@@ -498,7 +498,7 @@ function project(id, mins){
 function effCell(id){
   var f=facts(id);
   if(!f || f.inn===null || f.inn===undefined)
-    return '<span class="whna" title="The efficiency report for this date has not been pushed yet">&ndash;</span>';
+    return '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>';
 
   var m=totMin(VAL[id]);
   var p=project(id, m);
@@ -509,7 +509,7 @@ function effCell(id){
   if(!p || m===savedLoss) return '<span class="effnow">'+curTxt+'</span>';
   if(p.over){
     return '<span class="effnow">'+curTxt+'</span><span class="effarr">&rarr;</span>'
-         + '<span class="effbad" title="This much loss would leave no input minutes at all.">over</span>';
+         + '<span class="effbad" title="This much loss would leave no adjusted input minutes at all.">over</span>';
   }
   if(p.newEff===null) return '<span class="effnow">'+curTxt+'</span>';
 
@@ -854,7 +854,7 @@ function lossCell(id){
   if(overCap(id,v)){
     var cap=Math.floor(capOf(id));
     h+='<span class="overmin" title="Only '+cap+' minutes were available on this date. '
-      +'More loss than that would make Input Min negative. If the operator was out all day, tick Unavailable instead.">'
+      +'More loss than that would make Adjusted Input Min negative. If the operator was out all day, tick Unavailable instead.">'
       + m+' &gt; '+cap+'</span>';
   }else{
     h+='<span class="lossmin">'+m+'</span>';
@@ -869,8 +869,12 @@ function lossCell(id){
   return h+'</div>';
 }
 
+/* Submitted means this operator already has loss time recorded for this date,
+   Pending means he does not. It deliberately does NOT say where it is stored:
+   a floor leader has no reason to know a Google Sheet exists. */
 function statCell(id){
-  return SAVED[id] ? '<span class="pill sv">Yes</span>' : '<span class="pill no">No</span>';
+  return SAVED[id] ? '<span class="pill sv">Submitted</span>'
+                   : '<span class="pill no">Pending</span>';
 }
 
 function render(){
@@ -1018,7 +1022,7 @@ function openModal(id){
   el('mName').textContent=o.name;
   var wh=whOf(id);
   el('mSub').textContent = 'Op ID '+o.id+'  ·  '+(o.process||'-')
-    + '  ·  WH '+(wh===null?'not pushed':wh.toFixed(2))
+    + '  ·  WH '+(wh===null?'not loaded':wh.toFixed(2))
     + '  ·  Floor '+FLOOR+'  ·  '+pretty(el('dt').value);
 
   el('ovl').classList.add('on');
@@ -1124,14 +1128,14 @@ function refreshModalTotals(){
   });
   if(cap!==null && m>cap){
     txt='Only <b>'+Math.floor(cap)+' minutes</b> were available on this date. '
-      + 'More than that would drive Input Min below zero. Check the Min / Hr unit, '
+      + 'More than that would drive Adjusted Input Min below zero. Check the Min / Hr unit, '
       + 'or tick Unavailable if the operator was out all day.';
     cls='r';
   }else if(missing){
     txt='One line has minutes but no reason. It will not be saved until a reason is picked.';
     cls='r';
   }else if(cap===null && m>WARN_MIN){
-    txt='Over 10 hours. The report for this date has not been pushed yet, so the real limit is unknown. Please double check.';
+    txt='Over 10 hours. The report for this date has not been loaded yet, so the real limit is unknown. Please double check.';
     cls='i';
   }
   w.innerHTML=txt; w.className='mwarn'+(cls?' '+cls:'');
@@ -1261,10 +1265,10 @@ function doSave(){
         return;
       }
       toast('The server was slow and '+missing.length+' entr'
-        +(missing.length===1?'y is':'ies are')+' not in the sheet. Press Submit again.','r',9000);
+        +(missing.length===1?'y was':'ies were')+' not saved. Press Submit again.','r',9000);
     }).catch(function(){
-      toast('Could not confirm the save. Press Reload to see what reached the '
-        +'sheet, then submit again only if it is missing.','r',9000);
+      toast('Could not confirm the save. Press Reload to see what was saved, '
+        +'then submit again only if it is missing.','r',9000);
     });
   });
 }
