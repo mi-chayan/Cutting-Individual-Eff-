@@ -208,16 +208,25 @@
      A floor leader was shown one number, Input Min, and told to trust it. Now
      the whole subtraction is on screen, so he can see WHERE the minutes went
      and argue with the right line if something looks wrong. */
+  /* ---------- the summary ----------
+     THREE lines. It was six, including a "Loss already submitted" row and a
+     "Loss on this screen" row that both looked like deductions when only one
+     of them was, so the arithmetic read as if twice the loss should have come
+     off. Nobody could follow it.
+
+     Now there is one Loss line. When it is being changed it shows old -> new,
+     which is the only place that comparison belongs. The working hour
+     arithmetic sits under Available as one small grey caption instead of two
+     more rows. */
   .fx{padding:13px 18px;background:#FAFBFE;border-bottom:1px solid var(--line)}
-  .fxt{width:100%;border-collapse:collapse;font-size:12px}
-  .fxt td{padding:4px 0;vertical-align:middle}
-  .fxt td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-  .fxt tr.sub td{color:var(--mut);font-weight:600}
+  .fxt{width:100%;border-collapse:collapse;font-size:13px}
+  .fxt td{padding:5px 0;vertical-align:middle}
+  .fxt td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:800;white-space:nowrap}
   .fxt tr.sub td.n{color:var(--red)}
-  .fxt tr.mid td{border-top:1px dashed #D5D9EA;padding-top:7px;font-weight:800}
-  .fxt tr.fin td{border-top:2px solid var(--navy);padding-top:8px;font-size:14px;font-weight:800;color:var(--navy)}
-  .fxt tr.fin td.n{font-size:17px}
-  .fxt .hint{font-size:9.5px;color:var(--mut);font-weight:600}
+  .fxt tr.fin td{border-top:2px solid var(--navy);padding-top:9px;
+                 font-size:14px;font-weight:800;color:var(--navy)}
+  .fxt tr.fin td.n{font-size:19px}
+  .fxcap{font-size:9.5px;color:var(--mut);font-weight:600;margin:-2px 0 4px}
   .effrow{display:flex;gap:9px;margin-top:11px}
   .effbox{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;text-align:center}
   .effbox .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
@@ -260,10 +269,6 @@
   .addrow:hover{border-color:var(--violet);background:#FAF7FF}
   .elab{display:grid;grid-template-columns:24px 1fr 78px 70px 32px;gap:8px;margin:0 10px 5px}
   .elab span{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .mtot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;
-        padding:11px 14px;border-radius:10px;background:#FFF7F8;border:1px solid #F3D6DA;
-        font-size:12.5px;font-weight:800}
-  .mtot .n{font-size:21px;font-variant-numeric:tabular-nums;color:var(--red)}
   .mwarn{margin-top:11px;padding:10px 13px;border-radius:9px;font-size:11.5px;font-weight:700;display:none}
   .mwarn.r{background:#FBE9EB;color:var(--red);display:block;border:1px solid #F3D6DA}
   .mwarn.i{background:var(--cream);color:#8A5B12;display:block;border:1px solid #F2DDB6}
@@ -416,6 +421,7 @@
     <!-- The full subtraction, line by line. See refreshModalTotals. -->
     <div class="fx">
       <table class="fxt" id="mBreak"></table>
+      <div class="fxcap" id="mCap"></div>
       <div class="effrow">
         <div class="effbox"><div class="k">Output Min</div><div class="v" id="mOut">&ndash;</div></div>
         <div class="effbox"><div class="k">Eff %</div><div class="v" id="mEff">&ndash;</div></div>
@@ -439,7 +445,6 @@
         <button class="addrow" onclick="addRow()">+ Add another reason</button>
       </div>
 
-      <div class="mtot"><span>Total loss for this operator</span><span class="n" id="mTot">0 min</span></div>
       <div class="mwarn" id="mWarn"></div>
     </div>
 
@@ -1218,94 +1223,96 @@ function renderModal(){
   refreshModalTotals();
 }
 
-/* ---------- the whole subtraction, on screen ----------
-   The sheet works this out as
+/* ---------- the summary, three lines ----------
+   The sheet works Adjusted Input Min out as
 
-     Working minutes      = WH x 60
-     minus fixed break    = 'SOSL Summary'!D13
-     minus unavailable    = the Unavailable Time tab for that date and floor
-     minus loss time      = what a floor leader enters here
-     = Adjusted Input Min
+     WH x 60  -  fixed break  -  unavailable time  -  loss time
 
-   The page cannot see the break and the unavailable allowance separately, it
-   only knows their COMBINED size, because what it is given is
+   The page cannot see the break and the unavailable allowance separately. All
+   it is given is
 
      available = Adjusted Input Min now + loss already submitted
 
-   so the two are shown as one honest line rather than invented as two. */
+   so those two are shown as one caption under Available rather than invented
+   as two separate rows.
+
+   ONE loss line, not two. It reads "170" when nothing is being changed, and
+   "170 -> 200" while it is. The old version had a "Loss already submitted"
+   row AND a "Loss on this screen" row, both formatted as deductions, so it
+   looked like 340 minutes should have come off when only 170 did. */
 function refreshModalTotals(){
   if(!MDRAFT) return;
   var m=totMin(MDRAFT);
-  el('mTot').textContent = m + ' min' + (m>=60 ? '   ('+(m/60).toFixed(2)+' hr)' : '');
 
   var f=facts(MID);
   var cap=capOf(MID);
   var wmin=workMin(MID);
-  var tbl=el('mBreak');
+  var tbl=el('mBreak'), capEl=el('mCap');
 
+  /* The day has not been loaded, so there are no minutes to show. The entry
+     is still recorded and applies as soon as the day is loaded. */
   if(!f || f.inn===null || f.inn===undefined){
-    tbl.innerHTML='<tr><td colspan="2" class="hint">'
-      + 'The report for this date has not been loaded yet, so the minute '
-      + 'breakdown is not available. The loss time is still recorded and '
-      + 'applies the moment the day is loaded.</td></tr>';
+    tbl.innerHTML='<tr class="sub"><td>Loss time</td><td class="n">'+m+' min</td></tr>';
+    capEl.textContent='This date has not been loaded into the report yet, so the '
+      + 'minutes cannot be shown. The entry is still recorded.';
     el('mOut').innerHTML='&ndash;'; el('mEff').innerHTML='&ndash;';
     el('mDone').disabled=false;
     var w0=el('mWarn'); w0.innerHTML=''; w0.className='mwarn';
     return;
   }
 
-  var savedLoss = Number(f.loss)||0;      /* already submitted for this date */
-  var avail     = f.inn + savedLoss;      /* WH x 60 minus break and unavailable */
-  var fixed     = (wmin===null) ? null : (wmin - avail);
+  var savedLoss = Math.round(Number(f.loss)||0);   /* already in the report */
+  var avail     = Math.round(f.inn + savedLoss);   /* WH x 60 less break and unavailable */
   var newInput  = avail - m;
+  var changed   = (m !== savedLoss);
 
-  var rows='';
-  if(wmin!==null){
-    rows+='<tr><td>Working minutes<span class="hint">  '+whOf(MID).toFixed(2)+' hr x 60</span></td>'
-        + '<td class="n">'+wmin+'</td></tr>';
-    rows+='<tr class="sub"><td>Break and unavailable time</td>'
-        + '<td class="n">'+(fixed>0?'- '+Math.round(fixed):'0')+'</td></tr>';
+  /* "170" normally, "170 -> 200" only while it is actually being changed. */
+  function pair(a,b,cls){
+    if(!changed) return String(b);
+    return '<span class="effnow">'+a+'</span><span class="effarr">&rarr;</span>'
+         + '<span class="'+cls+'">'+b+'</span>';
   }
-  rows+='<tr class="mid"><td>Available minutes</td><td class="n">'+Math.round(avail)+'</td></tr>';
-  rows+='<tr class="sub"><td>Loss already submitted</td>'
-      + '<td class="n">'+(savedLoss?'- '+Math.round(savedLoss):'0')+'</td></tr>';
-  rows+='<tr class="sub"><td>Loss on this screen</td>'
-      + '<td class="n">'+(m?'- '+m:'0')+'</td></tr>';
+
+  var rows='<tr><td>Available minutes</td><td class="n">'+avail+'</td></tr>';
 
   if(MDRAFT.unav){
-    rows+='<tr class="fin"><td>Individual PIB</td><td class="n">N/A</td></tr>';
-  }else if(newInput<=0){
-    rows+='<tr class="fin"><td>Adjusted Input Min</td>'
-        + '<td class="n" style="color:#B3261E">'+Math.round(newInput)+'</td></tr>';
+    rows+='<tr class="sub"><td>Unavailable all day</td><td class="n">&ndash;</td></tr>'
+        + '<tr class="fin"><td>Individual PIB</td><td class="n">N/A</td></tr>';
   }else{
-    var arrow = (m!==savedLoss)
-      ? '<span class="effnow">'+Math.round(f.inn)+'</span><span class="effarr">&rarr;</span>'
-        + '<span class="effdn">'+Math.round(newInput)+'</span>'
-      : Math.round(newInput);
-    rows+='<tr class="fin"><td>Adjusted Input Min</td><td class="n">'+arrow+'</td></tr>';
+    rows+='<tr class="sub"><td>Loss time</td><td class="n">'
+        + pair(savedLoss, m, 'effbad') + '</td></tr>';
+    if(newInput<=0){
+      rows+='<tr class="fin"><td>Adjusted Input Min</td>'
+          + '<td class="n" style="color:#B3261E">'+newInput+'</td></tr>';
+    }else{
+      rows+='<tr class="fin"><td>Adjusted Input Min</td><td class="n">'
+          + pair(Math.round(f.inn), newInput, 'effdn') + '</td></tr>';
+    }
   }
   tbl.innerHTML=rows;
+
+  /* The arithmetic behind Available, small and out of the way. */
+  capEl.textContent = (wmin===null)
+    ? ''
+    : (whOf(MID).toFixed(2)+' hr x 60 = '+wmin+' min, less '
+       + Math.max(0, wmin-avail) + ' min break and unavailable time');
 
   el('mOut').innerHTML = (f.out===null||f.out===undefined) ? '&ndash;' : Math.round(f.out);
 
   var cur=(f.eff===null||f.eff===undefined)?null:f.eff;
   if(MDRAFT.unav){
     el('mEff').innerHTML='<span style="color:var(--violet)">N/A</span>';
-  }else if(newInput<=0 || f.out===null || f.out===undefined){
+  }else if(newInput<=0 || f.out===null || f.out===undefined || !changed){
     el('mEff').innerHTML=(cur===null)?'&ndash;':cur.toFixed(1)+'%';
   }else{
     var ne=f.out/newInput*100;
-    if(m===savedLoss){
-      el('mEff').innerHTML=(cur===null)?'&ndash;':cur.toFixed(1)+'%';
-    }else{
-      var cls=(cur!==null && Math.abs(ne-cur)<0.05)?'effsame':((cur!==null && ne>cur)?'effup':'effdn');
-      el('mEff').innerHTML=(cur===null?'&ndash;':cur.toFixed(1)+'%')
-        +' <span class="effarr">&rarr;</span> <span class="'+cls+'">'+ne.toFixed(1)+'%</span>';
-    }
+    var cls=(cur!==null && Math.abs(ne-cur)<0.05)?'effsame':((cur!==null && ne>cur)?'effup':'effdn');
+    el('mEff').innerHTML=(cur===null?'&ndash;':cur.toFixed(1)+'%')
+      +' <span class="effarr">&rarr;</span> <span class="'+cls+'">'+ne.toFixed(1)+'%</span>';
   }
 
   /* Warnings inside the popup, where the person can still act on them. */
-  var w=el('mWarn'), txt='', cls='';
+  var w=el('mWarn'), txt='', cls2='';
   var missing=(MDRAFT.entries||[]).some(function(e){
     return entryMin(e)>0 && !String(e.reason||'').trim();
   });
@@ -1314,20 +1321,20 @@ function refreshModalTotals(){
   });
   if(cap!==null && m>cap){
     txt='Only <b>'+Math.floor(cap)+' minutes</b> were available on this date. '
-      + 'More than that would drive Adjusted Input Min below zero. Check the Min / Hr unit, '
+      + 'More than that would leave no input minutes at all. Check the Min / Hr unit, '
       + 'or tick Unavailable if the operator was out all day.';
-    cls='r';
+    cls2='r';
   }else if(missing){
     txt='One line has minutes but no reason. It will not be saved until a reason is picked.';
-    cls='r';
+    cls2='r';
   }else if(noMin){
     txt='One line has a reason but no time. It will be ignored.';
-    cls='i';
+    cls2='i';
   }else if(cap===null && m>WARN_MIN){
     txt='Over 10 hours. The report for this date has not been loaded yet, so the real limit is unknown. Please double check.';
-    cls='i';
+    cls2='i';
   }
-  w.innerHTML=txt; w.className='mwarn'+(cls?' '+cls:'');
+  w.innerHTML=txt; w.className='mwarn'+(cls2?' '+cls2:'');
   el('mDone').disabled = (cap!==null && m>cap);
 }
 
