@@ -366,7 +366,19 @@
   .srow .no{width:24px;height:24px;border-radius:7px;background:#E7F4EC;color:var(--green);
             font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .srow .rs{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .srow .mn{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:var(--red)}
+  .srow{grid-template-columns:24px 1fr 118px 96px 32px}
+  .srow .mn{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:var(--red);
+            display:flex;align-items:center;justify-content:flex-end;gap:5px;white-space:nowrap}
+  /* The minutes on a saved line are now typed into, not just read. */
+  .srow .smin{width:52px;text-align:right;font-family:inherit;font-weight:800;font-size:12px;
+              color:var(--red);padding:4px 6px;border:1px solid var(--line);border-radius:6px;
+              background:#fff;font-variant-numeric:tabular-nums}
+  .srow .smin:focus{outline:none;border-color:var(--violet)}
+  .srow .smin:disabled{background:#F1F2F7;color:#B2B7C9}
+  /* An edited line says what it was, so a mistyped correction is obvious
+     before Submit rather than after. */
+  .srow.edited{background:#FFF6E6}
+  .srow .wasv{font-size:9.5px;font-weight:700;color:var(--mut);text-decoration:line-through}
   .srow .wh2{font-size:9.5px;color:var(--mut);font-weight:700;line-height:1.25;text-align:right}
   .srow .wh2 span{font-weight:600;opacity:.8}
   .srow.gone{background:#FBE9EB;border-color:#F3D6DA}
@@ -860,7 +872,7 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 
    SAVEDE holds what the sheet already has, keyed by operator. It is never
    edited in place. */
-function blank(){ return {unav:false, add:[], remove:[]}; }
+function blank(){ return {unav:false, add:[], remove:[], edit:{}}; }
 
 /* opId -> [{reason, min, by, ts, unav}] straight from the server. */
 var SAVEDE = {};
@@ -962,6 +974,78 @@ function apiPost(body, label){
     function(e){ busy(false, label); throw e; });
 }
 
+/* ---------- the shell's Refresh button ----------
+   Every report page in the dashboard answers a 'do-refresh' message from the
+   shell and reports back when it has finished. This page never did, so
+   pressing Refresh while on Loss Time appeared to hang: the button span for
+   ninety seconds and nothing happened, because nobody was listening.
+
+   Here Refresh means two things, in order:
+     1. re-read this floor and date from the LossTime sheet, bypassing the
+        cache, so the screen matches what is really saved
+     2. re-sync column AG in the efficiency sheet for this date and floor, so
+        Input Min and Eff% agree with those rows
+
+   Anything typed and not yet submitted is DISCARDED, because Refresh means
+   "show me what is actually stored". The confirm makes that explicit rather
+   than quietly throwing away a floor leader's typing. */
+window.addEventListener('message', function(ev){
+  if(!ev.data || ev.data.type!=='do-refresh') return;
+
+  if(!TOKEN){ doneRefresh('Not logged in yet.'); return; }
+
+  if(changedOps().length){
+    var keep = !confirm('You have changes that are not submitted yet.\n\n'
+      + 'Refresh reloads what is stored in the sheet and will discard them.\n\n'
+      + 'OK to discard and refresh, Cancel to keep typing.');
+    if(keep){ doneRefresh(''); return; }
+  }
+
+  var d = el('dt').value || TODAY;
+  say('smsg','Refreshing from the sheet\u2026','i');
+
+  api({action:'day',token:TOKEN,floor:FLOOR,date:d,fresh:1}).then(function(r){
+    if(!r.ok) throw new Error(r.msg||'could not read the day');
+    if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
+    WH={};
+    if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
+      var f=r.wh[k];
+      WH[String(k).replace(/^0+/,'')] =
+        (typeof f==='number') ? {wh:f,inn:null,out:null,eff:null,loss:0} : f;
+    }
+    apply(r.day); render(); applyLock(d);
+
+    /* Now push the sheet's figures into the efficiency sheet for this date. */
+    nudgeDashboard(d, function(note){
+      say('smsg','Refreshed from the sheet. Efficiency sheet re-synced'
+        + (note ? ' ('+esc(note)+')' : '') + '.','g');
+      /* Read back once more so the columns show the post-sync figures. */
+      loadDay(true);
+      doneRefresh('');
+    }, FLOOR);
+
+  }).catch(function(e){
+    say('smsg','Could not refresh. '+esc(e.message),'r');
+    doneRefresh(e.message);
+  });
+});
+
+function doneRefresh(err){
+  if(window.parent===window) return;
+  try{
+    window.parent.postMessage({ type:'refresh-done',
+      stamp: 'Loss Time \u00b7 '+pretty(el('dt').value||TODAY),
+      error: err||'' }, '*');
+  }catch(e){}
+}
+
+/* The shell shows a dash next to Refresh until a page tells it otherwise, and
+   it also uses this message to know the page has finished loading. */
+function tellParent(txt){
+  if(window.parent===window) return;
+  try{ window.parent.postMessage({type:'stamp', value:txt}, '*'); }catch(e){}
+}
+
 /* ---------- start ---------- */
 
 window.addEventListener('load',function(){
@@ -1044,6 +1128,9 @@ function boot(){
     el('dlabel').textContent=pretty(el('dt').value);
     applyLock(el('dt').value);
     apply(r.day); render();
+    /* Tells the shell this page has painted, which ends its "still loading"
+       state and lets Refresh be pressed. */
+    tellParent('Loss Time \u00b7 '+pretty(el('dt').value||TODAY));
   }).catch(function(e){ fail(e.message) });
 }
 
@@ -1378,7 +1465,12 @@ function openModal(id){
   MDRAFT={
     unav: !!v.unav,
     add: (v.add||[]).map(function(e){ return {reason:e.reason, min:e.min, unit:e.unit||'Min'}; }),
-    remove: (v.remove||[]).slice()
+    remove: (v.remove||[]).slice(),
+    /* Edits to lines that are ALREADY in the sheet, keyed by reason.
+       Seeing "Net Problem 30" and typing 50 means that line becomes 50, not
+       that another 50 is added on top. The server upserts on operator+reason,
+       so this is a correction of one row rather than a second row. */
+    edit: Object.assign({}, (v.edit||{}))
   };
   if(!MDRAFT.add.length) MDRAFT.add.push({reason:'',min:'',unit:'Min'});
 
@@ -1464,6 +1556,19 @@ function isRemoved(e){
 
 /* Typing must NOT rebuild the rows: doing so destroys the input and the caret
    jumps out after a single digit. Only the derived numbers are refreshed. */
+/* Typing on a line that is already in the sheet. Stored against the REASON,
+   not the row index, so a row moving in the sheet cannot misdirect the edit. */
+function setSaved(i,val){
+  if(!MDRAFT) return;
+  var saved=(SAVEDE[MID]||[]).filter(function(e){
+    return Number(e.min)>0 || String(e.reason||'').trim();
+  });
+  var e=saved[i]; if(!e) return;
+  if(!MDRAFT.edit) MDRAFT.edit={};
+  MDRAFT.edit[rkey(e.reason)]=val;
+  refreshModalTotals();
+}
+
 function setEntry(i,k,val){
   if(!MDRAFT || !MDRAFT.add[i]) return;
   MDRAFT.add[i][k]=val;
@@ -1472,13 +1577,56 @@ function setEntry(i,k,val){
   refreshModalTotals();
 }
 
+/* ---------- one reason, once ----------
+   A reason already standing for this operator, or already typed on another
+   line in this panel, must not be offered again. Two lines with the same
+   reason are one event recorded twice, and they would be summed into column
+   AG as though the operator had lost the time twice over.
+
+   Matching ignores case and repeated spaces, so "Net  problem" cannot sneak
+   past "Net Problem". */
+function rkey(r){ return String(r||'').replace(/\s+/g,' ').trim().toUpperCase(); }
+
+/* The value a saved line currently carries in the panel: the typed edit if
+   there is one, otherwise what the sheet holds. */
+function savedVal(e){
+  if(!MDRAFT) return Math.round(Number(e.min)||0);
+  var k=rkey(e.reason);
+  var ed=MDRAFT.edit && MDRAFT.edit[k];
+  if(ed===undefined || ed===null || ed==='') return Math.round(Number(e.min)||0);
+  var n=parseFloat(String(ed).replace(/[^0-9.]/g,''));
+  return (isNaN(n)||n<0) ? 0 : Math.round(n);
+}
+function savedEdited(e){
+  if(!MDRAFT || !MDRAFT.edit) return false;
+  var k=rkey(e.reason);
+  return MDRAFT.edit[k]!==undefined && savedVal(e)!==Math.round(Number(e.min)||0);
+}
+
+/* Reasons this operator already holds, saved or being typed, excluding the
+   line the dropdown belongs to so it can keep showing its own choice. */
+function takenReasons(exceptIdx){
+  var t={};
+  (SAVEDE[MID]||[]).forEach(function(e){
+    if(isRemoved(e)) return;                 /* crossed out, so free again */
+    var k=rkey(e.reason);
+    if(k) t[k]=true;
+  });
+  ((MDRAFT&&MDRAFT.add)||[]).forEach(function(e,i){
+    if(i===exceptIdx) return;
+    var k=rkey(e.reason);
+    if(k) t[k]=true;
+  });
+  return t;
+}
+
 /* Minutes standing in the sheet for this operator after whatever is crossed
    out here, plus whatever is being added. */
 function draftSavedMin(){
   var t=0;
   (SAVEDE[MID]||[]).forEach(function(e){
     if(Number(e.min)<=0 && !String(e.reason||'').trim()) return;
-    if(!isRemoved(e)) t+=Math.round(Number(e.min)||0);
+    if(!isRemoved(e)) t+=savedVal(e);      /* the edited figure, not the stored one */
   });
   return t;
 }
@@ -1505,10 +1653,21 @@ function renderModal(){
   if(saved.length){
     saved.forEach(function(e,i){
       var gone=isRemoved(e);
-      sh+='<div class="srow'+(gone?' gone':'')+'">'
+      var cur=savedVal(e), ed=savedEdited(e);
+      sh+='<div class="srow'+(gone?' gone':'')+(ed?' edited':'')+'">'
         + '<div class="no">'+(i+1)+'</div>'
         + '<div class="rs">'+esc(e.reason||'&ndash;')+'</div>'
-        + '<div class="mn">'+e.min+' min</div>'
+        /* Editable, not read only. Seeing 30 and typing 50 corrects THIS line
+           to 50. It used to be a fixed label, so the only way to change a
+           figure was to cross the line out and add another one, which is not
+           how a floor leader thinks about fixing a number. */
+        + '<div class="mn"><input type="text" inputmode="decimal" class="smin"'
+        +   ' value="'+esc(cur)+'"'+(gone?' disabled':'')
+        +   ' oninput="setSaved('+i+',this.value)"'
+        +   ' title="Change the minutes on this line. It corrects the existing '
+        +   'entry, it does not add another one."> min'
+        +   (ed?'<span class="wasv">was '+Math.round(Number(e.min)||0)+'</span>':'')
+        + '</div>'
         + '<div class="wh2">'+esc(e.by||'-')+(e.ts?('<br><span>'+esc(e.ts)+'</span>'):'')+'</div>'
         + '<button class="del" onclick="toggleRemove('+i+')" title="'
         +   (gone?'Keep this line':'Remove this line when you submit')+'">'
@@ -1530,7 +1689,15 @@ function renderModal(){
      + '<div class="no">+</div>'
      + '<select class="rsel" onchange="setEntry('+i+',\'reason\',this.value)">'
      +   '<option value="">Select a reason</option>'
-     +   RSN.map(function(r){return '<option'+(e.reason===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')
+     /* Only reasons this operator does not already hold. A reason he has, or
+        has typed on another line here, is left out entirely: there is no way
+        to pick it twice because it is not on the list. His OWN current choice
+        stays, or the box would blank itself the moment it was chosen. */
+     +   RSN.filter(function(r){
+           return e.reason===r || !takenReasons(i)[rkey(r)];
+         }).map(function(r){
+           return '<option'+(e.reason===r?' selected':'')+'>'+esc(r)+'</option>';
+         }).join('')
      +   '</select>'
      + '<input type="text" inputmode="decimal" value="'+esc(e.min)+'" placeholder="0"'
      +   ' oninput="setEntry('+i+',\'min\',this.value)">'
@@ -1669,7 +1836,14 @@ function applyModal(){
   var keep=MDRAFT.add.filter(function(e){
     return entryMin(e)>0 && String(e.reason||'').trim();
   });
-  VAL[MID]={ unav:!!MDRAFT.unav, add:keep, remove:(MDRAFT.remove||[]).slice() };
+  /* Only keep edits that actually differ from the sheet, so a line merely
+     clicked into and back out of is not sent as a change. */
+  var edits={};
+  (SAVEDE[MID]||[]).forEach(function(e){
+    if(savedEdited(e)) edits[rkey(e.reason)]={reason:e.reason, min:savedVal(e)};
+  });
+  VAL[MID]={ unav:!!MDRAFT.unav, add:keep,
+             remove:(MDRAFT.remove||[]).slice(), edit:edits };
   var id=MID;
   closeModal();
   touch(id);
@@ -1705,7 +1879,10 @@ function doSave(){
     var add=addEntries(v);
     /* A reason is required to record something. Removing or ticking
        Unavailable needs none, there is nothing left to explain. */
-    if(add.length===0 && (v.remove||[]).length===0 && (!!v.unav===savedUnav(o.id))) return;
+    var edits=v.edit||{};
+    var nEdits=Object.keys(edits).length;
+    if(add.length===0 && nEdits===0 && (v.remove||[]).length===0
+       && (!!v.unav===savedUnav(o.id))) return;
 
     var k=String(o.id).replace(/^0+/,'');
     if(seen[k]) return;
@@ -1714,10 +1891,15 @@ function doSave(){
     rows.push({
       opId:o.id,
       unav:!!v.unav,
-      /* ADD, never replace. The server appends these and leaves everything
-         else alone, which is why two people entering at once is simply not a
-         problem here. */
-      add:add.map(function(e){ return {reason:e.reason, min:entryMin(e)}; }),
+      /* New lines AND corrections to lines already in the sheet travel in the
+         same list. The server upserts on operator + reason: a reason he
+         already holds is updated in place, a reason he does not is appended.
+         So "Net Problem 30" corrected to 50 becomes 50, not 80, and the same
+         reason can never end up on two rows. */
+      add: add.map(function(e){ return {reason:e.reason, min:entryMin(e)}; })
+             .concat(Object.keys(edits).map(function(k){
+               return {reason:edits[k].reason, min:edits[k].min};
+             })),
       /* Lines already in the report that the user crossed out. Matched on
          reason, minutes and timestamp so a row moving up or down in the sheet
          cannot make a removal hit the wrong one. */
@@ -1852,7 +2034,7 @@ function settle(r, rows, sending, theDate, theFloor){
     if(sending[id]){
       /* This one was just sent. Its pending add and remove are now in the
          sheet, so the screen starts clean again. */
-      VAL[id] = {unav: savedUnav(id), add: [], remove: []};
+      VAL[id] = {unav: savedUnav(id), add: [], remove: [], edit: {}};
     }else{
       /* Untouched here. Keep whatever is typed, but follow the sheet on the
          unavailable flag and drop removals whose line is already gone. */
