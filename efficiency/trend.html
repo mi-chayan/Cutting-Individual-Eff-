@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutting Efficiency Trend</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
+    --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
+       font-size:13px;-webkit-text-size-adjust:100%;display:flex;flex-direction:column}
+
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:9px 18px;
+         display:flex;align-items:center;gap:11px;flex-wrap:wrap;position:sticky;top:0;z-index:30;flex:0 0 auto}
+  .strip h2{font-size:14px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .sep{width:1px;height:24px;background:var(--line)}
+  .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+  .showing{font-size:10.5px;color:var(--mut);font-weight:700}
+  .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
+        padding:6px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .mini:hover{background:var(--cream);border-color:var(--peach)}
+  .mini svg{width:13px;height:13px;fill:currentColor}
+  .acts{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+
+  .wrap{flex:1 1 auto;overflow:auto;padding:14px 18px 22px;width:100%;max-width:1500px;margin:0 auto}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px;margin-bottom:13px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 13px;
+       position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
+  .kpi.k4:before{background:var(--blue)}  .kpi.k5:before{background:var(--green)}
+  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:2px}
+  .up{color:var(--green)} .dn{color:var(--red)} .flat{color:var(--mut)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        box-shadow:0 1px 2px rgba(37,42,69,.05);margin-bottom:13px;overflow:hidden}
+  .card .hd{padding:10px 14px;border-bottom:1px solid var(--line);
+            display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .card .hd h3{font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px}
+  .hint{font-size:10px;color:var(--mut);font-weight:700}
+  .push{flex:1 1 auto}
+  .bd{padding:13px 14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  @media(max-width:1080px){ .two{grid-template-columns:1fr} }
+
+  .chips{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px;
+        font-family:inherit;font-size:10.5px;font-weight:800;color:var(--txt);cursor:pointer}
+  .chip:hover{background:var(--cream);border-color:var(--peach)}
+  .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
+  thead th{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:8px 9px;
+           text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;
+           letter-spacing:.3px;white-space:nowrap;cursor:pointer}
+  thead th.l{text-align:left}
+  tbody td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;
+           font-variant-numeric:tabular-nums}
+  tbody td.l{text-align:left}
+  tbody tr:nth-child(even) td{background:#F6F7FB}
+  tbody tr:hover td{background:var(--cream) !important}
+  tfoot td{padding:7px 9px;background:var(--navy);color:#fff;font-weight:800;text-align:right;
+           position:sticky;bottom:0}
+  tfoot td.l{text-align:left}
+  .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:9px}
+  .pill{padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;display:inline-block}
+  .pill.red{background:#FBE9EB;color:#A3252F} .pill.green{background:#E7F4EC;color:#12653A}
+  .pill.blue{background:#E8F0FC;color:#14509E} .pill.amber{background:#FFF6E6;color:#8A5B12}
+  .loading{text-align:center;padding:60px;color:var(--mut);font-size:12px}
+  .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
+  .empty{text-align:center;padding:34px;color:var(--mut);font-size:11.5px}
+
+  svg.chart{display:block;width:100%;height:auto}
+  .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
+       font-weight:700;padding:8px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--violet);
+        border-radius:8px;padding:10px 13px;font-size:11px;color:#4A4A6A;line-height:1.7;margin-bottom:13px}
+  .note b{color:var(--navy)}
+
+  /* heatmap */
+  .hm{overflow:auto;border:1px solid var(--line);border-radius:9px}
+  .hm table{table-layout:fixed;font-size:11px}
+  .hm th.fl{position:sticky;left:0;z-index:6;text-align:left;width:64px}
+  .hm td.fl{position:sticky;left:0;background:#fff;z-index:4;text-align:left;font-weight:800;
+            border-right:1px solid var(--line)}
+  .hm td.c{text-align:center;font-weight:700;color:#fff;font-size:10.5px}
+  .hm td.na{background:#F2F3F8;color:#C3C8DA;text-align:center}
+
+  /* progress bar, same idea as the other reports */
+  .bar{height:3px;background:transparent;flex:0 0 auto}
+  .bar.on{background:linear-gradient(90deg,var(--violet),var(--peach),var(--violet));
+          background-size:200% 100%;animation:slide 1.1s linear infinite}
+  @keyframes slide{from{background-position:0 0}to{background-position:-200% 0}}
+
+  /* bar lists */
+  .bars{display:flex;flex-direction:column;gap:5px}
+  .brow{display:grid;grid-template-columns:132px 1fr 156px;gap:10px;align-items:center;
+        font-size:11.5px}
+  .bname{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btrack{background:#F1F2F7;border-radius:5px;height:16px;overflow:hidden}
+  .bfill{height:100%;border-radius:5px}
+  .bval{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--navy);
+        white-space:nowrap}
+  @media(max-width:720px){ .brow{grid-template-columns:96px 1fr 108px} }
+
+  @media print{
+    .strip,.bar{display:none}
+    .card{break-inside:avoid}
+  }
+  /* ================= date range picker =================
+     TWO calendars in ONE popover: the left picks the START date, the right
+     picks the END date, each with its own month navigation. They open together
+     and close together, and NOTHING loads until Apply.
+
+     Replaced a pair of native date boxes that each opened their own calendar
+     and reloaded the report in between. A one-calendar-two-months layout was
+     tried first and dropped: it gave no clue which end you were setting. */
+  .drwrap{position:relative;display:inline-flex}
+  .drbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;
+         border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+         font-family:inherit;font-size:12.5px;font-weight:700;color:var(--txt);
+         cursor:pointer;white-space:nowrap;line-height:1}
+  .drbtn:hover{border-color:var(--violet)}
+  .drbtn.on{border-color:var(--violet);box-shadow:0 0 0 3px rgba(114,62,195,.13)}
+  .drbtn svg{width:14px;height:14px;fill:var(--violet);flex:0 0 auto}
+  .drbtn .drcar{font-size:9px;color:var(--mut)}
+  .drbtn .drtxt{font-variant-numeric:tabular-nums}
+
+  .drpop{position:absolute;top:calc(100% + 7px);left:0;z-index:400;display:none;
+         background:#fff;border:1px solid var(--line);border-radius:12px;
+         box-shadow:0 18px 46px rgba(37,42,69,.22);overflow:hidden}
+  .drpop.on{display:flex}
+  .drside{width:158px;border-right:1px solid var(--line);background:#FAFAFD;
+          padding:8px;display:flex;flex-direction:column;gap:2px;
+          max-height:400px;overflow:auto}
+  .drside b{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
+            letter-spacing:.5px;padding:7px 8px 3px}
+  .drps{text-align:left;background:none;border:0;border-radius:7px;padding:7px 9px;
+        font-family:inherit;font-size:12px;font-weight:700;color:var(--txt);cursor:pointer;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drps:hover{background:#EFE9FA}
+  .drps.on{background:var(--violet);color:#fff}
+
+  .drmain{padding:12px 14px 0;display:flex;flex-direction:column}
+  .drcals{display:flex;gap:16px}
+  .drcal{width:232px}
+  /* Each calendar says which end it owns, and what that end is currently set
+     to. Without the label a user cannot tell the two apart at a glance. */
+  .drcaphd{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+  .drtag{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+         background:#EFE9FA;color:var(--violet);padding:3px 8px;border-radius:99px}
+  .drtag.end{background:#FFF0D9;color:#8A5B12}
+  .drval{font-size:10.5px;font-weight:800;color:var(--navy);
+         font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+
+  .drnav{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .drnav button{width:24px;height:24px;border:1px solid var(--line);background:#fff;
+                border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;
+                font-weight:800;color:var(--navy);line-height:1;flex:0 0 auto}
+  .drnav button:hover:not(:disabled){border-color:var(--violet);color:var(--violet)}
+  .drnav button:disabled{opacity:.3;cursor:default}
+  .drnav .drmo{flex:1 1 0;text-align:center;font-size:11.5px;font-weight:800;color:var(--navy)}
+
+  .drcal table{border-collapse:collapse;table-layout:fixed;width:232px}
+  .drcal th{width:33px;height:22px;font-size:9.5px;font-weight:800;color:var(--mut);
+            text-transform:uppercase;background:none;position:static;padding:0;
+            text-align:center;letter-spacing:0;border:0}
+  .drcal td{width:33px;height:28px;padding:0;text-align:center;border:0;background:none}
+  .drd{width:100%;height:28px;border:0;background:none;font-family:inherit;font-size:11.5px;
+       font-weight:700;color:var(--txt);cursor:pointer;border-radius:6px}
+  .drd:hover:not(:disabled){background:#EFE9FA}
+  .drd:disabled{color:#CBCEDC;cursor:default}
+  .drd.mid{background:#F3EFFB;border-radius:0}
+  .drd.end{background:var(--violet);color:#fff;font-weight:800;border-radius:6px}
+  .drd.today{outline:1px dashed var(--violet);outline-offset:-3px}
+  /* A day the sheet holds nothing for. Still clickable on purpose: it means
+     "this will come back empty", not "you may not ask". */
+  .drd.nodata{color:#B9BDCE;font-weight:600}
+  .drd.nodata:after{content:'';display:block;width:3px;height:3px;border-radius:50%;
+                    background:#D6D9E4;margin:-4px auto 0}
+  .drd.nodata.end{color:#fff}
+  .drd.nodata.end:after{background:rgba(255,255,255,.6)}
+
+  .drfoot{display:flex;align-items:center;gap:9px;padding:11px 0 13px;margin-top:8px;
+          border-top:1px solid var(--line)}
+  .drsel{font-size:11.5px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;
+         white-space:nowrap}
+  .drsel span{color:var(--mut);font-weight:700}
+  .drfoot .drsp{flex:1 1 auto}
+  .drfoot button{border:1px solid var(--line);background:#fff;border-radius:8px;
+                 padding:8px 15px;font-family:inherit;font-size:12px;font-weight:800;
+                 color:var(--navy);cursor:pointer}
+  .drfoot button:hover{background:var(--cream);border-color:var(--peach)}
+  .drfoot button.go{background:var(--violet);border-color:var(--violet);color:#fff}
+  .drfoot button.go:hover{filter:brightness(1.08);background:var(--violet)}
+  .drfoot button.go:disabled{opacity:.45;cursor:default;filter:none}
+
+  @media(max-width:900px){
+    .drpop{position:fixed;inset:auto 8px 8px 8px;flex-direction:column;max-height:88vh;overflow:auto}
+    .drside{width:auto;border-right:0;border-bottom:1px solid var(--line);
+            flex-direction:row;flex-wrap:wrap;max-height:none}
+    .drcals{flex-direction:column;gap:14px}
+    .drcal,.drcal table{width:100%}
+  }
+</style>
+</head>
+<body>
+
+<div class="strip">
+  <h2>Cutting Efficiency Trend</h2>
+  <div class="sep"></div>
+  <label>Date range</label>
+<div class="drwrap">
+    <button class="drbtn" id="drBtn" onclick="drToggle()" title="Choose the date range">
+      <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+      <span class="drtxt" id="drLabel">Loading&hellip;</span>
+      <span class="drcar">&#9660;</span>
+    </button>
+    <div class="drpop" id="drPop">
+      <div class="drside" id="drSide"></div>
+      <div class="drmain">
+        <div class="drcals">
+
+          <div class="drcal">
+            <div class="drcaphd"><span class="drtag">Start date</span>
+              <span class="drval" id="drValA">not set</span></div>
+            <div class="drnav">
+              <button id="drPrevA" onclick="drShiftA(-1)" title="Previous month">&#8249;</button>
+              <div class="drmo" id="drMoA"></div>
+              <button id="drNextA" onclick="drShiftA(1)" title="Next month">&#8250;</button>
+            </div>
+            <div id="drCalA"></div>
+          </div>
+
+          <div class="drcal">
+            <div class="drcaphd"><span class="drtag end">End date</span>
+              <span class="drval" id="drValB">not set</span></div>
+            <div class="drnav">
+              <button id="drPrevB" onclick="drShiftB(-1)" title="Previous month">&#8249;</button>
+              <div class="drmo" id="drMoB"></div>
+              <button id="drNextB" onclick="drShiftB(1)" title="Next month">&#8250;</button>
+            </div>
+            <div id="drCalB"></div>
+          </div>
+
+        </div>
+        <div class="drfoot">
+          <div class="drsel" id="drSel"></div>
+          <div class="drsp"></div>
+          <button onclick="drCancel()">Cancel</button>
+          <button class="go" id="drGo" onclick="drApply()">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="hidden" id="f1"><input type="hidden" id="t1">
+  <span class="showing" id="showing"></span>
+  <div class="sep"></div>
+  <div class="chips" id="scopeChips"></div>
+  <div class="acts">
+    <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
+      <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
+    </button>
+    <button class="mini" onclick="window.print()" title="Print">
+      <svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 00-3 3v6h4v4h12v-4h4v-6a3 3 0 00-3-3zm-3 11H8v-5h8v5zm3-8a1 1 0 110-2 1 1 0 010 2zM18 3H6v4h12V3z"/></svg> Print
+    </button>
+  </div>
+</div>
+
+<div class="bar" id="bar"><i></i></div>
+<div class="wrap" id="content"><div class="loading">Loading&hellip;</div></div>
+<div id="tip"></div>
+
+<script>
+/* =====================================================================
+   DATE RANGE PICKER
+   ---------------------------------------------------------------------
+   TWO calendars: the left one picks the START date, the right one picks the
+   END date. Each has its own month navigation. They live in ONE popover, so
+   both ends open together and close together, and NOTHING is fetched until
+   Apply. The old control was a pair of native date boxes that each opened
+   their own calendar and reloaded the report in between, so choosing
+   "1 Aug to 19 Aug" loaded 1 Aug to 1 Aug first.
+
+   An earlier build here showed one calendar spanning two months. That reads
+   as a single scrolling strip and gives no clue which end you are setting,
+   so it is now one labelled calendar per end.
+
+   The host page supplies four things through drInit():
+     presets   [{k, label, get:function(){return [from,to]}}], groups via {group:'..'}
+     apply     function(from,to,presetKey) - the ONLY place data is fetched
+     min,max   optional ISO bounds; days outside are shown but not clickable
+     label     optional function(from,to,presetKey) for the button text
+   ===================================================================== */
+var DR = {
+  from:'', to:'', preset:'', viewA:null, viewB:null,
+  presets:[], apply:null, min:'', max:'', label:null, open:false, _wired:false
+};
+
+function drIso(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function drParse(s){
+  var p=String(s||'').split('-');
+  if(p.length!==3) return null;
+  var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  return isNaN(d.getTime()) ? null : d;
+}
+var DR_MON=['January','February','March','April','May','June','July','August',
+            'September','October','November','December'];
+var DR_MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function drPretty(iso){
+  var d=drParse(iso); if(!d) return '-';
+  return d.getDate()+' '+DR_MONS[d.getMonth()]+' '+d.getFullYear();
+}
+function drEl(i){ return document.getElementById(i); }
+function drMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+
+/* SNOWTEX weeks run WEDNESDAY to TUESDAY. Not the calendar week, and not
+   Saturday to Thursday. Every This Week / Last Week preset uses this. */
+function drWeekStart(d){
+  var x=new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var back=(x.getDay()-3+7)%7;          /* 3 = Wednesday */
+  x.setDate(x.getDate()-back);
+  return x;
+}
+
+function drInit(o){
+  DR.presets = o.presets||[];
+  DR.apply   = o.apply;
+  DR.label   = o.label||null;
+
+  /* ---------- WHAT IS SELECTABLE ----------
+     min and max used to be the first and last date the SHEET holds, and days
+     outside that were disabled. That looked tidy and was wrong: the report for
+     yesterday is not pushed until the morning, so yesterday itself could not
+     be clicked. A date the user cannot select is a dead end; a date with no
+     data is merely an empty report, which is honest and recoverable.
+
+     So the ONLY hard stop is the future, because data cannot exist there.
+     Days the sheet has no rows for are still clickable, just marked. */
+  DR.min = o.min||'';                       /* soft floor, for month paging */
+  DR.max = drIso(new Date());               /* today, always */
+  DR.has = {};
+  (o.days||[]).forEach(function(d){ DR.has[d]=true; });
+  DR.hasAny = (o.days||[]).length>0;
+
+  /* Wired ONCE. drInit runs again whenever the available dates change, and a
+     second set of listeners would close the popover on its own outside-click
+     check firing twice. */
+  if(DR._wired) return;
+  DR._wired = true;
+
+  /* THE POPOVER MUST NOT CLOSE ON ITS OWN CLICKS.
+     drRender() replaces the calendar markup on every click, so by the time a
+     click bubbled up to document the element that was clicked had already been
+     removed from the DOM. pop.contains(target) was then false and the panel
+     closed itself the moment a date was picked. Stopping propagation at the
+     popover means the document listener only ever sees genuine outside
+     clicks, and it cannot be fooled by a re-render. */
+  var pop=drEl('drPop');
+  if(pop) pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
+
+  document.addEventListener('click', function(ev){
+    if(!DR.open) return;
+    var btn=drEl('drBtn');
+    if(btn && btn.contains(ev.target)) return;
+    drClose();
+  });
+  document.addEventListener('keydown', function(ev){
+    if(DR.open && ev.key==='Escape') drClose();
+  });
+}
+
+/* Set the range WITHOUT opening or fetching. Used on first load. */
+function drSet(from,to,preset){
+  DR.from=from||''; DR.to=to||''; DR.preset=preset||'';
+  drSyncBtn();
+}
+function drSyncBtn(){
+  var t=drEl('drLabel'); if(!t) return;
+  if(DR.label){ t.textContent=DR.label(DR.from,DR.to,DR.preset); return; }
+  var named=null;
+  DR.presets.forEach(function(p){ if(p.k && p.k===DR.preset) named=p.label; });
+  t.textContent = named ? named
+    : (DR.from&&DR.to ? (DR.from===DR.to ? drPretty(DR.from)
+                                         : drPretty(DR.from)+'  –  '+drPretty(DR.to))
+                      : 'Pick a date range');
+}
+
+function drToggle(){ DR.open ? drClose() : drOpen(); }
+
+function drOpen(){
+  DR.open=true;
+  DR.dfrom=DR.from; DR.dto=DR.to; DR.dpreset=DR.preset;   /* draft, Cancel restores */
+  drSyncViews();
+  drEl('drPop').classList.add('on');
+  drEl('drBtn').classList.add('on');
+  drRender();
+}
+function drClose(){
+  DR.open=false;
+  var p=drEl('drPop'), b=drEl('drBtn');
+  if(p) p.classList.remove('on');
+  if(b) b.classList.remove('on');
+}
+
+/* Each calendar opens on its own end of the range. */
+function drSyncViews(){
+  var a=drParse(DR.dfrom)||new Date();
+  var b=drParse(DR.dto)||a;
+  DR.viewA=drMonth(a);
+  DR.viewB=drMonth(b);
+}
+
+function drShiftA(n){ DR.viewA=new Date(DR.viewA.getFullYear(), DR.viewA.getMonth()+n, 1); drRender(); }
+function drShiftB(n){ DR.viewB=new Date(DR.viewB.getFullYear(), DR.viewB.getMonth()+n, 1); drRender(); }
+
+/* A preset fills the draft and shows it on both calendars. It does NOT fetch:
+   Apply is still the one action that loads, so a mis-click costs nothing. */
+function drPreset(k){
+  var p=null;
+  DR.presets.forEach(function(x){ if(x.k===k) p=x; });
+  if(!p||!p.get) return;
+  var r=p.get()||[];
+  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  drSyncViews();
+  drRender();
+}
+
+/* which is 'a' for the start calendar, 'b' for the end one. Each sets only
+   its own end, so there is no hidden click order to learn. */
+function drDayClick(iso, which){
+  if(which==='a'){
+    DR.dfrom=iso;
+    if(DR.dto && DR.dto<iso) DR.dto=iso;      /* end cannot sit before start */
+  }else{
+    DR.dto=iso;
+    if(DR.dfrom && DR.dfrom>iso) DR.dfrom=iso;
+  }
+  DR.dpreset='';                              /* hand-picked, so not a preset */
+  drRender();
+}
+
+function drCal(view, which){
+  var y=view.getFullYear(), m=view.getMonth();
+  var lead=new Date(y,m,1).getDay();
+  var days=new Date(y,m+1,0).getDate();
+  var today=drIso(new Date());
+  var mine=(which==='a')?DR.dfrom:DR.dto;
+
+  var h='<table><thead><tr>'
+      + ['S','M','T','W','T','F','S'].map(function(d){return '<th>'+d+'</th>'}).join('')
+      + '</tr></thead><tbody><tr>';
+  for(var i=0;i<lead;i++) h+='<td></td>';
+  for(var d=1;d<=days;d++){
+    if((lead+d-1)%7===0 && d>1) h+='</tr><tr>';
+    var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+    /* Only the future is blocked. Everything else can be picked. */
+    var out=(iso>DR.max);
+    var cls=[], tip='';
+    /* The days between the two ends are shaded on BOTH calendars, so the span
+       is still readable even though each calendar owns one end. */
+    if(DR.dfrom&&DR.dto&&iso>DR.dfrom&&iso<DR.dto) cls.push('mid');
+    if(iso===mine) cls.push('end');
+    if(iso===today) cls.push('today');
+    /* Marked, not disabled. It tells the user the report will be empty
+       without taking the choice away from them. */
+    if(!out && DR.hasAny && !DR.has[iso]){ cls.push('nodata'); tip=' title="No data pushed for this day yet"'; }
+    h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')+tip
+     + ' onclick="drDayClick(\''+iso+'\',\''+which+'\')">'+d+'</button></td>';
+  }
+  return h+'</tr></tbody></table>';
+}
+
+function drRender(){
+  if(!drEl('drSide')) return;                 /* picker not on this page */
+  if(!DR.viewA || !DR.viewB) drSyncViews();
+
+  var sh='';
+  DR.presets.forEach(function(p){
+    if(p.group){ sh+='<b>'+p.group+'</b>'; return; }
+    sh+='<button class="drps'+(DR.dpreset===p.k?' on':'')+'" onclick="drPreset(\''+p.k+'\')">'
+      + p.label+'</button>';
+  });
+  drEl('drSide').innerHTML=sh;
+
+  drEl('drMoA').textContent=DR_MON[DR.viewA.getMonth()]+' '+DR.viewA.getFullYear();
+  drEl('drMoB').textContent=DR_MON[DR.viewB.getMonth()]+' '+DR.viewB.getFullYear();
+  drEl('drCalA').innerHTML=drCal(DR.viewA,'a');
+  drEl('drCalB').innerHTML=drCal(DR.viewB,'b');
+  drEl('drValA').textContent=DR.dfrom?drPretty(DR.dfrom):'not set';
+  drEl('drValB').textContent=DR.dto?drPretty(DR.dto):'not set';
+
+  var ok=!!(DR.dfrom&&DR.dto);
+  drEl('drSel').innerHTML = ok
+    ? drPretty(DR.dfrom)+'  <span>to</span>  '+drPretty(DR.dto)
+      + '  <span>('+(Math.round((drParse(DR.dto)-drParse(DR.dfrom))/86400000)+1)+' days)</span>'
+    : '<span>Pick a start date and an end date</span>';
+  drEl('drGo').disabled=!ok;
+
+  /* Paging is free backwards; forwards stops at the current month, because
+     there is nothing to see beyond today. It used to stop at the last month
+     the sheet had data for, which is what hid yesterday. */
+  var pa=drEl('drPrevA'), pb=drEl('drPrevB'), na=drEl('drNextA'), nb=drEl('drNextB');
+  var hi=drMonth(drParse(DR.max)||new Date());
+  if(na) na.disabled = DR.viewA>=hi;
+  if(nb) nb.disabled = DR.viewB>=hi;
+  if(pa) pa.disabled = false;
+  if(pb) pb.disabled = false;
+}
+
+function drCancel(){ drClose(); }
+
+/* The ONE place a range change reaches the report. */
+function drApply(){
+  if(!DR.dfrom||!DR.dto) return;
+  if(DR.dfrom>DR.dto){ var t=DR.dfrom; DR.dfrom=DR.dto; DR.dto=t; }
+  DR.from=DR.dfrom; DR.to=DR.dto; DR.preset=DR.dpreset;
+  drSyncBtn();
+  drClose();
+  if(DR.apply) DR.apply(DR.from, DR.to, DR.preset);
+}
+/* =====================================================================
+   SNOWTEX - Cutting Efficiency Trend
+   ---------------------------------------------------------------------
+   A SUMMARY over a date range, not another row-level report. The Daily and
+   Weekly reports already answer "who did what". This answers "which way is
+   it going, and what is taking the time away".
+
+   Two sources, because neither holds the whole picture:
+     EFF_API  ?action=data&from=&to=   rows carry floor, operator, input min,
+                                        output min, eff% and loss min PLUS the
+                                        date (field 11, added 20-Aug-2026)
+     PIB_API  ?action=lossrange&from=&to=  loss ROLLED UP by reason, floor,
+                                        date and operator. The reasons live in
+                                        the PIB sheet and are deliberately not
+                                        duplicated into the efficiency sheet.
+
+   Eff% is ALWAYS Sum(Output Min) / Sum(Input Min) x 100 over whatever is being
+   summarised. Averaging daily percentages is never done: a two hour Saturday
+   would then weigh the same as a full Tuesday.
+   ===================================================================== */
+var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+var PIB_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
+
+var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];
+var SOL=['1A','1B','1C','1D','1E','3A'], SSL=['2A','2B','2C','2D','2E'];
+var CACHE_PFX='sosl_trend_';
+
+var ROWS=[], LOSS=null, DATES=[], STAMP='';
+var scopeSel='';           /* '', 'SOL', 'SSL', or one floor */
+var D=null;                /* everything the page draws, built by build() */
+
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmt(n,d){return (n==null||isNaN(n))?'-':Number(n).toFixed(d==null?0:d)}
+function num(n){return (n==null||isNaN(n))?'-':Number(n).toLocaleString(undefined,{maximumFractionDigits:0})}
+var MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function prettyDate(iso){
+  var p=String(iso||'').split('-'); if(p.length!==3) return iso||'-';
+  return Number(p[2])+' '+MONS[Number(p[1])-1]+', '+p[0];
+}
+function shortDate(iso){
+  var p=String(iso||'').split('-'); if(p.length!==3) return iso||'';
+  return Number(p[2])+' '+MONS[Number(p[1])-1];
+}
+function pctClass(p){ return p<65?'red':(p<90?'amber':'green'); }
+function effColour(p){ return p<65?'#D64550':(p<90?'#C77700':'#1E8E4E'); }
+
+/* ---------- progress ---------- */
+var BUSY=0;
+function barBusy(on){
+  BUSY=Math.max(0,BUSY+(on?1:-1));
+  $('bar').className = BUSY?'bar on':'bar';
+}
+function track(p){ barBusy(true); return p.then(function(v){barBusy(false);return v},
+                                                function(e){barBusy(false);throw e}); }
+function busy(msg){ $('content').innerHTML='<div class="loading">'+esc(msg)+'</div>'; }
+function showErr(e){
+  $('content').innerHTML='<div class="err"><b>Could not load.</b><br>'+esc(e&&e.message?e.message:e)
+   +'<br><br>If this mentions a token or a page instead of data, the Apps Script '
+   +'needs <b>Deploy &rarr; Manage deployments &rarr; New version</b>.</div>';
+}
+function tellParent(s){ if(window.parent!==window) window.parent.postMessage({type:'stamp',value:s},'*') }
+
+/* ---------- shared range with the other reports ---------- */
+var SD_FROM='sosl_dash_from', SD_TO='sosl_dash_to', SD_DAY='sosl_dash_day';
+function ssRead(k){ try{return sessionStorage.getItem(k)||''}catch(e){return ''} }
+function ssWrite(k,v){ try{sessionStorage.setItem(k,v||'')}catch(e){} }
+function isoOf(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function yesterdayISO(){var d=new Date();d.setDate(d.getDate()-1);return isoOf(d)}
+function shareRange(a,b){ if(a)ssWrite(SD_FROM,a); if(b)ssWrite(SD_TO,b); }
+
+/* ---------- fetch ---------- */
+function cacheGet(k){ try{var v=sessionStorage.getItem(CACHE_PFX+k);return v?JSON.parse(v):null}catch(e){return null} }
+function cacheSet(k,o){ try{sessionStorage.setItem(CACHE_PFX+k,JSON.stringify(o))}catch(e){} }
+
+function load(from,to,force){
+  shareRange(from,to); ssWrite(SD_DAY,to);
+  $('f1').value=from; $('t1').value=to;
+  $('showing').textContent=prettyDate(from)+' to '+prettyDate(to);
+
+  var key=from+'|'+to;
+  var hit=force?null:cacheGet(key);
+  if(hit){ ROWS=hit.rows||[]; LOSS=hit.loss||null; STAMP=hit.stamp||''; build(); render(); return; }
+
+  busy('Loading '+prettyDate(from)+' to '+prettyDate(to)+'…');
+
+  /* Both calls go out together. The loss analysis is not allowed to sink the
+     page: if the PIB sheet is unreachable the efficiency trend still draws and
+     the loss cards say so. */
+  var a=track(fetch(EFF_API+'?action=data&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
+        .then(function(r){ if(!r.ok) throw new Error('Efficiency API '+r.status); return r.json() }));
+  var b=track(fetch(PIB_API+'?action=lossrange&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
+        .then(function(r){ return r.ok ? r.json() : null })
+        .catch(function(){ return null }));
+
+  Promise.all([a,b]).then(function(res){
+    var d=res[0]||{};
+    if(d.error) throw new Error(d.error);
+    ROWS=(d.rows||[]).map(mapRow);
+    LOSS=(res[1]&&res[1].ok)?res[1]:null;
+    STAMP=d.generatedAt||'';
+    cacheSet(key,{rows:d.rows||[],loss:LOSS,stamp:STAMP});
+    build(); render();
+  }).catch(showErr);
+}
+
+/* Field 11 is the date. An API deployed before 20-Aug-2026 does not send it,
+   and without a date there is no trend to draw, so that is stated plainly
+   rather than showing an empty chart. */
+function mapRow(r){
+  return { floor:r[0], opId:String(r[1]||''), name:String(r[2]||''), desig:String(r[3]||''),
+           wh:+r[4]||0, eng:+r[5]||0, types:String(r[6]||''),
+           inMin:+r[7]||0, outMin:+r[8]||0, eff:+r[9]||0, lossMin:+r[10]||0,
+           date:String(r[11]||'') };
+}
+
+/* ---------- scope ---------- */
+function inScope(f){
+  if(!scopeSel) return true;
+  if(scopeSel==='SOL') return SOL.indexOf(f)>=0;
+  if(scopeSel==='SSL') return SSL.indexOf(f)>=0;
+  return f===scopeSel;
+}
+function setScope(s){ scopeSel=(scopeSel===s)?'':s; buildChips(); build(); render(); }
+function buildChips(){
+  var h='<button class="chip'+(!scopeSel?' on':'')+'" onclick="setScope(\'\')">All Floors</button>'
+       +'<button class="chip'+(scopeSel==='SOL'?' on':'')+'" onclick="setScope(\'SOL\')">SOL</button>'
+       +'<button class="chip'+(scopeSel==='SSL'?' on':'')+'" onclick="setScope(\'SSL\')">SSL</button>';
+  var list = scopeSel==='SOL'?SOL : scopeSel==='SSL'?SSL : FLOOR_ORDER;
+  list.forEach(function(f){
+    h+='<button class="chip'+(scopeSel===f?' on':'')+'" onclick="setScope(\''+f+'\')">'+f+'</button>';
+  });
+  $('scopeChips').innerHTML=h;
+}
+
+/* =====================================================================
+   BUILD - every figure the page draws, worked out once per render
+   ===================================================================== */
+function build(){
+  var rows=ROWS.filter(function(r){ return r.date && inScope(r.floor) });
+
+  /* ---- by date ---- */
+  var day={}, dates={};
+  rows.forEach(function(r){
+    dates[r.date]=1;
+    var d=day[r.date]||(day[r.date]={date:r.date,inMin:0,outMin:0,loss:0,men:{},lo:0,mid:0,hi:0});
+    d.inMin+=r.inMin; d.outMin+=r.outMin; d.loss+=r.lossMin;
+    d.men[r.floor+'|'+r.opId]=1;
+    /* Bands are per operator-day here on purpose: this chart is about how the
+       floor looked ON each day, not how a man averaged over the period. */
+    if(r.eff<65) d.lo++; else if(r.eff<90) d.mid++; else d.hi++;
+  });
+  DATES=Object.keys(dates).sort();
+  var byDay=DATES.map(function(k){
+    var d=day[k];
+    d.eff=d.inMin>0?(d.outMin/d.inMin*100):0;
+    d.man=Object.keys(d.men).length;
+    return d;
+  });
+
+  /* ---- by floor ---- */
+  var fl={};
+  rows.forEach(function(r){
+    var f=fl[r.floor]||(fl[r.floor]={floor:r.floor,inMin:0,outMin:0,loss:0,men:{},days:{}});
+    f.inMin+=r.inMin; f.outMin+=r.outMin; f.loss+=r.lossMin;
+    f.men[r.opId]=1; f.days[r.date]=1;
+  });
+  var byFloor=FLOOR_ORDER.filter(function(f){return fl[f]}).map(function(k){
+    var f=fl[k];
+    f.eff=f.inMin>0?(f.outMin/f.inMin*100):0;
+    f.man=Object.keys(f.men).length;
+    f.nDays=Object.keys(f.days).length;
+    return f;
+  });
+
+  /* ---- floor x date, for the heatmap ---- */
+  var cell={};
+  rows.forEach(function(r){
+    var k=r.floor+'|'+r.date;
+    var c=cell[k]||(cell[k]={inMin:0,outMin:0,loss:0});
+    c.inMin+=r.inMin; c.outMin+=r.outMin; c.loss+=r.lossMin;
+  });
+  Object.keys(cell).forEach(function(k){
+    var c=cell[k]; c.eff=c.inMin>0?(c.outMin/c.inMin*100):null;
+  });
+
+  /* ---- per operator over the whole range ---- */
+  var op={};
+  rows.forEach(function(r){
+    var k=r.floor+'|'+r.opId;
+    var o=op[k]||(op[k]={floor:r.floor,opId:r.opId,name:r.name,desig:r.desig,
+                          inMin:0,outMin:0,loss:0,days:{},first:null,last:null});
+    o.inMin+=r.inMin; o.outMin+=r.outMin; o.loss+=r.lossMin;
+    o.days[r.date]=(o.days[r.date]||{inMin:0,outMin:0});
+    o.days[r.date].inMin+=r.inMin; o.days[r.date].outMin+=r.outMin;
+    if(r.name) o.name=r.name;
+    if(r.desig) o.desig=r.desig;
+  });
+  var ops=Object.keys(op).map(function(k){
+    var o=op[k];
+    o.eff=o.inMin>0?(o.outMin/o.inMin*100):0;
+    o.nDays=Object.keys(o.days).length;
+    /* First half against second half of the days this man actually worked.
+       A plain first-day to last-day comparison turns one bad Tuesday into a
+       "decline", which is noise, not a trend. */
+    var ks=Object.keys(o.days).sort();
+    var half=Math.floor(ks.length/2);
+    if(ks.length>=4){
+      var A={i:0,o:0}, B={i:0,o:0};
+      ks.slice(0,half).forEach(function(d){A.i+=o.days[d].inMin;A.o+=o.days[d].outMin});
+      ks.slice(ks.length-half).forEach(function(d){B.i+=o.days[d].inMin;B.o+=o.days[d].outMin});
+      o.first=A.i>0?(A.o/A.i*100):null;
+      o.last =B.i>0?(B.o/B.i*100):null;
+      o.delta=(o.first!=null&&o.last!=null)?(o.last-o.first):null;
+    }else o.delta=null;
+    return o;
+  });
+
+  /* ---- band mix over the period, per OPERATOR average ---- */
+  var band={lo:0,mid:0,hi:0};
+  ops.forEach(function(o){ if(o.eff<65)band.lo++; else if(o.eff<90)band.mid++; else band.hi++; });
+
+  var tIn=0,tOut=0,tLoss=0;
+  rows.forEach(function(r){ tIn+=r.inMin; tOut+=r.outMin; tLoss+=r.lossMin; });
+
+  /* First half vs second half of the PERIOD, the headline direction. */
+  var h=Math.floor(byDay.length/2), dir=null;
+  if(byDay.length>=4){
+    var A={i:0,o:0},B={i:0,o:0};
+    byDay.slice(0,h).forEach(function(d){A.i+=d.inMin;A.o+=d.outMin});
+    byDay.slice(byDay.length-h).forEach(function(d){B.i+=d.inMin;B.o+=d.outMin});
+    if(A.i>0&&B.i>0) dir=(B.o/B.i*100)-(A.o/A.i*100);
+  }
+
+  D={
+    rows:rows, byDay:byDay, byFloor:byFloor, cell:cell, ops:ops, band:band,
+    dates:DATES,
+    totals:{ inMin:tIn, outMin:tOut, loss:tLoss,
+             eff:tIn>0?(tOut/tIn*100):0,
+             men:ops.length, days:byDay.length, dir:dir }
+  };
+}
+
+/* =====================================================================
+   CHARTS - hand drawn SVG, no library
+   A charting library would be another CDN dependency on a factory network
+   that is not always friendly to them, for four chart types.
+   ===================================================================== */
+function svgEsc(s){ return esc(s); }
+
+/* Eff% line with the 65 and 90 guides, loss minutes as bars behind it. */
+function chartTrend(days){
+  if(!days.length) return '<div class="empty">No days in this range.</div>';
+  var W=1000,H=280,L=46,R=52,T=16,B=34;
+  var iw=W-L-R, ih=H-T-B;
+  var n=days.length;
+  var maxLoss=0; days.forEach(function(d){ if(d.loss>maxLoss)maxLoss=d.loss });
+  if(maxLoss<=0) maxLoss=1;
+  var lo=100, hi=0;
+  days.forEach(function(d){ if(d.eff<lo)lo=d.eff; if(d.eff>hi)hi=d.eff });
+  lo=Math.max(0,Math.min(60,Math.floor(lo/10)*10));
+  hi=Math.min(140,Math.max(100,Math.ceil(hi/10)*10));
+  function y(v){ return T+ih-((v-lo)/(hi-lo))*ih; }
+  function x(i){ return L+(n===1?iw/2:(i/(n-1))*iw); }
+  var bw=Math.max(3,Math.min(26,iw/Math.max(1,n)*0.5));
+
+  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  /* horizontal guides */
+  [65,90,100].forEach(function(v){
+    if(v<lo||v>hi) return;
+    var yy=y(v);
+    h+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="'
+      +(v===65?'#F0C2C6':v===90?'#CFE6D8':'#E4E6F0')+'" stroke-width="1" stroke-dasharray="'
+      +(v===100?'2 3':'4 4')+'"/>'
+      +'<text x="'+(L-7)+'" y="'+(yy+3.5)+'" text-anchor="end" font-size="9.5" fill="#7A81A0" font-weight="700">'+v+'%</text>';
+  });
+  /* loss bars */
+  days.forEach(function(d,i){
+    if(!(d.loss>0)) return;
+    var bh=(d.loss/maxLoss)*(ih*0.42);
+    h+='<rect x="'+(x(i)-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+bh
+      +'" fill="#C77700" opacity=".22" rx="2"><title>'+svgEsc(shortDate(d.date))
+      +': '+num(d.loss)+' loss min</title></rect>';
+  });
+  /* eff line */
+  var pts=days.map(function(d,i){ return x(i)+','+y(d.eff) }).join(' ');
+  h+='<polyline points="'+pts+'" fill="none" stroke="#723EC3" stroke-width="2.4" '
+   + 'stroke-linejoin="round" stroke-linecap="round"/>';
+  days.forEach(function(d,i){
+    h+='<circle cx="'+x(i)+'" cy="'+y(d.eff)+'" r="3.6" fill="'+effColour(d.eff)+'" '
+      +'stroke="#fff" stroke-width="1.4"><title>'+svgEsc(prettyDate(d.date))+'\n'
+      +'Eff '+fmt(d.eff,1)+'%\n'+num(d.man)+' operators\n'+num(d.loss)+' loss min</title></circle>';
+  });
+  /* x labels, thinned so they never collide */
+  var step=Math.ceil(n/12);
+  days.forEach(function(d,i){
+    if(i%step && i!==n-1) return;
+    h+='<text x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9" fill="#7A81A0" '
+      +'font-weight="700">'+svgEsc(shortDate(d.date))+'</text>';
+  });
+  /* right axis for loss */
+  h+='<text x="'+(W-R+8)+'" y="'+(T+ih)+'" font-size="9" fill="#C77700" font-weight="700">0</text>'
+   + '<text x="'+(W-R+8)+'" y="'+(T+ih-ih*0.42+4)+'" font-size="9" fill="#C77700" font-weight="700">'
+   + num(maxLoss)+'</text>';
+  return h+'</svg>';
+}
+
+/* Band mix per day, stacked to 100%. */
+function chartBands(days){
+  if(!days.length) return '<div class="empty">No days in this range.</div>';
+  var W=1000,H=190,L=40,R=14,T=12,B=30;
+  var iw=W-L-R, ih=H-T-B, n=days.length;
+  var bw=Math.max(4,Math.min(38,iw/n*0.72));
+  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  [0,25,50,75,100].forEach(function(p){
+    var yy=T+ih-(p/100)*ih;
+    h+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="#EEF0F6" stroke-width="1"/>'
+      +'<text x="'+(L-7)+'" y="'+(yy+3.5)+'" text-anchor="end" font-size="9" fill="#7A81A0" font-weight="700">'+p+'%</text>';
+  });
+  days.forEach(function(d,i){
+    var tot=d.lo+d.mid+d.hi; if(!tot) return;
+    var cx=L+(n===1?iw/2:(i/(n-1))*(iw-bw))+bw/2;
+    var yTop=T+ih, segs=[[d.lo,'#D64550','Below 65%'],[d.mid,'#1E8E4E','65 to 90%'],[d.hi,'#1D6FD0','Above 90%']];
+    segs.forEach(function(sg){
+      if(!sg[0]) return;
+      var sh=(sg[0]/tot)*ih;
+      yTop-=sh;
+      h+='<rect x="'+(cx-bw/2)+'" y="'+yTop+'" width="'+bw+'" height="'+sh+'" fill="'+sg[1]+'" rx="1">'
+        +'<title>'+svgEsc(prettyDate(d.date))+'\n'+sg[2]+': '+sg[0]+' of '+tot+'</title></rect>';
+    });
+  });
+  var step=Math.ceil(n/12);
+  days.forEach(function(d,i){
+    if(i%step && i!==n-1) return;
+    var cx=L+(n===1?iw/2:(i/(n-1))*(iw-bw))+bw/2;
+    h+='<text x="'+cx+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="#7A81A0" font-weight="700">'
+      +svgEsc(shortDate(d.date))+'</text>';
+  });
+  return h+'</svg>';
+}
+
+/* Horizontal bars, reused for floor ranking and for loss reasons. */
+function barList(items,opt){
+  opt=opt||{};
+  if(!items.length) return '<div class="empty">'+(opt.empty||'Nothing to show.')+'</div>';
+  var max=0; items.forEach(function(i){ if(i.v>max)max=i.v });
+  if(max<=0) max=1;
+  var h='<div class="bars">';
+  items.forEach(function(it){
+    h+='<div class="brow"'+(it.tip?' title="'+esc(it.tip)+'"':'')+'>'
+      +'<div class="bname">'+esc(it.k)+'</div>'
+      +'<div class="btrack"><div class="bfill" style="width:'+(it.v/max*100)+'%;background:'
+      +(it.colour||'#723EC3')+'"></div></div>'
+      +'<div class="bval">'+esc(it.label)+'</div></div>';
+  });
+  return h+'</div>';
+}
+
+/* Floor down the side, date across the top, Eff% in the cell. */
+function heatmap(){
+  if(!D.dates.length) return '<div class="empty">No days in this range.</div>';
+  var floors=D.byFloor.map(function(f){return f.floor});
+  if(!floors.length) return '<div class="empty">No floor has data in this range.</div>';
+  var h='<div class="hm"><table><thead><tr><th class="fl">Floor</th>';
+  D.dates.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
+  h+='<th>Avg</th></tr></thead><tbody>';
+  floors.forEach(function(f){
+    h+='<tr><td class="fl">'+esc(f)+'</td>';
+    D.dates.forEach(function(d){
+      var c=D.cell[f+'|'+d];
+      if(!c||c.eff==null){ h+='<td class="na">&ndash;</td>'; return; }
+      h+='<td class="c" style="background:'+effColour(c.eff)+'" title="'
+        +esc(f+'  '+prettyDate(d)+'\nEff '+fmt(c.eff,1)+'%'+(c.loss>0?('\nLoss '+num(c.loss)+' min'):''))
+        +'">'+fmt(c.eff,0)+'</td>';
+    });
+    var fr=D.byFloor.filter(function(x){return x.floor===f})[0];
+    h+='<td class="c" style="background:'+effColour(fr.eff)+'">'+fmt(fr.eff,0)+'</td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function render(){
+  if(!D){ return; }
+  tellParent(STAMP||prettyDate($('t1').value));
+
+  if(!D.rows.length){
+    var noDate = ROWS.length && !ROWS.some(function(r){return r.date});
+    $('content').innerHTML='<div class="wrap"><div class="empty">'
+      + (noDate
+         ? 'The efficiency API is not sending a date on each row yet, so a trend cannot be drawn.<br><br>'
+           +'<b>Deploy &rarr; Manage deployments &rarr; New version</b> on the Cutting Report Downloader script.'
+         : 'No data between '+esc(prettyDate($('f1').value))+' and '+esc(prettyDate($('t1').value))+'.')
+      + '</div></div>';
+    return;
+  }
+
+  var T=D.totals;
+  var dirTxt = T.dir==null ? '<span class="flat">not enough days</span>'
+    : (T.dir>=0.05 ? '<span class="up">&#9650; '+fmt(T.dir,1)+' pts</span>'
+    : (T.dir<=-0.05 ? '<span class="dn">&#9660; '+fmt(Math.abs(T.dir),1)+' pts</span>'
+    : '<span class="flat">level</span>'));
+
+  var h='';
+
+  /* ---- KPI row ---- */
+  h+='<div class="kpis">'
+   +'<div class="kpi"><div class="k">Overall Eff%</div><div class="v '+pctClass(T.eff)+'">'+fmt(T.eff,1)+'%</div>'
+   +'<div class="s">&Sigma; Output Min &divide; &Sigma; Input Min</div></div>'
+   +'<div class="kpi k2"><div class="k">Direction</div><div class="v" style="font-size:19px">'+dirTxt+'</div>'
+   +'<div class="s">second half vs first half of the period</div></div>'
+   +'<div class="kpi k3"><div class="k">Loss Time</div><div class="v">'+fmt(T.loss/60,1)+'</div>'
+   +'<div class="s">hours, '+num(T.loss)+' min over '+T.days+' day(s)</div></div>'
+   +'<div class="kpi k4"><div class="k">Operators</div><div class="v">'+num(T.men)+'</div>'
+   +'<div class="s">with data in this range</div></div>'
+   +'<div class="kpi k5"><div class="k">Above 90%</div><div class="v">'+num(D.band.hi)+'</div>'
+   +'<div class="s">'+fmt(T.men?D.band.hi/T.men*100:0,0)+'% of operators, on their own average</div></div>'
+   +'</div>';
+
+  h+='<div class="note"><b>Eff%</b> here is always &Sigma; Output Min &divide; &Sigma; Input Min for whatever is '
+   +'being summarised, never the average of daily percentages, so a short day cannot weigh the same as a full one. '
+   +'<b>Loss time</b> is already deducted from Input Min by the sheet, so it explains a figure rather than adding to it. '
+   +'<b>Bands</b> in the day chart are per operator-day; the KPI above counts each operator once on his own average.</div>';
+
+  /* ---- trend ---- */
+  h+='<div class="card"><div class="hd"><h3>Efficiency and Loss Time by Day</h3>'
+   +'<span class="hint">'+T.days+' day(s)</span></div><div class="bd">'+chartTrend(D.byDay)+'</div>'
+   +'<div class="lgd"><span><i style="background:#723EC3"></i>Eff% (line)</span>'
+   +'<span><i style="background:#C77700;opacity:.4"></i>Loss minutes (bars, right scale)</span>'
+   +'<span><i style="background:#F0C2C6"></i>65% guide</span>'
+   +'<span><i style="background:#CFE6D8"></i>90% guide</span></div></div>';
+
+  /* ---- band movement ---- */
+  h+='<div class="card"><div class="hd"><h3>Where the Operators Sat, Day by Day</h3>'
+   +'<span class="hint">share of operators in each band</span></div><div class="bd">'+chartBands(D.byDay)+'</div>'
+   +'<div class="lgd"><span><i style="background:#D64550"></i>Below 65%</span>'
+   +'<span><i style="background:#1E8E4E"></i>65 to 90%</span>'
+   +'<span><i style="background:#1D6FD0"></i>Above 90%</span></div></div>';
+
+  /* ---- floor ranking + loss by floor ---- */
+  h+='<div class="two">';
+  h+='<div class="card"><div class="hd"><h3>Floor Ranking</h3><span class="hint">'
+   +D.byFloor.length+' floor(s)</span></div><div class="bd">'
+   + barList(D.byFloor.slice().sort(function(a,b){return b.eff-a.eff}).map(function(f){
+       return {k:'Floor '+f.floor, v:f.eff, colour:effColour(f.eff),
+               label:fmt(f.eff,1)+'%',
+               tip:f.floor+': '+f.man+' operators over '+f.nDays+' day(s), '+num(f.loss)+' loss min'};
+     }))
+   +'</div></div>';
+
+  h+='<div class="card"><div class="hd"><h3>Loss Time by Floor</h3><span class="hint">'
+   +num(T.loss)+' min total</span></div><div class="bd">'
+   + barList(D.byFloor.slice().filter(function(f){return f.loss>0})
+       .sort(function(a,b){return b.loss-a.loss}).map(function(f){
+         return {k:'Floor '+f.floor, v:f.loss, colour:'#C77700',
+                 label:num(f.loss)+' min',
+                 tip:f.floor+': '+fmt(f.loss/60,1)+' hours lost'};
+       }), {empty:'No loss time recorded in this range.'})
+   +'</div></div>';
+  h+='</div>';
+
+  /* ---- heatmap ---- */
+  h+='<div class="card"><div class="hd"><h3>Floor by Date, Eff%</h3>'
+   +'<span class="hint">hover a cell for the detail</span></div><div class="bd">'+heatmap()+'</div>'
+   +'<div class="lgd"><span><i style="background:#D64550"></i>Below 65%</span>'
+   +'<span><i style="background:#C77700"></i>65 to 90%</span>'
+   +'<span><i style="background:#1E8E4E"></i>Above 90%</span></div></div>';
+
+  h+=lossSection();
+  h+=floorTable();
+  h+=moverTables();
+
+  $('content').innerHTML='<div class="wrap">'+h+'</div>';
+}
+
+/* ---------- loss analysis, from the PIB sheet ---------- */
+function lossSection(){
+  if(!LOSS){
+    return '<div class="card"><div class="hd"><h3>Loss Time Analysis</h3></div>'
+      +'<div class="bd"><div class="empty">The loss reasons could not be read from the PIB sheet.<br>'
+      +'The efficiency figures above are unaffected. If this persists, the Loss Time script '
+      +'needs <b>Deploy &rarr; New version</b>.</div></div></div>';
+  }
+  if(!LOSS.byReason.length){
+    return '<div class="card"><div class="hd"><h3>Loss Time Analysis</h3></div>'
+      +'<div class="bd"><div class="empty">No loss time was recorded in this range.</div></div></div>';
+  }
+
+  var t=LOSS.totals;
+  var h='<div class="card"><div class="hd"><h3>Loss Time Analysis</h3>'
+   +'<span class="hint">'+num(t.min)+' min over '+num(t.entries)+' entr'+(t.entries===1?'y':'ies')
+   +', '+num(t.operators)+' operator(s)</span></div><div class="bd">';
+
+  h+='<div class="two">';
+  h+='<div><div class="hint" style="margin-bottom:7px">By reason</div>'
+   + barList(LOSS.byReason.map(function(r){
+       return {k:r.reason, v:r.min, colour:'#C77700',
+               label:num(r.min)+' min  ('+fmt(t.min?r.min/t.min*100:0,0)+'%)',
+               tip:r.reason+': '+r.entries+' entries across '+r.operators+' operator(s)'};
+     }))+'</div>';
+  h+='<div><div class="hint" style="margin-bottom:7px">Loss minutes by day</div>'
+   + barList(Object.keys(LOSS.byDate).sort().map(function(d){
+       return {k:shortDate(d), v:LOSS.byDate[d], colour:'#723EC3',
+               label:num(LOSS.byDate[d])+' min', tip:prettyDate(d)};
+     }))+'</div>';
+  h+='</div>';
+
+  /* worst operators */
+  if(LOSS.topOps.length){
+    h+='<div class="hint" style="margin:14px 0 7px">Operators with the most loss time</div>';
+    h+='<div class="scroll"><table><thead><tr>'
+     +'<th class="l">Floor</th><th class="l">Op ID</th><th class="l">Name</th>'
+     +'<th>Loss Min</th><th>Hours</th><th class="l">Reasons</th></tr></thead><tbody>';
+    var nameOf={};
+    D.ops.forEach(function(o){ nameOf[o.floor+'|'+String(o.opId).replace(/^0+/,'')]=o.name });
+    LOSS.topOps.forEach(function(o){
+      if(scopeSel && !inScope(o.floor)) return;
+      var nm=nameOf[o.floor+'|'+String(o.opId).replace(/^0+/,'')]||'';
+      h+='<tr><td class="l">'+esc(o.floor)+'</td><td class="l">'+esc(o.opId)+'</td>'
+       +'<td class="l">'+esc(nm)+'</td>'
+       +'<td>'+num(o.min)+'</td><td>'+fmt(o.min/60,1)+'</td>'
+       +'<td class="l">'+esc(o.reasons.map(function(r){return r.reason+' '+r.min+'m'}).join(', '))+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  return h+'</div></div>';
+}
+
+/* ---------- floor summary table ---------- */
+function floorTable(){
+  var h='<div class="card"><div class="hd"><h3>Floor Summary</h3>'
+   +'<span class="hint">whole range</span></div><div class="bd"><div class="scroll"><table><thead><tr>'
+   +'<th class="l">Floor</th><th>Operators</th><th>Days</th><th>Input Min</th><th>Output Min</th>'
+   +'<th>Loss Min</th><th>Eff%</th></tr></thead><tbody>';
+  var t={man:0,inMin:0,outMin:0,loss:0};
+  D.byFloor.forEach(function(f){
+    t.man+=f.man; t.inMin+=f.inMin; t.outMin+=f.outMin; t.loss+=f.loss;
+    h+='<tr><td class="l"><b>'+esc(f.floor)+'</b></td><td>'+f.man+'</td><td>'+f.nDays+'</td>'
+     +'<td>'+num(f.inMin)+'</td><td>'+num(f.outMin)+'</td>'
+     +'<td>'+(f.loss>0?num(f.loss):'&ndash;')+'</td>'
+     +'<td><span class="pill '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</span></td></tr>';
+  });
+  var te=t.inMin>0?(t.outMin/t.inMin*100):0;
+  h+='</tbody><tfoot><tr><td class="l">Total</td><td>'+num(t.man)+'</td><td>'+D.totals.days+'</td>'
+   +'<td>'+num(t.inMin)+'</td><td>'+num(t.outMin)+'</td><td>'+num(t.loss)+'</td>'
+   +'<td>'+fmt(te,1)+'%</td></tr></tfoot></table></div></div></div>';
+  return h;
+}
+
+/* ---------- who moved ----------
+   Only operators with at least 4 recorded days appear. Below that the two
+   halves are one day each and the "trend" is just the day-to-day scatter. */
+function moverTables(){
+  var movers=D.ops.filter(function(o){ return o.delta!=null && o.nDays>=4 });
+  if(!movers.length){
+    return '<div class="card"><div class="hd"><h3>Who Moved</h3></div><div class="bd">'
+      +'<div class="empty">A longer range is needed. An operator must have at least '
+      +'4 recorded days before his first half can be compared with his second.</div></div></div>';
+  }
+  var up=movers.slice().sort(function(a,b){return b.delta-a.delta}).slice(0,12);
+  var dn=movers.slice().sort(function(a,b){return a.delta-b.delta}).slice(0,12);
+
+  function tbl(list,cls){
+    var h='<div class="scroll"><table><thead><tr>'
+     +'<th class="l">Floor</th><th class="l">Name</th><th>Days</th>'
+     +'<th>First half</th><th>Second half</th><th>Change</th></tr></thead><tbody>';
+    list.forEach(function(o){
+      var d=o.delta;
+      h+='<tr><td class="l">'+esc(o.floor)+'</td><td class="l">'+esc(o.name||o.opId)+'</td>'
+       +'<td>'+o.nDays+'</td><td>'+fmt(o.first,1)+'%</td><td>'+fmt(o.last,1)+'%</td>'
+       +'<td class="'+(d>=0?'up':'dn')+'">'+(d>=0?'&#9650; ':'&#9660; ')+fmt(Math.abs(d),1)+'</td></tr>';
+    });
+    return h+'</tbody></table></div>';
+  }
+
+  return '<div class="two">'
+   +'<div class="card"><div class="hd"><h3>Improving Most</h3>'
+   +'<span class="hint">second half vs first half</span></div><div class="bd">'+tbl(up)+'</div></div>'
+   +'<div class="card"><div class="hd"><h3>Declining Most</h3>'
+   +'<span class="hint">second half vs first half</span></div><div class="bd">'+tbl(dn)+'</div></div>'
+   +'</div>';
+}
+
+/* ---------- Excel ---------- */
+function exportExcel(){
+  if(!D){ return; }
+  var t='<table><tr><td colspan="7" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+   +'SOSL Cutting Section &ndash; Cutting Efficiency Trend</td></tr>'
+   +'<tr><td colspan="7">Range: '+esc(prettyDate($('f1').value))+' to '+esc(prettyDate($('t1').value))
+   +' &nbsp;|&nbsp; Scope: '+esc(scopeSel||'All Floors')+'</td></tr>'
+   +'<tr><td colspan="7">Eff% = Sum(Output Min) / Sum(Input Min) x 100. Loss time is already '
+   +'deducted from Input Min by the sheet.</td></tr><tr><td colspan="7"></td></tr></table>';
+
+  function th(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
+
+  t+='<table border="1"><tr><td colspan="7" style="font-weight:bold;color:#333D6D">By Day</td></tr><tr>'
+   +th('Date')+th('Operators')+th('Input Min')+th('Output Min')+th('Loss Min')+th('Eff%')+'</tr>';
+  D.byDay.forEach(function(d){
+    t+='<tr><td>'+esc(prettyDate(d.date))+'</td><td>'+d.man+'</td><td>'+fmt(d.inMin,0)+'</td>'
+     +'<td>'+fmt(d.outMin,0)+'</td><td>'+fmt(d.loss,0)+'</td><td>'+fmt(d.eff,2)+'</td></tr>';
+  });
+  t+='</table><table><tr><td></td></tr></table>';
+
+  t+='<table border="1"><tr><td colspan="7" style="font-weight:bold;color:#333D6D">By Floor</td></tr><tr>'
+   +th('Floor')+th('Operators')+th('Days')+th('Input Min')+th('Output Min')+th('Loss Min')+th('Eff%')+'</tr>';
+  D.byFloor.forEach(function(f){
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td><td>'+f.nDays+'</td><td>'+fmt(f.inMin,0)+'</td>'
+     +'<td>'+fmt(f.outMin,0)+'</td><td>'+fmt(f.loss,0)+'</td><td>'+fmt(f.eff,2)+'</td></tr>';
+  });
+  t+='</table><table><tr><td></td></tr></table>';
+
+  if(LOSS&&LOSS.byReason.length){
+    t+='<table border="1"><tr><td colspan="4" style="font-weight:bold;color:#333D6D">Loss by Reason</td></tr><tr>'
+     +th('Reason')+th('Loss Min')+th('Entries')+th('Operators')+'</tr>';
+    LOSS.byReason.forEach(function(r){
+      t+='<tr><td>'+esc(r.reason)+'</td><td>'+fmt(r.min,0)+'</td><td>'+r.entries+'</td><td>'+r.operators+'</td></tr>';
+    });
+    t+='</table><table><tr><td></td></tr></table>';
+  }
+
+  t+='<table><tr><td colspan="7">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+
+  var blob=new Blob(['﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head>'
+    +'<meta charset="utf-8"></head><body>'+t+'</body></html>'],{type:'application/vnd.ms-excel'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='SOSL_Cutting_Efficiency_Trend_'+$('f1').value+'_to_'+$('t1').value+'.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ---------- the shell's Refresh ---------- */
+window.addEventListener('message', function(ev){
+  if(!ev.data || ev.data.type!=='do-refresh') return;
+  var f=$('f1').value, t=$('t1').value;
+  busy('Refreshing '+prettyDate(f)+' to '+prettyDate(t)+'…');
+  /* fresh=1 makes the efficiency script re-sync loss time into column AG for
+     the start of the range before it answers. */
+  fetch(EFF_API+'?action=snapshot&fresh=1&lossdate='+encodeURIComponent(t),{cache:'no-store'})
+    .then(function(){}).catch(function(){})
+    .then(function(){
+      load(f,t,true);
+      if(window.parent!==window)
+        window.parent.postMessage({type:'refresh-done',stamp:STAMP||prettyDate(t)},'*');
+    });
+});
+
+/* ---------- presets ---------- */
+function weekStartISO(iso){
+  var d=drParse(iso)||new Date();
+  return drIso(drWeekStart(d));
+}
+function addDaysISO(iso,n){
+  var d=drParse(iso)||new Date();
+  d.setDate(d.getDate()+n);
+  return drIso(d);
+}
+function lastNDays(n){
+  var end=DATES.length?DATES[DATES.length-1]:isoOf(new Date());
+  if(DATES.length){
+    var pick=DATES.slice(-n);
+    return [pick[0], pick[pick.length-1]];
+  }
+  return [addDaysISO(end,-(n-1)), end];
+}
+
+function setupPicker(){
+  var latest = DATES.length ? DATES[DATES.length-1] : yesterdayISO();
+  drInit({
+    presets:[
+      {group:'Quick ranges'},
+      {k:'d7',  label:'Last 7 Days',   get:function(){ return lastNDays(7) }},
+      {k:'d14', label:'Last 14 Days',  get:function(){ return lastNDays(14) }},
+      {k:'d30', label:'Last 30 Days',  get:function(){ return lastNDays(30) }},
+      {group:'Weeks'},
+      {k:'tw',  label:'This Week',     get:function(){ return [weekStartISO(latest), latest] }},
+      {k:'lw',  label:'Last Week',     get:function(){ var st=addDaysISO(weekStartISO(latest),-7);
+                                                       return [st, addDaysISO(st,6)] }},
+      {group:'Months'},
+      {k:'tm',  label:'This Month',    get:function(){ return monthRange(0,latest) }},
+      {k:'lm',  label:'Last Month',    get:function(){ return monthRange(-1,latest) }}
+    ],
+    days: DATES.slice(),
+    apply: function(from,to){ load(from,to,false); }
+  });
+  drSet($('f1').value, $('t1').value, '');
+}
+function monthRange(off,latest){
+  var base=drParse(latest)||new Date();
+  var a=new Date(base.getFullYear(), base.getMonth()+off, 1);
+  var b=new Date(base.getFullYear(), base.getMonth()+off+1, 0);
+  return [drIso(a), drIso(b)];
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  buildChips();
+  busy('Checking available days…');
+  track(fetch(EFF_API+'?action=snapshot',{cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() }))
+   .then(function(s){
+      DATES=s.dates||[];
+      if(s.generatedAt) STAMP=s.generatedAt;
+      setupPicker();
+      var to   = ssRead(SD_TO)   || (DATES.length?DATES[DATES.length-1]:yesterdayISO());
+      var from = ssRead(SD_FROM) || lastNDays(7)[0];
+      if(from>to) from=to;
+      drSet(from,to,'');
+      load(from,to,false);
+   })
+   .catch(function(e){
+      /* Without the date list the presets cannot be built, but a range can
+         still be typed, so the page is not left dead. */
+      setupPicker();
+      var to=yesterdayISO(), from=addDaysISO(to,-6);
+      drSet(from,to,''); load(from,to,false);
+   });
+}
+boot();
+
+</script>
+</body>
+</html>
