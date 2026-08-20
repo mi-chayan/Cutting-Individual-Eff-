@@ -168,6 +168,7 @@
       <div class="menuhd">Efficiency</div>
       <button class="mi on" id="t_daily" onclick="go('daily')">Daily Individual Eff% Report</button>
       <button class="mi" id="t_range" onclick="go('range')">Weekly Individual PIB Report</button>
+      <button class="mi" id="t_trend" onclick="go('trend')">Cutting Efficiency Trend</button>
       <div class="menuhd">Compliance</div>
       <button class="mi" id="t_fabric" onclick="go('fabric')">Daily Fabric Roll Compliance Report</button>
       <button class="mi" id="t_fabweek" onclick="go('fabweek')">Weekly Fabric Roll Compliance Report</button>
@@ -252,6 +253,10 @@ var REPORTS = {
      warm the snapshot. No cache keys to drop. */
   range:  { page:'efficiency/range.html',  url:PIB_API,
             key:'sosl_pib_snapshot_v1', drop:['sosl_pib_data_'] },
+  /* The trend page reads the efficiency API over a date range and caches per
+     range, so Refresh only has to drop those. */
+  trend:  { page:'efficiency/trend.html',  url:EFF_API,
+            key:'sosl_snapshot_v1',   drop:['sosl_trend_'] },
   fabric: { page:'compliance/fabric.html', url:FAB_API,
             key:'fabric_snapshot_v3', drop:['fabric_day_','fabric_det_'] },
   /* The weekly report aggregates server side and parks nothing, so it has no
@@ -260,7 +265,7 @@ var REPORTS = {
             key:'fabric_snapshot_v3', drop:['fabwk_d_','fabwk_dates'] }
 };
 
-var TABS=['daily','range','fabric','fabweek'], curTab='daily';
+var TABS=['daily','range','trend','fabric','fabweek'], curTab='daily';
 
 /* ---------- pages menu ---------- */
 function openMenu(){
