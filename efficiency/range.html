@@ -296,6 +296,87 @@
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
   .spin{display:none !important}
+  /* ================= date range picker =================
+     One control, not two. Two separate native date boxes each opened
+     their own native calendar, so choosing a range meant opening a picker,
+     closing it, opening another, and the report reloaded in between. Both ends
+     now live in ONE popover that opens and closes together, and NOTHING loads
+     until Apply is pressed. Modelled on the Looker Studio picker the team
+     already knows. */
+  .drwrap{position:relative;display:inline-flex}
+  .drbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;
+         border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+         font-family:inherit;font-size:12.5px;font-weight:700;color:var(--txt);
+         cursor:pointer;white-space:nowrap;line-height:1}
+  .drbtn:hover{border-color:var(--violet)}
+  .drbtn.on{border-color:var(--violet);box-shadow:0 0 0 3px rgba(114,62,195,.13)}
+  .drbtn svg{width:14px;height:14px;fill:var(--violet);flex:0 0 auto}
+  .drbtn .drcar{font-size:9px;color:var(--mut)}
+  .drbtn .drtxt{font-variant-numeric:tabular-nums}
+
+  .drpop{position:absolute;top:calc(100% + 7px);left:0;z-index:400;display:none;
+         background:#fff;border:1px solid var(--line);border-radius:12px;
+         box-shadow:0 18px 46px rgba(37,42,69,.22);overflow:hidden}
+  .drpop.on{display:flex}
+  .drside{width:158px;border-right:1px solid var(--line);background:#FAFAFD;
+          padding:8px;display:flex;flex-direction:column;gap:2px;
+          max-height:392px;overflow:auto}
+  .drside b{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
+            letter-spacing:.5px;padding:7px 8px 3px}
+  .drps{text-align:left;background:none;border:0;border-radius:7px;padding:7px 9px;
+        font-family:inherit;font-size:12px;font-weight:700;color:var(--txt);cursor:pointer;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drps:hover{background:#EFE9FA}
+  .drps.on{background:var(--violet);color:#fff}
+
+  .drmain{padding:11px 13px 0;display:flex;flex-direction:column}
+  .drnav{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .drnav button{width:26px;height:26px;border:1px solid var(--line);background:#fff;
+                border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;
+                font-weight:800;color:var(--navy);line-height:1}
+  .drnav button:hover{border-color:var(--violet);color:var(--violet)}
+  .drnav button:disabled{opacity:.35;cursor:default}
+  .drnav .drmo{flex:1 1 0;text-align:center;font-size:12px;font-weight:800;color:var(--navy)}
+  .drcals{display:flex;gap:18px}
+  .drcal table{border-collapse:collapse;table-layout:fixed;width:224px}
+  .drcal th{width:32px;height:24px;font-size:9.5px;font-weight:800;color:var(--mut);
+            text-transform:uppercase;background:none;position:static;padding:0;
+            text-align:center;letter-spacing:0}
+  .drcal td{width:32px;height:29px;padding:0;text-align:center;border:0;background:none}
+  .drd{width:100%;height:29px;border:0;background:none;font-family:inherit;font-size:11.5px;
+       font-weight:700;color:var(--txt);cursor:pointer;border-radius:0}
+  .drd:hover:not(:disabled){background:#EFE9FA}
+  .drd:disabled{color:#CBCEDC;cursor:default}
+  /* the band between the two ends */
+  .drd.mid{background:#F0EAFB}
+  .drd.end{background:var(--violet);color:#fff;font-weight:800}
+  .drd.a{border-radius:7px 0 0 7px}
+  .drd.b{border-radius:0 7px 7px 0}
+  .drd.a.b{border-radius:7px}
+  .drd.today{outline:1px dashed var(--violet);outline-offset:-3px}
+
+  .drfoot{display:flex;align-items:center;gap:9px;padding:10px 0 12px;margin-top:6px;
+          border-top:1px solid var(--line)}
+  .drsel{font-size:11.5px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;
+         white-space:nowrap}
+  .drsel span{color:var(--mut);font-weight:700}
+  .drfoot .drsp{flex:1 1 auto}
+  .drfoot button{border:1px solid var(--line);background:#fff;border-radius:8px;
+                 padding:8px 15px;font-family:inherit;font-size:12px;font-weight:800;
+                 color:var(--navy);cursor:pointer}
+  .drfoot button:hover{background:var(--cream);border-color:var(--peach)}
+  .drfoot button.go{background:var(--violet);border-color:var(--violet);color:#fff}
+  .drfoot button.go:hover{filter:brightness(1.08);background:var(--violet)}
+  .drfoot button.go:disabled{opacity:.45;cursor:default;filter:none}
+
+  @media(max-width:900px){
+    .drpop{position:fixed;inset:auto 8px 8px 8px;flex-direction:column;max-height:86vh;overflow:auto}
+    .drside{width:auto;border-right:0;border-bottom:1px solid var(--line);
+            flex-direction:row;flex-wrap:wrap;max-height:none}
+    .drcals{flex-direction:column;gap:10px}
+    .drcal table{width:100%}
+  }
+
 </style>
 </head>
 <body>
@@ -313,23 +394,38 @@
   <div class="sep"></div>
 
   <label>Period</label>
-  <select id="period" onchange="periodChanged()"></select>
+  <div class="drwrap">
+    <button class="drbtn" id="drBtn" onclick="drToggle()" title="Choose the date range">
+      <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+      <span class="drtxt" id="drLabel">Loading&hellip;</span>
+      <span class="drcar">&#9660;</span>
+    </button>
+    <div class="drpop" id="drPop">
+      <div class="drside" id="drSide"></div>
+      <div class="drmain">
+        <div class="drnav">
+          <button id="drPrev" onclick="drShift(-1)" title="Previous month">&#8249;</button>
+          <div class="drmo" id="drMoA"></div>
+          <div class="drmo" id="drMoB"></div>
+          <button id="drNext" onclick="drShift(1)" title="Next month">&#8250;</button>
+        </div>
+        <div class="drcals" id="drCals"></div>
+        <div class="drfoot">
+          <div class="drsel" id="drSel"></div>
+          <div class="drsp"></div>
+          <button onclick="drCancel()">Cancel</button>
+          <button class="go" id="drGo" onclick="drApply()">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <span id="customWrap" class="hide">
-    <span class="dpick">
-      <span id="f1label">&ndash;</span>
-      <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-      <input type="date" id="f1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="From date">
-    </span>
-    <span style="font-size:11px;color:var(--mut);font-weight:800">to</span>
-    <span class="dpick">
-      <span id="f2label">&ndash;</span>
-      <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-      <input type="date" id="f2" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="To date">
-    </span>
-    <span class="rpend" id="rpend"><span id="rpendtxt"></span>
-      <button onclick="rangeCommit()">Load now</button></span>
-  </span>
+  <!-- The Period dropdown and the two date boxes are gone: the weeks are now
+       presets INSIDE the picker, so there is one control instead of three.
+       Both stay as hidden state because load(), currentKey(), periodLabel()
+       and refreshNow() all still read them. -->
+  <select id="period" class="hide" onchange="periodChanged()"></select>
+  <input type="hidden" id="f1"><input type="hidden" id="f2">
 
   <div class="sep"></div>
   <span class="seg">
@@ -411,6 +507,207 @@
 <div id="tip"></div>
 
 <script>
+/* =====================================================================
+   DATE RANGE PICKER
+   ---------------------------------------------------------------------
+   Both ends of the range live in ONE popover. It opens once, closes once,
+   and nothing is fetched until Apply. The old pair of native date inputs
+   opened two separate calendars and fired a reload between them, so picking
+   "1 Aug to 19 Aug" loaded 1 Aug to 1 Aug first and made the user wait
+   through a report nobody asked for.
+
+   The host page supplies four things through drInit():
+     presets   [{k, label, get:function(){return [from,to]}}]  optional groups
+               via {group:'Weeks'} entries
+     apply     function(from,to,presetKey) - the ONLY place data is fetched
+     min,max   optional ISO bounds; days outside are shown but not clickable
+     label     optional function(from,to,presetKey) for the button text
+   ===================================================================== */
+var DR = {
+  from:'', to:'', pick:'a', preset:'', view:null,
+  presets:[], apply:null, min:'', max:'', label:null, open:false
+};
+
+function drIso(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function drParse(s){
+  var p=String(s||'').split('-');
+  if(p.length!==3) return null;
+  var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  return isNaN(d.getTime()) ? null : d;
+}
+var DR_MON=['January','February','March','April','May','June','July','August',
+            'September','October','November','December'];
+var DR_MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function drPretty(iso){
+  var d=drParse(iso); if(!d) return '-';
+  return d.getDate()+' '+DR_MONS[d.getMonth()]+' '+d.getFullYear();
+}
+function drEl(i){ return document.getElementById(i); }
+
+/* SNOWTEX weeks run WEDNESDAY to TUESDAY. Not the calendar week, and not
+   Saturday to Thursday. Every This Week / Last Week preset uses this. */
+function drWeekStart(d){
+  var x=new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var back=(x.getDay()-3+7)%7;          /* 3 = Wednesday */
+  x.setDate(x.getDate()-back);
+  return x;
+}
+
+function drInit(o){
+  DR.presets = o.presets||[];
+  DR.apply   = o.apply;
+  DR.min     = o.min||'';
+  DR.max     = o.max||'';
+  DR.label   = o.label||null;
+  document.addEventListener('click', function(ev){
+    if(!DR.open) return;
+    var pop=drEl('drPop'), btn=drEl('drBtn');
+    if(pop && !pop.contains(ev.target) && btn && !btn.contains(ev.target)) drClose();
+  });
+  document.addEventListener('keydown', function(ev){
+    if(DR.open && ev.key==='Escape') drClose();
+  });
+}
+
+/* Set the range WITHOUT opening or fetching. Used on first load. */
+function drSet(from,to,preset){
+  DR.from=from||''; DR.to=to||''; DR.preset=preset||'';
+  drSyncBtn();
+}
+function drSyncBtn(){
+  var t=drEl('drLabel'); if(!t) return;
+  if(DR.label){ t.textContent=DR.label(DR.from,DR.to,DR.preset); return; }
+  var named=null;
+  DR.presets.forEach(function(p){ if(p.k && p.k===DR.preset) named=p.label; });
+  t.textContent = named ? named
+    : (DR.from&&DR.to ? (DR.from===DR.to ? drPretty(DR.from)
+                                         : drPretty(DR.from)+'  –  '+drPretty(DR.to))
+                      : 'Pick a date range');
+}
+
+function drToggle(){ DR.open ? drClose() : drOpen(); }
+function drOpen(){
+  DR.open=true;
+  DR.dfrom=DR.from; DR.dto=DR.to; DR.dpreset=DR.preset;   /* draft, Cancel restores */
+  DR.pick='a';
+  var base=drParse(DR.from)||drParse(DR.max)||new Date();
+  DR.view=new Date(base.getFullYear(), base.getMonth(), 1);
+  drEl('drPop').classList.add('on');
+  drEl('drBtn').classList.add('on');
+  drRender();
+}
+function drClose(){
+  DR.open=false;
+  var p=drEl('drPop'), b=drEl('drBtn');
+  if(p) p.classList.remove('on');
+  if(b) b.classList.remove('on');
+}
+
+function drShift(n){
+  DR.view=new Date(DR.view.getFullYear(), DR.view.getMonth()+n, 1);
+  drRender();
+}
+
+/* A preset fills the draft and shows it on the calendars. It does NOT fetch:
+   Apply is still the one action that loads, so a mis-click costs nothing. */
+function drPreset(k){
+  var p=null;
+  DR.presets.forEach(function(x){ if(x.k===k) p=x; });
+  if(!p||!p.get) return;
+  var r=p.get()||[];
+  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  var base=drParse(DR.dto)||drParse(DR.dfrom)||new Date();
+  DR.view=new Date(base.getFullYear(), base.getMonth()-1, 1);
+  DR.pick='a';
+  drRender();
+}
+
+function drDayClick(iso){
+  if(DR.pick==='a'){ DR.dfrom=iso; DR.dto=iso; DR.pick='b'; }
+  else{
+    if(iso<DR.dfrom){ DR.dto=DR.dfrom; DR.dfrom=iso; }
+    else DR.dto=iso;
+    DR.pick='a';
+  }
+  DR.dpreset='';                      /* a hand-picked range is not a preset */
+  drRender();
+}
+
+function drCal(view){
+  var y=view.getFullYear(), m=view.getMonth();
+  var first=new Date(y,m,1), lead=first.getDay();
+  var days=new Date(y,m+1,0).getDate();
+  var today=drIso(new Date());
+  var h='<div class="drcal"><table><thead><tr>'
+      + ['S','M','T','W','T','F','S'].map(function(d){return '<th>'+d+'</th>'}).join('')
+      + '</tr></thead><tbody><tr>';
+  for(var i=0;i<lead;i++) h+='<td></td>';
+  for(var d=1;d<=days;d++){
+    if((lead+d-1)%7===0 && d>1) h+='</tr><tr>';
+    var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+    var out=(DR.min&&iso<DR.min)||(DR.max&&iso>DR.max);
+    var cls=[];
+    if(DR.dfrom&&DR.dto&&iso>DR.dfrom&&iso<DR.dto) cls.push('mid');
+    if(iso===DR.dfrom){ cls.push('end'); cls.push('a'); }
+    if(iso===DR.dto){   cls.push('end'); cls.push('b'); }
+    if(iso===today) cls.push('today');
+    h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')
+     + ' onclick="drDayClick(\''+iso+'\')">'+d+'</button></td>';
+  }
+  h+='</tr></tbody></table></div>';
+  return h;
+}
+
+function drRender(){
+  /* The calendars need a month in view. drOpen always sets one, but drRender
+     is also reachable from drSet and from a preset applied before the popover
+     was ever opened, and a null view threw and left the panel blank. */
+  if(!DR.view){
+    var b=drParse(DR.dfrom||DR.from)||drParse(DR.max)||new Date();
+    DR.view=new Date(b.getFullYear(), b.getMonth(), 1);
+  }
+  if(!drEl('drSide')) return;        /* picker not on this page */
+
+  /* presets, with optional group headings */
+  var sh='';
+  DR.presets.forEach(function(p){
+    if(p.group){ sh+='<b>'+p.group+'</b>'; return; }
+    sh+='<button class="drps'+(DR.dpreset===p.k?' on':'')+'" onclick="drPreset(\''+p.k+'\')">'
+      + p.label+'</button>';
+  });
+  drEl('drSide').innerHTML=sh;
+
+  var a=DR.view, b=new Date(a.getFullYear(), a.getMonth()+1, 1);
+  drEl('drMoA').textContent=DR_MON[a.getMonth()]+' '+a.getFullYear();
+  drEl('drMoB').textContent=DR_MON[b.getMonth()]+' '+b.getFullYear();
+  drEl('drCals').innerHTML=drCal(a)+drCal(b);
+
+  var ok=!!(DR.dfrom&&DR.dto);
+  drEl('drSel').innerHTML = ok
+    ? drPretty(DR.dfrom)+'  <span>to</span>  '+drPretty(DR.dto)
+      + '  <span>('+(Math.round((drParse(DR.dto)-drParse(DR.dfrom))/86400000)+1)+' days)</span>'
+    : '<span>'+(DR.pick==='a'?'Pick the start date':'Now pick the end date')+'</span>';
+  drEl('drGo').disabled=!ok;
+
+  /* Do not let the user page past the data. */
+  var prevOff = DR.min && drIso(new Date(a.getFullYear(), a.getMonth(), 1)) <= DR.min;
+  drEl('drPrev').disabled = !!prevOff;
+}
+
+function drCancel(){ drClose(); }
+
+/* The ONE place a range change reaches the report. */
+function drApply(){
+  if(!DR.dfrom||!DR.dto) return;
+  DR.from=DR.dfrom; DR.to=DR.dto; DR.preset=DR.dpreset;
+  drSyncBtn();
+  drClose();
+  if(DR.apply) DR.apply(DR.from, DR.to, DR.preset);
+}
+
+
 
 /* ==================================================================
    SNOWTEX dashboard kit
@@ -746,13 +1043,83 @@ function buildPeriod(){
   });
   h+='<option value="all">All data</option><option value="custom">Custom range&hellip;</option>';
   el('period').innerHTML=h;
-  /* Seed the custom boxes with the range the rest of the dashboard is on, so
-     switching to Custom does not throw away the dates already chosen
-     elsewhere. Falls back to the full span the sheet holds. */
+  /* Seed the hidden boxes with the range the rest of the dashboard is on, so
+     opening this report does not throw away the dates chosen elsewhere.
+     Falls back to the full span the sheet holds. */
   el('f1').value = wantedFrom() || SNAP.minDate || '';
   el('f2').value = wantedTo()   || SNAP.maxDate || '';
-  el('f1label').textContent=prettyDate(el('f1').value);
-  el('f2label').textContent=prettyDate(el('f2').value);
+  setupPicker();
+}
+
+/* ---------- the picker ----------
+   The weeks are presets now, not a separate dropdown. A preset returns a
+   range, it does not load; Apply is the only thing that loads, so browsing
+   the list costs nothing.
+
+   Weeks come from the sheet and each carries its own first and last date, so
+   a week preset does not have to guess where the week began. */
+function weekRange(w){
+  var wk=(SNAP.weekSpans||{})[w];
+  if(wk && wk.from && wk.to) return [wk.from, wk.to];
+  return [];                       /* handled as a week query, not a date range */
+}
+
+function drPresetList(){
+  var list=[{group:'Quick ranges'},
+    {k:'d7',  label:'Last 7 Days',  get:function(){ return lastNDataDaysR(7);  }},
+    {k:'d30', label:'Last 30 Days', get:function(){ return lastNDataDaysR(30); }},
+    {group:'Everything'},
+    {k:'all', label:'All data',     get:function(){ return [SNAP.minDate||'', SNAP.maxDate||'']; }}];
+  var wks=(SNAP.weeks||[]);
+  if(wks.length){
+    list.push({group:'Weeks'});
+    wks.forEach(function(w){
+      list.push({k:'w'+w, label:'Week '+w, get:function(){ return weekRange(w); }});
+    });
+  }
+  return list;
+}
+
+/* Last N days counts days the sheet ACTUALLY holds, not calendar days.
+   Counting back on the calendar lands on Fridays and unpushed days that carry
+   nothing, so asking for 7 days and being shown 4 is the result. */
+function lastNDataDaysR(n){
+  var d=(SNAP.dates&&SNAP.dates.length) ? SNAP.dates.slice() : datesInData();
+  if(!d.length) return [SNAP.minDate||'', SNAP.maxDate||''];
+  var pick=d.slice(-n);
+  return [pick[0], pick[pick.length-1]];
+}
+
+function setupPicker(){
+  drInit({
+    presets: drPresetList(),
+    min: SNAP.minDate||'',
+    max: SNAP.maxDate||'',
+    apply: function(from,to,preset){
+      /* A week preset keeps using the week query, which the API answers
+         directly. Everything else becomes a from/to custom range. */
+      if(preset && preset.charAt(0)==='w' && weekRange(preset.slice(1)).length===0){
+        el('period').value=preset;
+      }else{
+        el('period').value = (preset==='all') ? 'all' : 'custom';
+        el('f1').value=from; el('f2').value=to;
+      }
+      var lbl='Weekly Individual PIB, '+(preset ? drLabelFor(preset)
+              : (prettyDate(from)+' to '+prettyDate(to)));
+      /* Say what is loading BEFORE the wait. The old pair of boxes reloaded
+         silently between the two dates and looked frozen. */
+      el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading '
+        + esc(prettyDate(from))+' to '+esc(prettyDate(to))+'&hellip;</td></tr>';
+      load(true);
+    }
+  });
+  drSet(el('f1').value, el('f2').value, '');
+}
+
+function drLabelFor(k){
+  var out=k;
+  drPresetList().forEach(function(p){ if(p.k===k) out=p.label; });
+  return out;
 }
 
 function datesInData(){
@@ -827,7 +1194,7 @@ function setView(v){
 
 function periodChanged(){
   rangeCancelPending();
-  el('customWrap').classList.toggle('hide', el('period').value!=='custom');
+  /* customWrap is gone: the picker holds both ends now. */
   load();
 }
 function periodLabel(){
@@ -892,9 +1259,10 @@ function rangeCommit(){
 }
 
 function rangeBoxes(){ return { a: el('f1'), b: el('f2') }; }
+/* The separate From and To labels are gone; the picker button IS the label.
+   Kept as a shim because it is called from several places. */
 function rangeSyncLabels(){
-  el('f1label').textContent=prettyDate(el('f1').value);
-  el('f2label').textContent=prettyDate(el('f2').value);
+  if(typeof drSet==='function') drSet(el('f1').value, el('f2').value, DR.preset||'');
 }
 function rangeLoadNow(){ load(); }
 
@@ -903,8 +1271,6 @@ function normaliseRange(){
   if(a.value && !b.value) b.value=a.value;
   else if(b.value && !a.value) a.value=b.value;
   if(a.value && b.value && a.value>b.value){ var t=a.value; a.value=b.value; b.value=t; }
-  el('f1label').textContent=prettyDate(a.value);
-  el('f2label').textContent=prettyDate(b.value);
   /* A custom range picked here is the range every other report opens with. */
   if(a.value && b.value) shareRange(a.value,b.value);
   return { from:a.value, to:b.value };
