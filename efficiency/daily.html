@@ -100,7 +100,11 @@
   /* Floor Wise Report on the left, the 3 KPI cards stacked on the right - uses the width better */
   /* align-items:stretch (the default) so the card column and the floor table
      share one row height and their bottom edges line up */
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-bottom:15px}
+  /* Three columns. The floor table only ever holds 5 short columns, so giving
+     it the whole width left it stretched and airy while the rail beside it was
+     cramped. Narrowing it makes room for the loss card and the row reads as
+     three even blocks. */
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 244px 272px;gap:13px;margin-bottom:15px}
   .toprow #floorcard{margin-bottom:0}
   .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
   /* Compact so three cards plus the donut finish level with the floor table */
@@ -114,6 +118,28 @@
   .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)}
 
   /* ---- efficiency band donut ---- */
+  /* Floor Loss Time card, third column of the top row. */
+  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%}
+  .losscard{background:var(--card);border:1px solid var(--line);border-radius:10px;
+            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;
+            display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .losscard:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber,#C77700)}
+  .losscard .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .losscard .sub{font-size:9.5px;color:var(--mut);margin-top:1px}
+  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1 1 auto;min-height:0}
+  .lrow{cursor:default}
+  .lrhd{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:800;
+        margin-bottom:3px;white-space:nowrap}
+  .lrhd .nm{overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+  .lrhd .vv{color:#C77700;font-variant-numeric:tabular-nums;flex:0 0 auto}
+  .lrbar{background:#F1F2F7;border-radius:4px;height:11px;overflow:hidden}
+  .lrfill{height:100%;background:linear-gradient(90deg,#E39A2E,#C77700);border-radius:4px}
+  .lrct{font-size:9px;color:var(--mut);font-weight:700;margin-top:2px}
+  .lnone{font-size:10.5px;color:var(--mut);text-align:center;padding:18px 4px}
+  /* The floor table's Loss Min cell hovers exactly like the operator one. */
+  td.lossv.hasr{cursor:help}
+  td.lossv.hasr:hover{background:#FFF3E8}
+
   .chartcard{padding:9px 12px;display:flex;flex-direction:column}
   .chartcard:before{background:var(--blue)}
   .chartrow{display:flex;align-items:center;gap:10px;margin-top:6px}
@@ -323,6 +349,7 @@
     .wrap{padding:11px 11px 22px}
     .search{width:170px}
     .toprow{grid-template-columns:1fr;gap:11px}
+    .lossrail{width:auto}
     .toprow #floorcard{margin-bottom:0}
     .kpis{flex-direction:row;flex-wrap:wrap;height:auto}
     .kpis .kpi{flex:1 1 180px}
@@ -796,10 +823,118 @@ function loadReasons(d){
 }
 var LOSSR_FAIL = false;
 
+/* ---------- loss reasons for whatever is on screen ----------
+   Rolled up from the SAME LOSSR map the tooltips use, so nothing extra is
+   fetched. Obeys the factory chips AND the floor filter, because a card that
+   ignored the filter beside a table that obeys it is worse than no card.
+
+   `times` counts how many operators recorded that reason, which is the "how
+   many times did this happen" question. `min` is what it cost. Both are shown:
+   a reason that hits twenty men for five minutes is a different problem from
+   one that stops a single man for two hours. */
+function scopeLossBreak(){
+  var by={}, order=[], total=0, entries=0;
+  for(var k in LOSSR){
+    if(!LOSSR.hasOwnProperty(k)) continue;
+    var floor=k.split('|')[0];
+    if(floorFilter ? floor!==floorFilter : !inScope(floor)) continue;
+    var e=LOSSR[k];
+    var items=(e&&e.items&&e.items.length)?e.items
+             :(e&&e.reason?[{reason:e.reason,min:e.min}]:[]);
+    items.forEach(function(it){
+      var r=String(it.reason||'').trim(); if(!r) return;
+      var kk=r.toUpperCase();
+      if(!by[kk]){ by[kk]={reason:r,min:0,times:0}; order.push(kk); }
+      var m=Math.round(Number(it.min)||0);
+      by[kk].min+=m; by[kk].times++;
+      total+=m; entries++;
+    });
+  }
+  return { list:order.map(function(k){return by[k]}).sort(function(a,b){return b.min-a.min}),
+           total:total, entries:entries };
+}
+
+/* Redrawn on its own, so it can be refilled the moment the reasons arrive
+   without rebuilding the whole report. */
+function lossCardBody(){
+  var r=scopeLossBreak();
+  if(!r.list.length){
+    return '<div class="lnone">'+(LOSSR_FAIL
+      ? 'Loss reasons could not be loaded.'
+      : (Object.keys(LOSSR).length ? 'No loss time in this scope.' : 'Loading loss reasons\u2026'))
+      +'</div>';
+  }
+  var max=r.list[0].min||1;
+  var h='';
+  r.list.forEach(function(x){
+    h+='<div class="lrow" title="'+escAttr(x.reason+': '+fmt(x.min,0)+' min across '
+        +x.times+' operator'+(x.times===1?'':'s'))+'">'
+     + '<div class="lrhd"><span class="nm">'+esc(x.reason)+'</span>'
+     + '<span class="vv">'+fmt(x.min,0)+'m</span></div>'
+     + '<div class="lrbar"><div class="lrfill" style="width:'+(x.min/max*100)+'%"></div></div>'
+     + '<div class="lrct">'+x.times+' time'+(x.times===1?'':'s')
+     + ' \u00b7 '+fmt(r.total?x.min/r.total*100:0,0)+'% of loss</div></div>';
+  });
+  return h;
+}
+
+function lossCardHtml(){
+  var r=scopeLossBreak();
+  var scopeNote = floorFilter ? ('Floor '+floorFilter) : (factFilter||'all floors');
+  return '<div class="losscard">'
+    +'<div class="k">Loss Time by Type</div>'
+    +'<div class="sub" id="losssub">'+fmt(r.total,0)+' min &middot; '+r.entries
+    +' entr'+(r.entries===1?'y':'ies')+', '+esc(scopeNote)+'</div>'
+    +'<div class="lrows" id="lossrows">'+lossCardBody()+'</div>'
+    +'</div>';
+}
+
+/* Loss reasons rolled up for ONE floor, from the same LOSSR map the tooltips
+   use. Nothing extra is fetched: the reasons for the whole day are
+   already in memory, they just have to be grouped a second way.
+   Returns [{reason, min, times}] worst first, where `times` is how many
+   operators recorded that reason on that floor. */
+function floorLossBreak(floor){
+  var by={}, order=[];
+  for(var k in LOSSR){
+    if(!LOSSR.hasOwnProperty(k)) continue;
+    if(k.split('|')[0]!==floor) continue;
+    var e=LOSSR[k];
+    var items=(e&&e.items&&e.items.length)?e.items
+             :(e&&e.reason?[{reason:e.reason,min:e.min}]:[]);
+    items.forEach(function(it){
+      var r=String(it.reason||'').trim(); if(!r) return;
+      var kk=r.toUpperCase();
+      if(!by[kk]){ by[kk]={reason:r,min:0,times:0}; order.push(kk); }
+      by[kk].min += Math.round(Number(it.min)||0);
+      by[kk].times++;
+    });
+  }
+  return order.map(function(k){return by[k]}).sort(function(a,b){return b.min-a.min});
+}
+
 /* ---------- instant loss reason tooltip ----------
    Delegated at document level, so it keeps working after every re-render.
    Attaching per cell would have to be redone on each render and is exactly
    the kind of thing that silently stops working. */
+function floorTipHtml(floor,total){
+  var list=floorLossBreak(floor);
+  var h='<div class="tnm">Floor '+esc(floor)+'</div>';
+  if(!list.length){
+    h+='<div class="tno">'+(total>0
+        ? 'Reasons have not loaded for this day yet'
+        : 'No loss time recorded')+'</div>';
+    return h;
+  }
+  list.forEach(function(r){
+    h+='<div class="trow"><span>'+esc(r.reason)
+     + ' <i style="opacity:.6;font-style:normal">x'+r.times+'</i></span>'
+     + '<b>'+fmt(r.min,0)+' min</b></div>';
+  });
+  h+='<div class="trow ttot"><span>Total</span><b>'+fmt(total,0)+' min</b></div>';
+  return h;
+}
+
 function lossTipHtml(e, nm){
   if(!e) return '';
   var h='<div class="tnm">'+esc(nm||'')+'</div>';
@@ -831,20 +966,28 @@ function lossTipMove(ev){
 }
 
 document.addEventListener('mouseover', function(ev){
-  var td=ev.target && ev.target.closest ? ev.target.closest('td.lossy[data-lk]') : null;
   var t=document.getElementById('losstip');
   if(!t) return;
-  if(!td){ t.classList.remove('on'); return; }
-  var e=LOSSR[td.getAttribute('data-lk')];
-  if(!e){ t.classList.remove('on'); return; }
-  t.innerHTML=lossTipHtml(e, td.getAttribute('data-nm'));
+  var cell=ev.target && ev.target.closest ? ev.target.closest('[data-lk],[data-flk]') : null;
+  if(!cell){ t.classList.remove('on'); return; }
+
+  /* Two kinds of cell, one tooltip. The floor table asks for a floor roll-up,
+     the individual table asks for one operator. */
+  var fl=cell.getAttribute('data-flk');
+  if(fl){
+    t.innerHTML=floorTipHtml(fl, Number(cell.getAttribute('data-fmin'))||0);
+  }else{
+    var e=LOSSR[cell.getAttribute('data-lk')];
+    if(!e){ t.classList.remove('on'); return; }
+    t.innerHTML=lossTipHtml(e, cell.getAttribute('data-nm'));
+  }
   t.classList.add('on');
   lossTipMove(ev);
 });
 document.addEventListener('mousemove', lossTipMove);
 document.addEventListener('mouseout', function(ev){
-  var td=ev.target && ev.target.closest ? ev.target.closest('td.lossy[data-lk]') : null;
-  if(!td) return;
+  var cell=ev.target && ev.target.closest ? ev.target.closest('[data-lk],[data-flk]') : null;
+  if(!cell) return;
   var t=document.getElementById('losstip'); if(t) t.classList.remove('on');
 });
 /* Scrolling under a pinned tooltip would leave it stranded over the wrong row. */
@@ -868,11 +1011,24 @@ function paintReasons(){
       var old=td.querySelector('.rdot'); if(old) old.parentNode.removeChild(old);
       continue;
     }
-    td.setAttribute('title', (td.getAttribute('data-nm')||'') + ' \u2014 ' + rsn);
+    /* NO title attribute. Setting one made the browser draw its own tooltip
+       UNDER the custom one, so two boxes overlapped saying the same thing.
+       The custom tooltip is the only one now. data-nm is still read by it. */
+    td.removeAttribute('title');
     td.classList.add('hasr');
     if(!td.querySelector('.rdot')){
       var dot=document.createElement('span'); dot.className='rdot'; td.appendChild(dot);
     }
+  }
+  /* The card is drawn before the reasons have arrived, so it is refilled here
+     rather than forcing a whole re-render for one panel. */
+  var rows=document.getElementById('lossrows');
+  if(rows){
+    rows.innerHTML=lossCardBody();
+    var sub=document.getElementById('losssub'), r=scopeLossBreak();
+    var scopeNote = floorFilter ? ('Floor '+floorFilter) : (factFilter||'all floors');
+    if(sub) sub.innerHTML=fmt(r.total,0)+' min &middot; '+r.entries
+      +' entr'+(r.entries===1?'y':'ies')+', '+esc(scopeNote);
   }
 }
 
@@ -1511,7 +1667,9 @@ function render(){
   S.floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
       +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
-      +'<td class="'+(f.lossMin>0?'lossv':'nolss')+'">'+(f.lossMin>0?fmt(f.lossMin,0):'&ndash;')+'</td>'
+      +'<td class="'+(f.lossMin>0?'lossv hasr':'nolss')+'"'
+      +  (f.lossMin>0?(' data-flk="'+escAttr(f.floor)+'" data-fmin="'+fmt(f.lossMin,0)+'"'):'')
+      +  '>'+(f.lossMin>0?fmt(f.lossMin,0):'&ndash;')+'</td>'
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
       +'<td>'+f.u65+'</td></tr>';
   });
@@ -1520,6 +1678,7 @@ function render(){
     +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
   h+=kpisHtml;
+  h+='<div class="lossrail">'+lossCardHtml()+'</div>';
   h+='</div>'; // close toprow
 
   h+='<div class="card" id="indcard"><div class="hd"><h3>Cutting Individual Efficiency%</h3>'
