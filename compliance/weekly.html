@@ -406,6 +406,87 @@
          background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
          font-size:11.5px;font-weight:700}
   .dnote.on{display:block;margin:10px auto 0}
+  /* ================= date range picker =================
+     One control, not two. Two separate native date boxes each opened
+     their own native calendar, so choosing a range meant opening a picker,
+     closing it, opening another, and the report reloaded in between. Both ends
+     now live in ONE popover that opens and closes together, and NOTHING loads
+     until Apply is pressed. Modelled on the Looker Studio picker the team
+     already knows. */
+  .drwrap{position:relative;display:inline-flex}
+  .drbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;
+         border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+         font-family:inherit;font-size:12.5px;font-weight:700;color:var(--txt);
+         cursor:pointer;white-space:nowrap;line-height:1}
+  .drbtn:hover{border-color:var(--violet)}
+  .drbtn.on{border-color:var(--violet);box-shadow:0 0 0 3px rgba(114,62,195,.13)}
+  .drbtn svg{width:14px;height:14px;fill:var(--violet);flex:0 0 auto}
+  .drbtn .drcar{font-size:9px;color:var(--mut)}
+  .drbtn .drtxt{font-variant-numeric:tabular-nums}
+
+  .drpop{position:absolute;top:calc(100% + 7px);left:0;z-index:400;display:none;
+         background:#fff;border:1px solid var(--line);border-radius:12px;
+         box-shadow:0 18px 46px rgba(37,42,69,.22);overflow:hidden}
+  .drpop.on{display:flex}
+  .drside{width:158px;border-right:1px solid var(--line);background:#FAFAFD;
+          padding:8px;display:flex;flex-direction:column;gap:2px;
+          max-height:392px;overflow:auto}
+  .drside b{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
+            letter-spacing:.5px;padding:7px 8px 3px}
+  .drps{text-align:left;background:none;border:0;border-radius:7px;padding:7px 9px;
+        font-family:inherit;font-size:12px;font-weight:700;color:var(--txt);cursor:pointer;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drps:hover{background:#EFE9FA}
+  .drps.on{background:var(--violet);color:#fff}
+
+  .drmain{padding:11px 13px 0;display:flex;flex-direction:column}
+  .drnav{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .drnav button{width:26px;height:26px;border:1px solid var(--line);background:#fff;
+                border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;
+                font-weight:800;color:var(--navy);line-height:1}
+  .drnav button:hover{border-color:var(--violet);color:var(--violet)}
+  .drnav button:disabled{opacity:.35;cursor:default}
+  .drnav .drmo{flex:1 1 0;text-align:center;font-size:12px;font-weight:800;color:var(--navy)}
+  .drcals{display:flex;gap:18px}
+  .drcal table{border-collapse:collapse;table-layout:fixed;width:224px}
+  .drcal th{width:32px;height:24px;font-size:9.5px;font-weight:800;color:var(--mut);
+            text-transform:uppercase;background:none;position:static;padding:0;
+            text-align:center;letter-spacing:0}
+  .drcal td{width:32px;height:29px;padding:0;text-align:center;border:0;background:none}
+  .drd{width:100%;height:29px;border:0;background:none;font-family:inherit;font-size:11.5px;
+       font-weight:700;color:var(--txt);cursor:pointer;border-radius:0}
+  .drd:hover:not(:disabled){background:#EFE9FA}
+  .drd:disabled{color:#CBCEDC;cursor:default}
+  /* the band between the two ends */
+  .drd.mid{background:#F0EAFB}
+  .drd.end{background:var(--violet);color:#fff;font-weight:800}
+  .drd.a{border-radius:7px 0 0 7px}
+  .drd.b{border-radius:0 7px 7px 0}
+  .drd.a.b{border-radius:7px}
+  .drd.today{outline:1px dashed var(--violet);outline-offset:-3px}
+
+  .drfoot{display:flex;align-items:center;gap:9px;padding:10px 0 12px;margin-top:6px;
+          border-top:1px solid var(--line)}
+  .drsel{font-size:11.5px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;
+         white-space:nowrap}
+  .drsel span{color:var(--mut);font-weight:700}
+  .drfoot .drsp{flex:1 1 auto}
+  .drfoot button{border:1px solid var(--line);background:#fff;border-radius:8px;
+                 padding:8px 15px;font-family:inherit;font-size:12px;font-weight:800;
+                 color:var(--navy);cursor:pointer}
+  .drfoot button:hover{background:var(--cream);border-color:var(--peach)}
+  .drfoot button.go{background:var(--violet);border-color:var(--violet);color:#fff}
+  .drfoot button.go:hover{filter:brightness(1.08);background:var(--violet)}
+  .drfoot button.go:disabled{opacity:.45;cursor:default;filter:none}
+
+  @media(max-width:900px){
+    .drpop{position:fixed;inset:auto 8px 8px 8px;flex-direction:column;max-height:86vh;overflow:auto}
+    .drside{width:auto;border-right:0;border-bottom:1px solid var(--line);
+            flex-direction:row;flex-wrap:wrap;max-height:none}
+    .drcals{flex-direction:column;gap:10px}
+    .drcal table{width:100%}
+  }
+
 </style>
 </head>
 <body>
@@ -421,30 +502,38 @@
 <div class="strip">
   <h2>Weekly Fabric Roll Compliance Report</h2>
   <div class="sep"></div>
-  <label>From</label>
-  <span class="dpick">
-    <span id="f1label">&ndash;</span>
-    <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-    <input type="date" id="f1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="From date">
-  </span>
-  <label>To</label>
-  <span class="dpick">
-    <span id="t1label">&ndash;</span>
-    <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-    <input type="date" id="t1" onchange="onRangeEdit()" onclick="openPicker(this)" aria-label="To date">
-  </span>
-    <span class="rpend" id="rpend"><span id="rpendtxt"></span>
-      <button onclick="rangeCommit()">Load now</button></span>
+  <label>Date range</label>
+  <div class="drwrap">
+    <button class="drbtn" id="drBtn" onclick="drToggle()" title="Choose the date range">
+      <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
+      <span class="drtxt" id="drLabel">Loading&hellip;</span>
+      <span class="drcar">&#9660;</span>
+    </button>
+    <div class="drpop" id="drPop">
+      <div class="drside" id="drSide"></div>
+      <div class="drmain">
+        <div class="drnav">
+          <button id="drPrev" onclick="drShift(-1)" title="Previous month">&#8249;</button>
+          <div class="drmo" id="drMoA"></div>
+          <div class="drmo" id="drMoB"></div>
+          <button id="drNext" onclick="drShift(1)" title="Next month">&#8250;</button>
+        </div>
+        <div class="drcals" id="drCals"></div>
+        <div class="drfoot">
+          <div class="drsel" id="drSel"></div>
+          <div class="drsp"></div>
+          <button onclick="drCancel()">Cancel</button>
+          <button class="go" id="drGo" onclick="drApply()">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- The old boxes stay as hidden state. Everything downstream, the export,
+       the allowance note, the cache keys, still reads f1 and t1, so the picker
+       only has to keep them in step instead of every call site being rewritten. -->
+  <input type="hidden" id="f1"><input type="hidden" id="t1">
   <span class="showing" id="showing"></span>
-  <div class="sep"></div>
-  <button class="mini" id="p_tw"  onclick="preset('tw')"
-          title="SNOWTEX week: Wednesday to Tuesday. From this week's Wednesday up to the latest day with data.">This Week</button>
-  <button class="mini" id="p_lw"  onclick="preset('lw')"
-          title="SNOWTEX week: Wednesday to Tuesday. The full week before this one.">Last Week</button>
-  <button class="mini" id="p_d7"  onclick="preset('d7')"
-          title="The last 7 days that actually have data in the sheet, not 7 calendar days.">Last 7 Days</button>
-  <button class="mini" id="p_d30" onclick="preset('d30')"
-          title="The last 30 days that actually have data in the sheet, not 30 calendar days.">Last 30 Days</button>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -459,6 +548,207 @@
 <div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
+/* =====================================================================
+   DATE RANGE PICKER
+   ---------------------------------------------------------------------
+   Both ends of the range live in ONE popover. It opens once, closes once,
+   and nothing is fetched until Apply. The old pair of native date inputs
+   opened two separate calendars and fired a reload between them, so picking
+   "1 Aug to 19 Aug" loaded 1 Aug to 1 Aug first and made the user wait
+   through a report nobody asked for.
+
+   The host page supplies four things through drInit():
+     presets   [{k, label, get:function(){return [from,to]}}]  optional groups
+               via {group:'Weeks'} entries
+     apply     function(from,to,presetKey) - the ONLY place data is fetched
+     min,max   optional ISO bounds; days outside are shown but not clickable
+     label     optional function(from,to,presetKey) for the button text
+   ===================================================================== */
+var DR = {
+  from:'', to:'', pick:'a', preset:'', view:null,
+  presets:[], apply:null, min:'', max:'', label:null, open:false
+};
+
+function drIso(d){
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function drParse(s){
+  var p=String(s||'').split('-');
+  if(p.length!==3) return null;
+  var d=new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  return isNaN(d.getTime()) ? null : d;
+}
+var DR_MON=['January','February','March','April','May','June','July','August',
+            'September','October','November','December'];
+var DR_MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function drPretty(iso){
+  var d=drParse(iso); if(!d) return '-';
+  return d.getDate()+' '+DR_MONS[d.getMonth()]+' '+d.getFullYear();
+}
+function drEl(i){ return document.getElementById(i); }
+
+/* SNOWTEX weeks run WEDNESDAY to TUESDAY. Not the calendar week, and not
+   Saturday to Thursday. Every This Week / Last Week preset uses this. */
+function drWeekStart(d){
+  var x=new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var back=(x.getDay()-3+7)%7;          /* 3 = Wednesday */
+  x.setDate(x.getDate()-back);
+  return x;
+}
+
+function drInit(o){
+  DR.presets = o.presets||[];
+  DR.apply   = o.apply;
+  DR.min     = o.min||'';
+  DR.max     = o.max||'';
+  DR.label   = o.label||null;
+  document.addEventListener('click', function(ev){
+    if(!DR.open) return;
+    var pop=drEl('drPop'), btn=drEl('drBtn');
+    if(pop && !pop.contains(ev.target) && btn && !btn.contains(ev.target)) drClose();
+  });
+  document.addEventListener('keydown', function(ev){
+    if(DR.open && ev.key==='Escape') drClose();
+  });
+}
+
+/* Set the range WITHOUT opening or fetching. Used on first load. */
+function drSet(from,to,preset){
+  DR.from=from||''; DR.to=to||''; DR.preset=preset||'';
+  drSyncBtn();
+}
+function drSyncBtn(){
+  var t=drEl('drLabel'); if(!t) return;
+  if(DR.label){ t.textContent=DR.label(DR.from,DR.to,DR.preset); return; }
+  var named=null;
+  DR.presets.forEach(function(p){ if(p.k && p.k===DR.preset) named=p.label; });
+  t.textContent = named ? named
+    : (DR.from&&DR.to ? (DR.from===DR.to ? drPretty(DR.from)
+                                         : drPretty(DR.from)+'  –  '+drPretty(DR.to))
+                      : 'Pick a date range');
+}
+
+function drToggle(){ DR.open ? drClose() : drOpen(); }
+function drOpen(){
+  DR.open=true;
+  DR.dfrom=DR.from; DR.dto=DR.to; DR.dpreset=DR.preset;   /* draft, Cancel restores */
+  DR.pick='a';
+  var base=drParse(DR.from)||drParse(DR.max)||new Date();
+  DR.view=new Date(base.getFullYear(), base.getMonth(), 1);
+  drEl('drPop').classList.add('on');
+  drEl('drBtn').classList.add('on');
+  drRender();
+}
+function drClose(){
+  DR.open=false;
+  var p=drEl('drPop'), b=drEl('drBtn');
+  if(p) p.classList.remove('on');
+  if(b) b.classList.remove('on');
+}
+
+function drShift(n){
+  DR.view=new Date(DR.view.getFullYear(), DR.view.getMonth()+n, 1);
+  drRender();
+}
+
+/* A preset fills the draft and shows it on the calendars. It does NOT fetch:
+   Apply is still the one action that loads, so a mis-click costs nothing. */
+function drPreset(k){
+  var p=null;
+  DR.presets.forEach(function(x){ if(x.k===k) p=x; });
+  if(!p||!p.get) return;
+  var r=p.get()||[];
+  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  var base=drParse(DR.dto)||drParse(DR.dfrom)||new Date();
+  DR.view=new Date(base.getFullYear(), base.getMonth()-1, 1);
+  DR.pick='a';
+  drRender();
+}
+
+function drDayClick(iso){
+  if(DR.pick==='a'){ DR.dfrom=iso; DR.dto=iso; DR.pick='b'; }
+  else{
+    if(iso<DR.dfrom){ DR.dto=DR.dfrom; DR.dfrom=iso; }
+    else DR.dto=iso;
+    DR.pick='a';
+  }
+  DR.dpreset='';                      /* a hand-picked range is not a preset */
+  drRender();
+}
+
+function drCal(view){
+  var y=view.getFullYear(), m=view.getMonth();
+  var first=new Date(y,m,1), lead=first.getDay();
+  var days=new Date(y,m+1,0).getDate();
+  var today=drIso(new Date());
+  var h='<div class="drcal"><table><thead><tr>'
+      + ['S','M','T','W','T','F','S'].map(function(d){return '<th>'+d+'</th>'}).join('')
+      + '</tr></thead><tbody><tr>';
+  for(var i=0;i<lead;i++) h+='<td></td>';
+  for(var d=1;d<=days;d++){
+    if((lead+d-1)%7===0 && d>1) h+='</tr><tr>';
+    var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
+    var out=(DR.min&&iso<DR.min)||(DR.max&&iso>DR.max);
+    var cls=[];
+    if(DR.dfrom&&DR.dto&&iso>DR.dfrom&&iso<DR.dto) cls.push('mid');
+    if(iso===DR.dfrom){ cls.push('end'); cls.push('a'); }
+    if(iso===DR.dto){   cls.push('end'); cls.push('b'); }
+    if(iso===today) cls.push('today');
+    h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')
+     + ' onclick="drDayClick(\''+iso+'\')">'+d+'</button></td>';
+  }
+  h+='</tr></tbody></table></div>';
+  return h;
+}
+
+function drRender(){
+  /* The calendars need a month in view. drOpen always sets one, but drRender
+     is also reachable from drSet and from a preset applied before the popover
+     was ever opened, and a null view threw and left the panel blank. */
+  if(!DR.view){
+    var b=drParse(DR.dfrom||DR.from)||drParse(DR.max)||new Date();
+    DR.view=new Date(b.getFullYear(), b.getMonth(), 1);
+  }
+  if(!drEl('drSide')) return;        /* picker not on this page */
+
+  /* presets, with optional group headings */
+  var sh='';
+  DR.presets.forEach(function(p){
+    if(p.group){ sh+='<b>'+p.group+'</b>'; return; }
+    sh+='<button class="drps'+(DR.dpreset===p.k?' on':'')+'" onclick="drPreset(\''+p.k+'\')">'
+      + p.label+'</button>';
+  });
+  drEl('drSide').innerHTML=sh;
+
+  var a=DR.view, b=new Date(a.getFullYear(), a.getMonth()+1, 1);
+  drEl('drMoA').textContent=DR_MON[a.getMonth()]+' '+a.getFullYear();
+  drEl('drMoB').textContent=DR_MON[b.getMonth()]+' '+b.getFullYear();
+  drEl('drCals').innerHTML=drCal(a)+drCal(b);
+
+  var ok=!!(DR.dfrom&&DR.dto);
+  drEl('drSel').innerHTML = ok
+    ? drPretty(DR.dfrom)+'  <span>to</span>  '+drPretty(DR.dto)
+      + '  <span>('+(Math.round((drParse(DR.dto)-drParse(DR.dfrom))/86400000)+1)+' days)</span>'
+    : '<span>'+(DR.pick==='a'?'Pick the start date':'Now pick the end date')+'</span>';
+  drEl('drGo').disabled=!ok;
+
+  /* Do not let the user page past the data. */
+  var prevOff = DR.min && drIso(new Date(a.getFullYear(), a.getMonth(), 1)) <= DR.min;
+  drEl('drPrev').disabled = !!prevOff;
+}
+
+function drCancel(){ drClose(); }
+
+/* The ONE place a range change reaches the report. */
+function drApply(){
+  if(!DR.dfrom||!DR.dto) return;
+  DR.from=DR.dfrom; DR.to=DR.dto; DR.preset=DR.dpreset;
+  drSyncBtn();
+  drClose();
+  if(DR.apply) DR.apply(DR.from, DR.to, DR.preset);
+}
+
+
 
 /* ==================================================================
    SNOWTEX dashboard kit
@@ -826,6 +1116,10 @@ function boot(){
         $('content').innerHTML='<div class="empty">No dated rows found in the floor tabs yet.</div>';
         return;
       }
+      /* The picker needs the bounds before it can grey out days outside the
+         data, so it is built once DATES is known and rebuilt whenever the
+         list grows. */
+      setupPicker();
       if(!cd || !cd.dates || !cd.dates.length) applyPreset('d7');
       else if(changed) load();          /* a new day landed, refresh silently */
     })
@@ -854,6 +1148,8 @@ function refreshDates(force){
 }
 
 function setRange(from,to){ $('f1').value=from; $('t1').value=to; syncLabels(); load() }
+/* Anything that moves the range must also move the button, or it keeps showing
+   the range the user picked BEFORE a preset was applied. */
 
 /* ---------- commit the date range once, not once per box ----------
    Every change restarts a short timer. Pick From and To one after the other
@@ -894,11 +1190,17 @@ function normaliseRange(){
   return { from:a.value, to:b.value };
 }
 
+/* The separate From and To labels are gone; the picker button IS the label.
+   Both are kept as no-op shims because they are called from a dozen places and
+   silently deleting a called function is how a page dies with a blank screen. */
 function syncLabels(){
-  $('f1label').textContent = prettyDate($('f1').value)||'-';
-  $('t1label').textContent = prettyDate($('t1').value)||'-';
+  if(typeof drSet==='function') drSet($('f1').value, $('t1').value, DR.preset||'');
 }
-function markPreset(id){ ['p_tw','p_lw','p_d7','p_d30'].forEach(function(x){ $(x).classList.toggle('on',x===id) }) }
+function markPreset(id){
+  var map={p_tw:'tw',p_lw:'lw',p_d7:'d7',p_d30:'d30'};
+  if(typeof DR!=='undefined') DR.preset = map[id] || '';
+  if(typeof drSyncBtn==='function') drSyncBtn();
+}
 /* Typing a date is a deliberate act, so re-check what the sheet holds. */
 function onPick(){
   var r=normaliseRange();
@@ -913,7 +1215,8 @@ function onPick(){
    the same island and the same bar. Naming the preset matters: "This Week"
    and "Last 7 Days" can land on ranges that look similar, and the island is
    the only thing on screen saying which one was pressed. */
-var PRESET_LABEL = { tw:'This Week', lw:'Last Week', d7:'Last 7 Days', d30:'Last 30 Days' };
+var PRESET_LABEL = { tw:'This Week', lw:'Last Week', d7:'Last 7 Days', d30:'Last 30 Days',
+                     tm:'This Month', lm:'Last Month', all:'All Data' };
 
 function preset(which){
   rangeCancelPending();
@@ -924,6 +1227,63 @@ function preset(which){
     .then(function(){ applyPreset(which) })
     .catch(function(){ applyPreset(which) })
     .then(function(){ barBusy(false, lbl); });
+}
+
+/* ---------- the picker ----------
+   Presets return a range, they do not load. Apply is the only thing that
+   loads, so browsing the presets costs nothing.
+
+   The day-count presets deliberately count DAYS THAT HAVE DATA, not calendar
+   days: see lastNDataDays. This Week and Last Week stay calendar based,
+   Wednesday to Tuesday, because a SNOWTEX week is a calendar thing. */
+var DR_PRESETS = [
+  {group:'Quick ranges'},
+  {k:'tw',  label:'This Week',    get:function(){ var w=weekStart(LATEST); return [w, LATEST]; }},
+  {k:'lw',  label:'Last Week',    get:function(){ var st=addDays(weekStart(LATEST),-WEEK_LEN);
+                                                  return [st, weekEnd(st)]; }},
+  {k:'d7',  label:'Last 7 Days',  get:function(){ var r=lastNDataDays(7);  return r?[r.from,r.to]:[]; }},
+  {k:'d30', label:'Last 30 Days', get:function(){ var r=lastNDataDays(30); return r?[r.from,r.to]:[]; }},
+  {group:'Months'},
+  {k:'tm',  label:'This Month',   get:function(){ return monthRange(0); }},
+  {k:'lm',  label:'Last Month',   get:function(){ return monthRange(-1); }},
+  {group:'Everything'},
+  {k:'all', label:'All Data',     get:function(){ return DATES.length ? [DATES[0], DATES[DATES.length-1]] : []; }}
+];
+
+/* Month presets are clamped to the days the sheet actually holds, so "This
+   Month" on the 3rd does not ask for a fortnight that does not exist yet. */
+function monthRange(off){
+  var base=drParse(LATEST)||new Date();
+  var first=new Date(base.getFullYear(), base.getMonth()+off, 1);
+  var last =new Date(base.getFullYear(), base.getMonth()+off+1, 0);
+  var a=drIso(first), b=drIso(last);
+  if(DATES.length){
+    if(a<DATES[0]) a=DATES[0];
+    if(b>DATES[DATES.length-1]) b=DATES[DATES.length-1];
+  }
+  return (a<=b) ? [a,b] : [];
+}
+
+function setupPicker(){
+  drInit({
+    presets: DR_PRESETS,
+    min: DATES.length ? DATES[0] : '',
+    max: DATES.length ? DATES[DATES.length-1] : '',
+    apply: function(from,to,preset){
+      $('f1').value=from; $('t1').value=to;
+      var lbl='Fabric Weekly, '+(PRESET_LABEL[preset]||(prettyDate(from)+' to '+prettyDate(to)));
+      /* Say what is happening BEFORE the wait, not after it. The old control
+         reloaded silently between the two date boxes and looked frozen. */
+      barBusy(true, lbl);
+      busy('Loading '+prettyDate(from)+' to '+prettyDate(to)+'\u2026');
+      shareRange(from,to); shareDay(to);
+      refreshDates(true)
+        .then(function(){ load(); })
+        .catch(function(){ load(); })
+        .then(function(){ barBusy(false, lbl); });
+    }
+  });
+  drSet($('f1').value, $('t1').value, '');
 }
 
 function busy(msg){
