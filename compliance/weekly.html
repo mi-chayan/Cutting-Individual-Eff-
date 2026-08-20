@@ -407,12 +407,13 @@
          font-size:11.5px;font-weight:700}
   .dnote.on{display:block;margin:10px auto 0}
   /* ================= date range picker =================
-     One control, not two. Two separate native date boxes each opened
-     their own native calendar, so choosing a range meant opening a picker,
-     closing it, opening another, and the report reloaded in between. Both ends
-     now live in ONE popover that opens and closes together, and NOTHING loads
-     until Apply is pressed. Modelled on the Looker Studio picker the team
-     already knows. */
+     TWO calendars in ONE popover: the left picks the START date, the right
+     picks the END date, each with its own month navigation. They open together
+     and close together, and NOTHING loads until Apply.
+
+     Replaced a pair of native date boxes that each opened their own calendar
+     and reloaded the report in between. A one-calendar-two-months layout was
+     tried first and dropped: it gave no clue which end you were setting. */
   .drwrap{position:relative;display:inline-flex}
   .drbtn{display:inline-flex;align-items:center;gap:8px;background:#fff;
          border:1px solid var(--line);border-radius:8px;padding:7px 12px;
@@ -430,7 +431,7 @@
   .drpop.on{display:flex}
   .drside{width:158px;border-right:1px solid var(--line);background:#FAFAFD;
           padding:8px;display:flex;flex-direction:column;gap:2px;
-          max-height:392px;overflow:auto}
+          max-height:400px;overflow:auto}
   .drside b{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
             letter-spacing:.5px;padding:7px 8px 3px}
   .drps{text-align:left;background:none;border:0;border-radius:7px;padding:7px 9px;
@@ -439,33 +440,40 @@
   .drps:hover{background:#EFE9FA}
   .drps.on{background:var(--violet);color:#fff}
 
-  .drmain{padding:11px 13px 0;display:flex;flex-direction:column}
-  .drnav{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .drnav button{width:26px;height:26px;border:1px solid var(--line);background:#fff;
-                border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;
-                font-weight:800;color:var(--navy);line-height:1}
-  .drnav button:hover{border-color:var(--violet);color:var(--violet)}
-  .drnav button:disabled{opacity:.35;cursor:default}
-  .drnav .drmo{flex:1 1 0;text-align:center;font-size:12px;font-weight:800;color:var(--navy)}
-  .drcals{display:flex;gap:18px}
-  .drcal table{border-collapse:collapse;table-layout:fixed;width:224px}
-  .drcal th{width:32px;height:24px;font-size:9.5px;font-weight:800;color:var(--mut);
+  .drmain{padding:12px 14px 0;display:flex;flex-direction:column}
+  .drcals{display:flex;gap:16px}
+  .drcal{width:232px}
+  /* Each calendar says which end it owns, and what that end is currently set
+     to. Without the label a user cannot tell the two apart at a glance. */
+  .drcaphd{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+  .drtag{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+         background:#EFE9FA;color:var(--violet);padding:3px 8px;border-radius:99px}
+  .drtag.end{background:#FFF0D9;color:#8A5B12}
+  .drval{font-size:10.5px;font-weight:800;color:var(--navy);
+         font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+
+  .drnav{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .drnav button{width:24px;height:24px;border:1px solid var(--line);background:#fff;
+                border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;
+                font-weight:800;color:var(--navy);line-height:1;flex:0 0 auto}
+  .drnav button:hover:not(:disabled){border-color:var(--violet);color:var(--violet)}
+  .drnav button:disabled{opacity:.3;cursor:default}
+  .drnav .drmo{flex:1 1 0;text-align:center;font-size:11.5px;font-weight:800;color:var(--navy)}
+
+  .drcal table{border-collapse:collapse;table-layout:fixed;width:232px}
+  .drcal th{width:33px;height:22px;font-size:9.5px;font-weight:800;color:var(--mut);
             text-transform:uppercase;background:none;position:static;padding:0;
-            text-align:center;letter-spacing:0}
-  .drcal td{width:32px;height:29px;padding:0;text-align:center;border:0;background:none}
-  .drd{width:100%;height:29px;border:0;background:none;font-family:inherit;font-size:11.5px;
-       font-weight:700;color:var(--txt);cursor:pointer;border-radius:0}
+            text-align:center;letter-spacing:0;border:0}
+  .drcal td{width:33px;height:28px;padding:0;text-align:center;border:0;background:none}
+  .drd{width:100%;height:28px;border:0;background:none;font-family:inherit;font-size:11.5px;
+       font-weight:700;color:var(--txt);cursor:pointer;border-radius:6px}
   .drd:hover:not(:disabled){background:#EFE9FA}
   .drd:disabled{color:#CBCEDC;cursor:default}
-  /* the band between the two ends */
-  .drd.mid{background:#F0EAFB}
-  .drd.end{background:var(--violet);color:#fff;font-weight:800}
-  .drd.a{border-radius:7px 0 0 7px}
-  .drd.b{border-radius:0 7px 7px 0}
-  .drd.a.b{border-radius:7px}
+  .drd.mid{background:#F3EFFB;border-radius:0}
+  .drd.end{background:var(--violet);color:#fff;font-weight:800;border-radius:6px}
   .drd.today{outline:1px dashed var(--violet);outline-offset:-3px}
 
-  .drfoot{display:flex;align-items:center;gap:9px;padding:10px 0 12px;margin-top:6px;
+  .drfoot{display:flex;align-items:center;gap:9px;padding:11px 0 13px;margin-top:8px;
           border-top:1px solid var(--line)}
   .drsel{font-size:11.5px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;
          white-space:nowrap}
@@ -480,11 +488,11 @@
   .drfoot button.go:disabled{opacity:.45;cursor:default;filter:none}
 
   @media(max-width:900px){
-    .drpop{position:fixed;inset:auto 8px 8px 8px;flex-direction:column;max-height:86vh;overflow:auto}
+    .drpop{position:fixed;inset:auto 8px 8px 8px;flex-direction:column;max-height:88vh;overflow:auto}
     .drside{width:auto;border-right:0;border-bottom:1px solid var(--line);
             flex-direction:row;flex-wrap:wrap;max-height:none}
-    .drcals{flex-direction:column;gap:10px}
-    .drcal table{width:100%}
+    .drcals{flex-direction:column;gap:14px}
+    .drcal,.drcal table{width:100%}
   }
 
 </style>
@@ -512,13 +520,31 @@
     <div class="drpop" id="drPop">
       <div class="drside" id="drSide"></div>
       <div class="drmain">
-        <div class="drnav">
-          <button id="drPrev" onclick="drShift(-1)" title="Previous month">&#8249;</button>
-          <div class="drmo" id="drMoA"></div>
-          <div class="drmo" id="drMoB"></div>
-          <button id="drNext" onclick="drShift(1)" title="Next month">&#8250;</button>
+        <div class="drcals">
+
+          <div class="drcal">
+            <div class="drcaphd"><span class="drtag">Start date</span>
+              <span class="drval" id="drValA">not set</span></div>
+            <div class="drnav">
+              <button id="drPrevA" onclick="drShiftA(-1)" title="Previous month">&#8249;</button>
+              <div class="drmo" id="drMoA"></div>
+              <button id="drNextA" onclick="drShiftA(1)" title="Next month">&#8250;</button>
+            </div>
+            <div id="drCalA"></div>
+          </div>
+
+          <div class="drcal">
+            <div class="drcaphd"><span class="drtag end">End date</span>
+              <span class="drval" id="drValB">not set</span></div>
+            <div class="drnav">
+              <button id="drPrevB" onclick="drShiftB(-1)" title="Previous month">&#8249;</button>
+              <div class="drmo" id="drMoB"></div>
+              <button id="drNextB" onclick="drShiftB(1)" title="Next month">&#8250;</button>
+            </div>
+            <div id="drCalB"></div>
+          </div>
+
         </div>
-        <div class="drcals" id="drCals"></div>
         <div class="drfoot">
           <div class="drsel" id="drSel"></div>
           <div class="drsp"></div>
@@ -551,22 +577,26 @@
 /* =====================================================================
    DATE RANGE PICKER
    ---------------------------------------------------------------------
-   Both ends of the range live in ONE popover. It opens once, closes once,
-   and nothing is fetched until Apply. The old pair of native date inputs
-   opened two separate calendars and fired a reload between them, so picking
-   "1 Aug to 19 Aug" loaded 1 Aug to 1 Aug first and made the user wait
-   through a report nobody asked for.
+   TWO calendars: the left one picks the START date, the right one picks the
+   END date. Each has its own month navigation. They live in ONE popover, so
+   both ends open together and close together, and NOTHING is fetched until
+   Apply. The old control was a pair of native date boxes that each opened
+   their own calendar and reloaded the report in between, so choosing
+   "1 Aug to 19 Aug" loaded 1 Aug to 1 Aug first.
+
+   An earlier build here showed one calendar spanning two months. That reads
+   as a single scrolling strip and gives no clue which end you are setting,
+   so it is now one labelled calendar per end.
 
    The host page supplies four things through drInit():
-     presets   [{k, label, get:function(){return [from,to]}}]  optional groups
-               via {group:'Weeks'} entries
+     presets   [{k, label, get:function(){return [from,to]}}], groups via {group:'..'}
      apply     function(from,to,presetKey) - the ONLY place data is fetched
      min,max   optional ISO bounds; days outside are shown but not clickable
      label     optional function(from,to,presetKey) for the button text
    ===================================================================== */
 var DR = {
-  from:'', to:'', pick:'a', preset:'', view:null,
-  presets:[], apply:null, min:'', max:'', label:null, open:false
+  from:'', to:'', preset:'', viewA:null, viewB:null,
+  presets:[], apply:null, min:'', max:'', label:null, open:false, _wired:false
 };
 
 function drIso(d){
@@ -586,6 +616,7 @@ function drPretty(iso){
   return d.getDate()+' '+DR_MONS[d.getMonth()]+' '+d.getFullYear();
 }
 function drEl(i){ return document.getElementById(i); }
+function drMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 
 /* SNOWTEX weeks run WEDNESDAY to TUESDAY. Not the calendar week, and not
    Saturday to Thursday. Every This Week / Last Week preset uses this. */
@@ -602,10 +633,28 @@ function drInit(o){
   DR.min     = o.min||'';
   DR.max     = o.max||'';
   DR.label   = o.label||null;
+
+  /* Wired ONCE. drInit runs again whenever the available dates change, and a
+     second set of listeners would close the popover on its own outside-click
+     check firing twice. */
+  if(DR._wired) return;
+  DR._wired = true;
+
+  /* THE POPOVER MUST NOT CLOSE ON ITS OWN CLICKS.
+     drRender() replaces the calendar markup on every click, so by the time a
+     click bubbled up to document the element that was clicked had already been
+     removed from the DOM. pop.contains(target) was then false and the panel
+     closed itself the moment a date was picked. Stopping propagation at the
+     popover means the document listener only ever sees genuine outside
+     clicks, and it cannot be fooled by a re-render. */
+  var pop=drEl('drPop');
+  if(pop) pop.addEventListener('click', function(ev){ ev.stopPropagation(); });
+
   document.addEventListener('click', function(ev){
     if(!DR.open) return;
-    var pop=drEl('drPop'), btn=drEl('drBtn');
-    if(pop && !pop.contains(ev.target) && btn && !btn.contains(ev.target)) drClose();
+    var btn=drEl('drBtn');
+    if(btn && btn.contains(ev.target)) return;
+    drClose();
   });
   document.addEventListener('keydown', function(ev){
     if(DR.open && ev.key==='Escape') drClose();
@@ -629,12 +678,11 @@ function drSyncBtn(){
 }
 
 function drToggle(){ DR.open ? drClose() : drOpen(); }
+
 function drOpen(){
   DR.open=true;
   DR.dfrom=DR.from; DR.dto=DR.to; DR.dpreset=DR.preset;   /* draft, Cancel restores */
-  DR.pick='a';
-  var base=drParse(DR.from)||drParse(DR.max)||new Date();
-  DR.view=new Date(base.getFullYear(), base.getMonth(), 1);
+  drSyncViews();
   drEl('drPop').classList.add('on');
   drEl('drBtn').classList.add('on');
   drRender();
@@ -646,12 +694,18 @@ function drClose(){
   if(b) b.classList.remove('on');
 }
 
-function drShift(n){
-  DR.view=new Date(DR.view.getFullYear(), DR.view.getMonth()+n, 1);
-  drRender();
+/* Each calendar opens on its own end of the range. */
+function drSyncViews(){
+  var a=drParse(DR.dfrom)||drParse(DR.min)||new Date();
+  var b=drParse(DR.dto)||drParse(DR.max)||a;
+  DR.viewA=drMonth(a);
+  DR.viewB=drMonth(b);
 }
 
-/* A preset fills the draft and shows it on the calendars. It does NOT fetch:
+function drShiftA(n){ DR.viewA=new Date(DR.viewA.getFullYear(), DR.viewA.getMonth()+n, 1); drRender(); }
+function drShiftB(n){ DR.viewB=new Date(DR.viewB.getFullYear(), DR.viewB.getMonth()+n, 1); drRender(); }
+
+/* A preset fills the draft and shows it on both calendars. It does NOT fetch:
    Apply is still the one action that loads, so a mis-click costs nothing. */
 function drPreset(k){
   var p=null;
@@ -659,29 +713,32 @@ function drPreset(k){
   if(!p||!p.get) return;
   var r=p.get()||[];
   DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
-  var base=drParse(DR.dto)||drParse(DR.dfrom)||new Date();
-  DR.view=new Date(base.getFullYear(), base.getMonth()-1, 1);
-  DR.pick='a';
+  drSyncViews();
   drRender();
 }
 
-function drDayClick(iso){
-  if(DR.pick==='a'){ DR.dfrom=iso; DR.dto=iso; DR.pick='b'; }
-  else{
-    if(iso<DR.dfrom){ DR.dto=DR.dfrom; DR.dfrom=iso; }
-    else DR.dto=iso;
-    DR.pick='a';
+/* which is 'a' for the start calendar, 'b' for the end one. Each sets only
+   its own end, so there is no hidden click order to learn. */
+function drDayClick(iso, which){
+  if(which==='a'){
+    DR.dfrom=iso;
+    if(DR.dto && DR.dto<iso) DR.dto=iso;      /* end cannot sit before start */
+  }else{
+    DR.dto=iso;
+    if(DR.dfrom && DR.dfrom>iso) DR.dfrom=iso;
   }
-  DR.dpreset='';                      /* a hand-picked range is not a preset */
+  DR.dpreset='';                              /* hand-picked, so not a preset */
   drRender();
 }
 
-function drCal(view){
+function drCal(view, which){
   var y=view.getFullYear(), m=view.getMonth();
-  var first=new Date(y,m,1), lead=first.getDay();
+  var lead=new Date(y,m,1).getDay();
   var days=new Date(y,m+1,0).getDate();
   var today=drIso(new Date());
-  var h='<div class="drcal"><table><thead><tr>'
+  var mine=(which==='a')?DR.dfrom:DR.dto;
+
+  var h='<table><thead><tr>'
       + ['S','M','T','W','T','F','S'].map(function(d){return '<th>'+d+'</th>'}).join('')
       + '</tr></thead><tbody><tr>';
   for(var i=0;i<lead;i++) h+='<td></td>';
@@ -690,28 +747,21 @@ function drCal(view){
     var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
     var out=(DR.min&&iso<DR.min)||(DR.max&&iso>DR.max);
     var cls=[];
+    /* The days between the two ends are shaded on BOTH calendars, so the span
+       is still readable even though each calendar owns one end. */
     if(DR.dfrom&&DR.dto&&iso>DR.dfrom&&iso<DR.dto) cls.push('mid');
-    if(iso===DR.dfrom){ cls.push('end'); cls.push('a'); }
-    if(iso===DR.dto){   cls.push('end'); cls.push('b'); }
+    if(iso===mine) cls.push('end');
     if(iso===today) cls.push('today');
     h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')
-     + ' onclick="drDayClick(\''+iso+'\')">'+d+'</button></td>';
+     + ' onclick="drDayClick(\''+iso+'\',\''+which+'\')">'+d+'</button></td>';
   }
-  h+='</tr></tbody></table></div>';
-  return h;
+  return h+'</tr></tbody></table>';
 }
 
 function drRender(){
-  /* The calendars need a month in view. drOpen always sets one, but drRender
-     is also reachable from drSet and from a preset applied before the popover
-     was ever opened, and a null view threw and left the panel blank. */
-  if(!DR.view){
-    var b=drParse(DR.dfrom||DR.from)||drParse(DR.max)||new Date();
-    DR.view=new Date(b.getFullYear(), b.getMonth(), 1);
-  }
-  if(!drEl('drSide')) return;        /* picker not on this page */
+  if(!drEl('drSide')) return;                 /* picker not on this page */
+  if(!DR.viewA || !DR.viewB) drSyncViews();
 
-  /* presets, with optional group headings */
   var sh='';
   DR.presets.forEach(function(p){
     if(p.group){ sh+='<b>'+p.group+'</b>'; return; }
@@ -720,21 +770,32 @@ function drRender(){
   });
   drEl('drSide').innerHTML=sh;
 
-  var a=DR.view, b=new Date(a.getFullYear(), a.getMonth()+1, 1);
-  drEl('drMoA').textContent=DR_MON[a.getMonth()]+' '+a.getFullYear();
-  drEl('drMoB').textContent=DR_MON[b.getMonth()]+' '+b.getFullYear();
-  drEl('drCals').innerHTML=drCal(a)+drCal(b);
+  drEl('drMoA').textContent=DR_MON[DR.viewA.getMonth()]+' '+DR.viewA.getFullYear();
+  drEl('drMoB').textContent=DR_MON[DR.viewB.getMonth()]+' '+DR.viewB.getFullYear();
+  drEl('drCalA').innerHTML=drCal(DR.viewA,'a');
+  drEl('drCalB').innerHTML=drCal(DR.viewB,'b');
+  drEl('drValA').textContent=DR.dfrom?drPretty(DR.dfrom):'not set';
+  drEl('drValB').textContent=DR.dto?drPretty(DR.dto):'not set';
 
   var ok=!!(DR.dfrom&&DR.dto);
   drEl('drSel').innerHTML = ok
     ? drPretty(DR.dfrom)+'  <span>to</span>  '+drPretty(DR.dto)
       + '  <span>('+(Math.round((drParse(DR.dto)-drParse(DR.dfrom))/86400000)+1)+' days)</span>'
-    : '<span>'+(DR.pick==='a'?'Pick the start date':'Now pick the end date')+'</span>';
+    : '<span>Pick a start date and an end date</span>';
   drEl('drGo').disabled=!ok;
 
-  /* Do not let the user page past the data. */
-  var prevOff = DR.min && drIso(new Date(a.getFullYear(), a.getMonth(), 1)) <= DR.min;
-  drEl('drPrev').disabled = !!prevOff;
+  /* Do not let either calendar page past the data. */
+  var pa=drEl('drPrevA'), pb=drEl('drPrevB'), na=drEl('drNextA'), nb=drEl('drNextB');
+  if(DR.min){
+    var lo=drMonth(drParse(DR.min));
+    if(pa) pa.disabled = DR.viewA<=lo;
+    if(pb) pb.disabled = DR.viewB<=lo;
+  }
+  if(DR.max){
+    var hi=drMonth(drParse(DR.max));
+    if(na) na.disabled = DR.viewA>=hi;
+    if(nb) nb.disabled = DR.viewB>=hi;
+  }
 }
 
 function drCancel(){ drClose(); }
@@ -742,6 +803,7 @@ function drCancel(){ drClose(); }
 /* The ONE place a range change reaches the report. */
 function drApply(){
   if(!DR.dfrom||!DR.dto) return;
+  if(DR.dfrom>DR.dto){ var t=DR.dfrom; DR.dfrom=DR.dto; DR.dto=t; }
   DR.from=DR.dfrom; DR.to=DR.dto; DR.preset=DR.dpreset;
   drSyncBtn();
   drClose();
