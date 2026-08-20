@@ -222,11 +222,30 @@
   /* a real loss should catch the eye without shouting */
   td.lossy{color:#C77700;font-weight:800}
   td.nolss{color:#C3C8DA}
+  /* Floor loss minutes. Same red as the individual Loss Min column so the two
+     read as the same idea at two levels. */
+  td.lossv{color:var(--red);font-weight:800;font-variant-numeric:tabular-nums}
   /* a small dot means there is a reason behind the figure, hover to read it */
   td.lossy.hasr{cursor:help;position:relative}
   td.lossy.hasr .rdot{display:inline-block;width:4px;height:4px;border-radius:50%;
         background:#C77700;vertical-align:5px;margin-left:4px;opacity:.75}
   td.lossy.hasr:hover{background:#FFF3E8}
+  /* ---------- loss reason tooltip ----------
+     This used to be the browser's own title="" tooltip. That needs roughly a
+     second of MOTIONLESS hover before it appears, so scanning down the column
+     showed nothing at all and the reasons looked broken. This one appears the
+     moment the pointer lands and follows it. */
+  #losstip{position:fixed;z-index:900;display:none;pointer-events:none;
+           background:#252A45;color:#fff;border-radius:9px;padding:9px 11px;
+           box-shadow:0 10px 30px rgba(0,0,0,.28);max-width:300px;
+           font-size:11.5px;line-height:1.55}
+  #losstip.on{display:block}
+  #losstip .tnm{font-weight:800;font-size:11px;margin-bottom:5px;color:#FFCF95}
+  #losstip .trow{display:flex;gap:10px;justify-content:space-between;white-space:nowrap}
+  #losstip .trow b{font-variant-numeric:tabular-nums;color:#FFD9A8}
+  #losstip .ttot{border-top:1px solid rgba(255,255,255,.22);margin-top:6px;padding-top:5px;
+                 font-weight:800}
+  #losstip .tno{opacity:.75;font-style:italic}
   tbody tr:nth-child(even){background:#FAFBFE}
   tbody tr{transition:background .1s}
   tbody tr:hover{background:var(--cream)}
@@ -593,6 +612,10 @@
 </div>
 
 <div id="dnote" class="dnote"></div>
+<!-- Loss reason tooltip. Lives outside #content on purpose: #content is
+     replaced wholesale on every render, and an element inside it would be
+     destroyed and its listeners lost. -->
+<div id="losstip"></div>
 <div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
@@ -765,8 +788,69 @@ function loadReasons(d){
       LOSSR = res.map; LOSSR_DAY = d;
       paintReasons();
     })
-    .catch(function(){});
+    .catch(function(){
+      /* Swallowing this silently meant a floor leader saw no reasons and had
+         nothing to tell them why. The numbers are unaffected either way. */
+      LOSSR_FAIL = true;
+    });
 }
+var LOSSR_FAIL = false;
+
+/* ---------- instant loss reason tooltip ----------
+   Delegated at document level, so it keeps working after every re-render.
+   Attaching per cell would have to be redone on each render and is exactly
+   the kind of thing that silently stops working. */
+function lossTipHtml(e, nm){
+  if(!e) return '';
+  var h='<div class="tnm">'+esc(nm||'')+'</div>';
+  var items=(e.items&&e.items.length)?e.items:null;
+  if(items){
+    items.forEach(function(x){
+      h+='<div class="trow"><span>'+esc(x.reason||'-')+'</span><b>'+fmt(x.min,0)+' min</b></div>';
+    });
+    if(items.length>1)
+      h+='<div class="trow ttot"><span>Total</span><b>'+fmt(e.min,0)+' min</b></div>';
+  }else if(e.reason){
+    h+='<div class="trow"><span>'+esc(e.reason)+'</span><b>'+fmt(e.min,0)+' min</b></div>';
+  }else{
+    h+='<div class="tno">No reason recorded</div>';
+  }
+  if(e.unav) h+='<div class="trow tno">Marked unavailable</div>';
+  return h;
+}
+
+function lossTipMove(ev){
+  var t=document.getElementById('losstip');
+  if(!t||!t.classList.contains('on')) return;
+  var pad=14, w=t.offsetWidth, hgt=t.offsetHeight;
+  var x=ev.clientX+pad, y=ev.clientY+pad;
+  if(x+w>window.innerWidth-8)  x=ev.clientX-w-pad;
+  if(y+hgt>window.innerHeight-8) y=ev.clientY-hgt-pad;
+  t.style.left=Math.max(6,x)+'px';
+  t.style.top =Math.max(6,y)+'px';
+}
+
+document.addEventListener('mouseover', function(ev){
+  var td=ev.target && ev.target.closest ? ev.target.closest('td.lossy[data-lk]') : null;
+  var t=document.getElementById('losstip');
+  if(!t) return;
+  if(!td){ t.classList.remove('on'); return; }
+  var e=LOSSR[td.getAttribute('data-lk')];
+  if(!e){ t.classList.remove('on'); return; }
+  t.innerHTML=lossTipHtml(e, td.getAttribute('data-nm'));
+  t.classList.add('on');
+  lossTipMove(ev);
+});
+document.addEventListener('mousemove', lossTipMove);
+document.addEventListener('mouseout', function(ev){
+  var td=ev.target && ev.target.closest ? ev.target.closest('td.lossy[data-lk]') : null;
+  if(!td) return;
+  var t=document.getElementById('losstip'); if(t) t.classList.remove('on');
+});
+/* Scrolling under a pinned tooltip would leave it stranded over the wrong row. */
+document.addEventListener('scroll', function(){
+  var t=document.getElementById('losstip'); if(t) t.classList.remove('on');
+}, true);
 
 /* Reasons arrive after render, so the tooltips are attached in place rather
    than forcing a full re-render. */
@@ -1280,10 +1364,15 @@ function operatorAgg(){
 }
 function floorAgg(ops){
   var map={};
-  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0}});
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0,lossMin:0}});
   ops.forEach(function(o){
     var f=map[o.floor]; if(!f)return;
     f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
+    /* Loss minutes for the floor. Already deducted from Input Min by the
+       sheet, so this column explains the Input figure rather than adding to
+       it: a floor reading low on Team Eff% with a big loss number lost the
+       time, it did not underperform on the time it had. */
+    f.lossMin += Number(o.lossMin)||0;
     if(o.eff<65)f.u65++;
   });
   return FLOOR_ORDER.map(function(k){
@@ -1297,17 +1386,21 @@ function currentSets(){
   var floorsAll=floorAgg(ops);
 
   /* Total row covers the selected factory only, or both when none is picked */
-  var grand={man:0,inMin:0,outMin:0,u65:0};
+  var grand={man:0,inMin:0,outMin:0,u65:0,lossMin:0};
   floorsAll.filter(function(f){return inScope(f.floor)})
-    .forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;grand.u65+=f.u65});
+    .forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;
+                         grand.u65+=f.u65;grand.lossMin+=f.lossMin||0});
   grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
 
   /* KPI totals follow the floor selection, else the factory scope */
   var tot;
   if(floorFilter){
     var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
-            || {man:0,inMin:0,outMin:0,u65:0,eff:0};
-    tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff};
+            || {man:0,inMin:0,outMin:0,u65:0,eff:0,lossMin:0};
+    /* lossMin must be carried here too, or the Excel total silently reads 0
+       whenever a single floor is selected. */
+    tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff,
+         lossMin:sel.lossMin||0};
   } else {
     tot=grand;
   }
@@ -1411,16 +1504,19 @@ function render(){
     +'</select></div>';
   h+='<div class="scroll"><table id="flrtable"><thead><tr>'
     +fTh('floor','Floor','Floor')+fTh('man','Man Count (nos)','Man Count')
+    +fTh('lossMin','Loss Time (min)','Loss Min')
     +fTh('eff','Team Avg Eff% (%)','Team Avg Eff%')+fTh('u65','Eff% &lt; 65% (nos)','Eff% &lt; 65%')
     +'</tr></thead><tbody>';
-  if(!S.floorsShown.length)h+='<tr><td colspan="4" class="empty">No floor matches this filter.</td></tr>';
+  if(!S.floorsShown.length)h+='<tr><td colspan="5" class="empty">No floor matches this filter.</td></tr>';
   S.floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
       +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
+      +'<td class="'+(f.lossMin>0?'lossv':'nolss')+'">'+(f.lossMin>0?fmt(f.lossMin,0):'&ndash;')+'</td>'
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
       +'<td>'+f.u65+'</td></tr>';
   });
   h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.man+'</td>'
+    +'<td>'+(S.grand.lossMin>0?fmt(S.grand.lossMin,0):'&ndash;')+'</td>'
     +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
   h+=kpisHtml;
@@ -1666,13 +1762,15 @@ function exportExcel(){
   t+='<table><tr><td></td></tr></table>';
 
   /* Floor table */
-  t+='<table border="1"><tr><td colspan="4" style="font-weight:bold;color:#333D6D">Floor Wise Report</td></tr><tr>'
-    +th2('Floor')+th2('Man Count (nos)')+th2('Team Avg Eff%')+th2('Eff% < 65% (nos)')+'</tr>';
+  t+='<table border="1"><tr><td colspan="5" style="font-weight:bold;color:#333D6D">Floor Wise Report</td></tr><tr>'
+    +th2('Floor')+th2('Man Count (nos)')+th2('Loss Time (min)')+th2('Team Avg Eff%')+th2('Eff% < 65% (nos)')+'</tr>';
   S.floorsShown.forEach(function(f){
-    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
+    t+='<tr><td>'+esc(f.floor)+'</td><td>'+f.man+'</td>'
+      +'<td>'+fmt(f.lossMin||0,0)+'</td>'+pctTd(f.eff,1)+'<td>'+f.u65+'</td></tr>';
   });
   t+='<tr><td style="font-weight:bold">Total</td><td style="font-weight:bold">'+tot.man
-    +'</td>'+pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
+    +'</td><td style="font-weight:bold">'+fmt(tot.lossMin||0,0)+'</td>'
+    +pctTd(tot.eff,1,'font-weight:bold')+'<td style="font-weight:bold">'+tot.u65+'</td></tr>';
   t+='</table><table><tr><td></td></tr></table>';
 
   /* Individual table */
