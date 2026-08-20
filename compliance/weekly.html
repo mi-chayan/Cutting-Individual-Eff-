@@ -472,6 +472,13 @@
   .drd.mid{background:#F3EFFB;border-radius:0}
   .drd.end{background:var(--violet);color:#fff;font-weight:800;border-radius:6px}
   .drd.today{outline:1px dashed var(--violet);outline-offset:-3px}
+  /* A day the sheet holds nothing for. Still clickable on purpose: it means
+     "this will come back empty", not "you may not ask". */
+  .drd.nodata{color:#B9BDCE;font-weight:600}
+  .drd.nodata:after{content:'';display:block;width:3px;height:3px;border-radius:50%;
+                    background:#D6D9E4;margin:-4px auto 0}
+  .drd.nodata.end{color:#fff}
+  .drd.nodata.end:after{background:rgba(255,255,255,.6)}
 
   .drfoot{display:flex;align-items:center;gap:9px;padding:11px 0 13px;margin-top:8px;
           border-top:1px solid var(--line)}
@@ -630,9 +637,22 @@ function drWeekStart(d){
 function drInit(o){
   DR.presets = o.presets||[];
   DR.apply   = o.apply;
-  DR.min     = o.min||'';
-  DR.max     = o.max||'';
   DR.label   = o.label||null;
+
+  /* ---------- WHAT IS SELECTABLE ----------
+     min and max used to be the first and last date the SHEET holds, and days
+     outside that were disabled. That looked tidy and was wrong: the report for
+     yesterday is not pushed until the morning, so yesterday itself could not
+     be clicked. A date the user cannot select is a dead end; a date with no
+     data is merely an empty report, which is honest and recoverable.
+
+     So the ONLY hard stop is the future, because data cannot exist there.
+     Days the sheet has no rows for are still clickable, just marked. */
+  DR.min = o.min||'';                       /* soft floor, for month paging */
+  DR.max = drIso(new Date());               /* today, always */
+  DR.has = {};
+  (o.days||[]).forEach(function(d){ DR.has[d]=true; });
+  DR.hasAny = (o.days||[]).length>0;
 
   /* Wired ONCE. drInit runs again whenever the available dates change, and a
      second set of listeners would close the popover on its own outside-click
@@ -696,8 +716,8 @@ function drClose(){
 
 /* Each calendar opens on its own end of the range. */
 function drSyncViews(){
-  var a=drParse(DR.dfrom)||drParse(DR.min)||new Date();
-  var b=drParse(DR.dto)||drParse(DR.max)||a;
+  var a=drParse(DR.dfrom)||new Date();
+  var b=drParse(DR.dto)||a;
   DR.viewA=drMonth(a);
   DR.viewB=drMonth(b);
 }
@@ -745,14 +765,18 @@ function drCal(view, which){
   for(var d=1;d<=days;d++){
     if((lead+d-1)%7===0 && d>1) h+='</tr><tr>';
     var iso=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2);
-    var out=(DR.min&&iso<DR.min)||(DR.max&&iso>DR.max);
-    var cls=[];
+    /* Only the future is blocked. Everything else can be picked. */
+    var out=(iso>DR.max);
+    var cls=[], tip='';
     /* The days between the two ends are shaded on BOTH calendars, so the span
        is still readable even though each calendar owns one end. */
     if(DR.dfrom&&DR.dto&&iso>DR.dfrom&&iso<DR.dto) cls.push('mid');
     if(iso===mine) cls.push('end');
     if(iso===today) cls.push('today');
-    h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')
+    /* Marked, not disabled. It tells the user the report will be empty
+       without taking the choice away from them. */
+    if(!out && DR.hasAny && !DR.has[iso]){ cls.push('nodata'); tip=' title="No data pushed for this day yet"'; }
+    h+='<td><button class="drd '+cls.join(' ')+'"'+(out?' disabled':'')+tip
      + ' onclick="drDayClick(\''+iso+'\',\''+which+'\')">'+d+'</button></td>';
   }
   return h+'</tr></tbody></table>';
@@ -784,18 +808,15 @@ function drRender(){
     : '<span>Pick a start date and an end date</span>';
   drEl('drGo').disabled=!ok;
 
-  /* Do not let either calendar page past the data. */
+  /* Paging is free backwards; forwards stops at the current month, because
+     there is nothing to see beyond today. It used to stop at the last month
+     the sheet had data for, which is what hid yesterday. */
   var pa=drEl('drPrevA'), pb=drEl('drPrevB'), na=drEl('drNextA'), nb=drEl('drNextB');
-  if(DR.min){
-    var lo=drMonth(drParse(DR.min));
-    if(pa) pa.disabled = DR.viewA<=lo;
-    if(pb) pb.disabled = DR.viewB<=lo;
-  }
-  if(DR.max){
-    var hi=drMonth(drParse(DR.max));
-    if(na) na.disabled = DR.viewA>=hi;
-    if(nb) nb.disabled = DR.viewB>=hi;
-  }
+  var hi=drMonth(drParse(DR.max)||new Date());
+  if(na) na.disabled = DR.viewA>=hi;
+  if(nb) nb.disabled = DR.viewB>=hi;
+  if(pa) pa.disabled = false;
+  if(pb) pb.disabled = false;
 }
 
 function drCancel(){ drClose(); }
@@ -1329,8 +1350,9 @@ function monthRange(off){
 function setupPicker(){
   drInit({
     presets: DR_PRESETS,
-    min: DATES.length ? DATES[0] : '',
-    max: DATES.length ? DATES[DATES.length-1] : '',
+    /* days, not bounds. These are only MARKED as empty, never blocked, so a
+       day whose report has not been pushed yet can still be selected. */
+    days: DATES.slice(),
     apply: function(from,to,preset){
       $('f1').value=from; $('t1').value=to;
       var lbl='Fabric Weekly, '+(PRESET_LABEL[preset]||(prettyDate(from)+' to '+prettyDate(to)));
