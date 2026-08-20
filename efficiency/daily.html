@@ -104,7 +104,7 @@
      it the whole width left it stretched and airy while the rail beside it was
      cramped. Narrowing it makes room for the loss card and the row reads as
      three even blocks. */
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 244px 272px;gap:13px;margin-bottom:15px}
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 244px 272px;gap:13px;margin-bottom:15px;align-items:start}
   .toprow #floorcard{margin-bottom:0}
   .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
   /* Compact so three cards plus the donut finish level with the floor table */
@@ -119,14 +119,14 @@
 
   /* ---- efficiency band donut ---- */
   /* Floor Loss Time card, third column of the top row. */
-  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%}
+  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%;min-height:0}
   .losscard{background:var(--card);border:1px solid var(--line);border-radius:10px;
-            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;
+            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;min-height:0;
             display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .losscard:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber,#C77700)}
   .losscard .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   .losscard .sub{font-size:9.5px;color:var(--mut);margin-top:1px}
-  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1 1 auto;min-height:0}
+  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0}
   .lrow{cursor:default}
   .lrhd{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:800;
         margin-bottom:3px;white-space:nowrap}
@@ -1618,6 +1618,28 @@ function syncDateLabel(){
 }
 
 /* ---------- render ---------- */
+/* Match the Loss Time by Type card to the actual Floor Efficiency table height.
+   The floor table stays at its natural height; extra loss rows scroll only
+   inside #lossrows instead of making the whole top row taller. */
+function syncTopRowHeights(){
+  var floorCard=document.getElementById('floorcard');
+  var lossRail=document.querySelector('.toprow .lossrail');
+  if(!floorCard || !lossRail) return;
+
+  if(!window.matchMedia('(min-width:901px)').matches){
+    lossRail.style.height='auto';
+    return;
+  }
+
+  lossRail.style.height='auto';
+  var h=Math.ceil(floorCard.getBoundingClientRect().height);
+  if(h>0) lossRail.style.height=h+'px';
+}
+
+window.addEventListener('resize',function(){
+  requestAnimationFrame(syncTopRowHeights);
+});
+
 function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   syncDateLabel();
@@ -1736,6 +1758,7 @@ function render(){
   loadReasons(DAY);
   paintReasons();
   syncStickyOffsets();
+  requestAnimationFrame(syncTopRowHeights);
 
   /* Quietly warm cut-level data for whatever floors are on screen, so the
      drill-down opens instantly when the user clicks. */
