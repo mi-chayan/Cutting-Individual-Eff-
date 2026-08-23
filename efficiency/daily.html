@@ -1192,9 +1192,24 @@ function boot(){
      What does NOT happen any more is a network call nobody asked for: the
      page used to fetch the snapshot on every open, which is why it felt slow
      and why it sometimes settled on a day you had not chosen. */
+  /* IF WE ALREADY HAVE THIS DAY, SHOW IT.
+     Asking someone to press Load for data already sitting in the tab is
+     friction for nothing: it costs no network and no wait. Load is only
+     required when the day genuinely is not held yet.
+     Both caches are checked, not just the snapshot: coming back from the Loss
+     Time page reloads this page, and the day being viewed is usually in the
+     per-day cache rather than the snapshot one. */
   var snap=cacheGet(SNAP_KEY);
+  var day =cacheGet(DAYPFX+want);
+
   if(snap && snap.latest===want){
     applySnapshot(snap);
+    LOADED=true; DIRTY=false;
+  }else if(day){
+    DATES=(snap&&snap.dates)||DATES; LATEST=(snap&&snap.latest)||LATEST;
+    DAY=want;
+    DATA=mapRows(day.rows); STAMP=day.generatedAt; tellParent(STAMP);
+    resetFilters(); render();
     LOADED=true; DIRTY=false;
   }else{
     showReady('Press Load to read '+prettyDate(want));
@@ -2150,7 +2165,7 @@ syncStickyOffsets();
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Daily Individual Eff% ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -2167,5 +2182,7 @@ syncStickyOffsets();
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Daily Individual Eff% -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Daily Individual Eff% -->
 </html>

@@ -1104,12 +1104,33 @@ function startApp(){
   setupFloorControl();
   if(!el('dt').value) el('dt').value = TODAY;
   el('dlabel').textContent = pretty(el('dt').value);
-  /* NOTHING is fetched here. Opening the page used to pull a whole floor
-     before the leader had chosen anything, which is the slowest thing this
-     screen did and it was usually the wrong floor and the wrong day. */
-  showReady();
-  markDirty();
+  /* Nothing is FETCHED here, but anything already held is shown. Opening the
+     page used to pull a whole floor before the leader had chosen anything,
+     which was the slowest thing this screen did and usually the wrong floor
+     and the wrong day. */
+  if(!replayCache()){ showReady(); markDirty(); }
   tellParent('Loss Time');
+}
+
+/* Paint the last answer for this floor and date, if we still hold it.
+   Returns true when it painted, so the caller knows not to show Ready. */
+function replayCache(){
+  var d=el('dt').value||TODAY;
+  var c=lcGet(FLOOR,d);
+  if(!c) return false;
+  OPS=c.operators||[]; RSN=c.reasons||[]; LOCKDATE=c.lockDate||'';
+  WH={};
+  (OPS||[]).forEach(function(o){
+    if(typeof o.wh==='number' && o.wh>0){
+      WH[String(o.id).replace(/^0+/,'')] =
+        { wh:o.wh, inn:o.inn, out:o.out, eff:o.eff, loss:Number(o.loss)||0 };
+    }
+  });
+  el('dlabel').textContent=pretty(d);
+  applyLock(d);
+  apply(c.day||{entries:[]}); render();
+  LOADED=true; DIRTY=false; paintLoadBtn();
+  return true;
 }
 
 /* The resting state: what to do, not a spinner. */
@@ -1159,14 +1180,38 @@ function switchFloor(){
 var RUN={seq:0,label:''};
 function runBegin(label){
   RUN.seq++; RUN.label=label;
-  barBusy(true,label);
+  /* This page's progress function is called busy(), not barBusy(). Calling the
+     wrong name threw here, which killed doLoad() before it fetched anything,
+     so pressing Load did nothing at all and said nothing either. */
+  busy(true,label);
   islandShow(label);
   return RUN.seq;
 }
 function runCurrent(tok){ return tok===RUN.seq; }
 function runEnd(tok){
   if(tok!==RUN.seq) return;      /* a newer run owns the screen now */
-  barBusy(false,RUN.label);
+  busy(false,RUN.label);
+}
+
+/* ---------- remember the last load ----------
+   This page held nothing between visits, so leaving it and coming back always
+   started from an empty screen even though the same floor and day had just
+   been read. The last answer is parked per floor and date and replayed on
+   open, which makes returning instant and leaves Load for data we really do
+   not have. Session scoped: it dies with the tab, so it can never serve a
+   stale day into tomorrow. */
+var LCACHE_PFX='sosl_loss_day_';
+function lcKey(floor,date){ return LCACHE_PFX+floor+'|'+date; }
+function lcGet(floor,date){
+  try{ var v=sessionStorage.getItem(lcKey(floor,date)); return v?JSON.parse(v):null; }
+  catch(e){ return null; }
+}
+function lcSet(floor,date,payload){
+  try{ sessionStorage.setItem(lcKey(floor,date), JSON.stringify(payload)); }catch(e){}
+}
+/* A save changes the day, so the parked copy for it must go. */
+function lcDrop(floor,date){
+  try{ sessionStorage.removeItem(lcKey(floor,date)); }catch(e){}
 }
 
 /* ---------- the Load button ----------
@@ -1198,7 +1243,11 @@ function onDateChange(){
 
 /* The one entry point the Load button uses. */
 function doLoad(){
-  if(!TOKEN) return;
+  if(!TOKEN){
+    /* Never fail silently on a button press. */
+    say('smsg','You are not logged in any more. Reload the page and log in again.','r');
+    return;
+  }
   /* The first Load has to fetch the roster and the reasons too, so it goes
      through boot. After that only the day changes, which is a lighter call. */
   if(!LOADED || DIRTY) boot(); else loadDay(true);
@@ -1227,6 +1276,10 @@ function boot(){
     applyLock(el('dt').value);
     apply(r.day); render();
     LOADED=true; DIRTY=false; paintLoadBtn();
+    /* Park it, so returning to this floor and day is instant instead of
+       asking for Load again. */
+    lcSet(FLOOR, el('dt').value||TODAY,
+          {operators:r.operators, reasons:r.reasons, lockDate:r.lockDate||'', day:r.day});
     /* Tells the shell this page has painted, which ends its "still loading"
        state and lets Refresh be pressed. */
     tellParent('Loss Time \u00b7 '+pretty(el('dt').value||TODAY));
@@ -1264,6 +1317,8 @@ function loadDay(fresh){
     applyLock(d);
     apply(r.day); render();
     LOADED=true; DIRTY=false; paintLoadBtn();
+    var prev=lcGet(FLOOR,d);
+    if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; lcSet(FLOOR,d,prev); }
   }).catch(function(e){
     if(!runCurrent(tok)) return;
     runEnd(tok); fail(e.message);
@@ -2184,6 +2239,10 @@ function settle(r, rows, sending, theDate, theFloor){
   /* Ask the efficiency dashboard to rebuild its snapshot for this floor and
      date. Fire and forget: if it fails the loss is still saved and the morning
      rebuild catches it. */
+  /* The day just changed on the server, so the parked copy is stale and must
+     never be replayed over the top of it. */
+  lcDrop(theFloor, theDate);
+
   nudgeDashboard(theDate, theFloor);
 }
 
@@ -2193,7 +2252,7 @@ function settle(r, rows, sending, theDate, theFloor){
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Loss Time Entry ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -2210,5 +2269,7 @@ function settle(r, rows, sending, theDate, theFloor){
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Loss Time Entry -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Loss Time Entry -->
 </html>

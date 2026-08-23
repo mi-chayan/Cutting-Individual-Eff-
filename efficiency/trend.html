@@ -10,151 +10,412 @@
   :root{
     --navy:#333D6D; --violet:#723EC3; --peach:#FFCF95; --cream:#FFF0D9;
     --bg:#F4F5F9; --card:#fff; --line:#E4E6F0; --txt:#252A45; --mut:#7A81A0;
+    /* Same compliance ladder as the daily report on purpose: a floor must
+       never look green on one page and red on the other. */
     --red:#D64550; --green:#1E8E4E; --blue:#1D6FD0; --amber:#C77700;
+    --gap:14px;
+    /* Measured at runtime by syncStickyOffsets(). Same idea as fabric.html and
+       daily.html: everything that must stay on screen is stacked from the top
+       of the viewport downwards, using real measured heights. */
+    --stripH:44px; --cardHdH:34px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--txt);
-       font-size:13px;-webkit-text-size-adjust:100%;display:flex;flex-direction:column}
+       font-size:13px;-webkit-text-size-adjust:100%}
 
-  .strip{background:#fff;border-bottom:1px solid var(--line);padding:9px 18px;
-         display:flex;align-items:center;gap:11px;flex-wrap:wrap;position:sticky;top:0;z-index:30;flex:0 0 auto}
-  .strip h2{font-size:14px;font-weight:800;color:var(--navy);white-space:nowrap}
-  .sep{width:1px;height:24px;background:var(--line)}
+  .strip{background:#fff;border-bottom:1px solid var(--line);padding:7px 16px;
+         display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
+         position:sticky;top:0;z-index:30}
+  .strip h2{font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap}
+  .sep{width:1px;height:22px;background:var(--line)}
   .strip label{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
-  .showing{font-size:10.5px;color:var(--mut);font-weight:700}
+  .dpick{position:relative;display:inline-flex;align-items:center;gap:7px;
+         border:1px solid var(--line);border-radius:7px;padding:6px 10px;background:#fff;
+         font-size:12px;font-weight:700;color:var(--txt);white-space:nowrap;cursor:pointer}
+  .dpick:hover{border-color:var(--violet)}
+  .dpick svg{width:13px;height:13px;fill:var(--violet);flex:0 0 auto}
+  .dpick input[type=date]{position:absolute;inset:0;width:100%;height:100%;
+         opacity:0;cursor:pointer;border:0;padding:0;margin:0;font-family:inherit}
   .mini{background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:7px;
-        padding:6px 12px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
+        padding:5px 11px;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer;
         display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .mini:hover{background:var(--cream);border-color:var(--peach)}
-  .mini svg{width:13px;height:13px;fill:currentColor}
-  .acts{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .mini.on{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini svg{width:12px;height:12px;fill:var(--violet)}
+  .mini.on svg{fill:#fff}
+  .acts{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
 
-  .wrap{flex:1 1 auto;overflow:auto;padding:14px 18px 22px;width:100%;max-width:1500px;margin:0 auto}
+  /* Excel and Print are the two things people actually reach for, so they get
+     real colour instead of disappearing into the neutral filter buttons.
+     Tinted at rest, solid on hover, same shape as every other .mini. */
+  .mini.xls{background:#E8F5EE;color:#14663A;border-color:#9FD5B8;font-weight:800}
+  .mini.xls svg{fill:#1E8E4E}
+  .mini.xls:hover{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
+  .mini.xls:hover svg{fill:#fff}
+  .mini.prn{background:#EEF1FA;color:#2B3566;border-color:#B9C2E4;font-weight:800}
+  .mini.prn svg{fill:#333D6D}
+  .mini.prn:hover{background:#333D6D;color:#fff;border-color:#333D6D}
+  .mini.prn:hover svg{fill:#fff}
 
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px;margin-bottom:13px}
-  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 13px;
+  .cachetag{font-size:9.5px;font-weight:700;color:var(--green);background:#E8F5EE;
+            border:1px solid #BFE3CE;border-radius:20px;padding:3px 9px;white-space:nowrap}
+
+  /* One gutter value everywhere: cards, grid gaps and card spacing all use
+   --gap, so nothing sits a few pixels off from its neighbour. */
+  /* Identical to fabric.html and daily.html so the content block does not
+     jump wider when you switch to this report. */
+  .wrap{padding:13px 16px 26px;max-width:1560px;margin:0 auto}
+
+  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--gap);margin-bottom:var(--gap)}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
        position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
-  .kpi.k2:before{background:var(--peach)} .kpi.k3:before{background:var(--red)}
-  .kpi.k4:before{background:var(--blue)}  .kpi.k5:before{background:var(--green)}
-  .kpi .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .kpi.k2:before{background:var(--navy)} .kpi.k3:before{background:var(--peach)}
+  .kpi.k4:before{background:var(--red)}  .kpi.k5:before{background:var(--amber)}
+  .kpi.k6:before{background:var(--green)}
+  .kpi .k{font-size:9.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;line-height:1.25}
   .kpi .v{font-size:23px;font-weight:800;margin-top:1px;line-height:1.05}
-  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:2px}
-  .up{color:var(--green)} .dn{color:var(--red)} .flat{color:var(--mut)}
+  .kpi .s{font-size:9.5px;color:var(--mut);margin-top:1px;line-height:1.3}
+  .v.red{color:var(--red)} .v.green{color:var(--green)} .v.blue{color:var(--blue)} .v.amber{color:var(--amber)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
-        box-shadow:0 1px 2px rgba(37,42,69,.05);margin-bottom:13px;overflow:hidden}
-  .card .hd{padding:10px 14px;border-bottom:1px solid var(--line);
-            display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .card .hd h3{font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px}
-  .hint{font-size:10px;color:var(--mut);font-weight:700}
-  .push{flex:1 1 auto}
-  .bd{padding:13px 14px}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
-  @media(max-width:1080px){ .two{grid-template-columns:1fr} }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:var(--gap);
+        overflow:clip;box-shadow:0 1px 2px rgba(37,42,69,.05)}
+  .card .hd{padding:8px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+            gap:8px;flex-wrap:wrap;background:linear-gradient(90deg,var(--cream),#fff)}
+  /* The card title bar sticks directly under the control strip, so you always
+     know which table you are looking at. */
+  @media(min-width:901px){
+    .card>.hd{position:sticky;top:var(--stripH);z-index:16}
+    .afbar{position:sticky;top:calc(var(--stripH) + var(--cardHdH));z-index:15}
+  }
+  .card .hd h3{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.2px}
+  .hint{font-size:10px;font-weight:700;color:var(--violet);letter-spacing:.2px;
+        background:#F3EEFC;border:1px solid #D6C8F0;border-radius:20px;padding:3px 10px;white-space:nowrap}
+  .push{margin-left:auto}
+  .srch{border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-family:inherit;
+        font-size:11px;width:150px;background:#fff;color:var(--txt)}
+  .srch:focus{outline:none;border-color:var(--violet)}
 
-  .chips{display:flex;gap:5px;flex-wrap:wrap}
-  .chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px;
-        font-family:inherit;font-size:10.5px;font-weight:800;color:var(--txt);cursor:pointer}
-  .chip:hover{background:var(--cream);border-color:var(--peach)}
+  /* scope chips, only on the Fabric Type card */
+  .chips{display:flex;gap:5px;flex-wrap:wrap;padding:7px 13px;
+         background:#FAFBFE;border-bottom:1px solid var(--line)}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:3px 10px;
+        font-size:10px;font-weight:800;cursor:pointer;color:var(--mut);font-family:inherit}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
   .chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+  /* factory chips read as a separate tier from the floor chips beside them */
+  .chip.fact{color:var(--navy);border-color:#C3C9E4;background:#F1F3FA;letter-spacing:.3px}
+  .chip.fact:hover{border-color:var(--navy);color:var(--navy);background:#E7EAF6}
+  .chip.fact.on{background:var(--navy);border-color:var(--navy);color:#fff}
 
-  table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
-  thead th{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:8px 9px;
-           text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;
-           letter-spacing:.3px;white-space:nowrap;cursor:pointer}
-  thead th.l{text-align:left}
-  tbody td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;
-           font-variant-numeric:tabular-nums}
-  tbody td.l{text-align:left}
-  tbody tr:nth-child(even) td{background:#F6F7FB}
-  tbody tr:hover td{background:var(--cream) !important}
-  tfoot td{padding:7px 9px;background:var(--navy);color:#fff;font-weight:800;text-align:right;
-           position:sticky;bottom:0}
-  tfoot td.l{text-align:left}
-  .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:9px}
-  .pill{padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;display:inline-block}
-  .pill.red{background:#FBE9EB;color:#A3252F} .pill.green{background:#E7F4EC;color:#12653A}
-  .pill.blue{background:#E8F0FC;color:#14509E} .pill.amber{background:#FFF6E6;color:#8A5B12}
-  .loading{text-align:center;padding:60px;color:var(--mut);font-size:12px}
+  #floorcard{border:1px solid var(--peach);border-radius:14px;
+        box-shadow:0 10px 26px -8px rgba(51,61,109,.30),0 2px 8px rgba(114,62,195,.10);
+        background:linear-gradient(180deg,#fff 0%,var(--cream) 260%)}
+  #floorcard .hd{background:linear-gradient(90deg,var(--navy),#4A56A0)}
+  #floorcard .hd h3{color:#fff}
+  #floorcard .hd h3:before{content:'\25A0';color:var(--peach);margin-right:6px;font-size:9px;vertical-align:1px}
+  #floorcard .hint{color:var(--peach);background:rgba(255,255,255,.13);border-color:rgba(255,207,149,.5)}
+  #floorcard th{background:#404B8C}
+
+  /* ---- active filter bar, one per card ---- */
+  .afbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+         padding:6px 13px;background:#F6F4FD;border-bottom:1px solid #E4DDF6}
+  .aflabel{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  .afchip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;
+          color:var(--navy);background:#fff;border:1px solid #D6C8F0;border-radius:20px;padding:3px 5px 3px 10px}
+  .afchip b{color:var(--violet)}
+  .afchip i{font-style:normal;cursor:pointer;width:15px;height:15px;border-radius:50%;
+            display:inline-flex;align-items:center;justify-content:center;
+            background:#EFE7FB;color:var(--violet);font-size:12px;line-height:1}
+  .afchip i:hover{background:var(--violet);color:#fff}
+  .afclear{margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:20px;
+           padding:3px 11px;font-family:inherit;font-size:10.5px;font-weight:800;
+           color:var(--mut);cursor:pointer}
+  .afclear:hover{border-color:var(--red);color:var(--red)}
+
+  /* ---------- Detailed Summary filter bar ---------- */
+  .detbar{display:flex;align-items:center;gap:8px;padding:0 13px 9px}
+  .detq{flex:1 1 auto;min-width:0;font-family:inherit;font-size:12px;font-weight:600;
+        color:var(--txt);padding:7px 11px;border:1px solid var(--line);border-radius:7px;
+        background:#fff}
+  .detq:focus{outline:none;border-color:var(--violet)}
+  .detbar .afclear{margin-left:0;flex:0 0 auto}
+
+  table{width:100%;border-collapse:collapse}
+  /* Column headings must stay visible while the rows scroll. They pin to the
+     top of their own scroll box (.tscroll / .mx), which is why those boxes
+     carry a max-height: a sticky header needs a container that actually
+     scrolls, otherwise it has nothing to stick to. */
+  th{background:var(--navy);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;
+     letter-spacing:.4px;padding:7px 9px;text-align:right;white-space:nowrap;cursor:pointer;
+     user-select:none;box-shadow:inset 0 -1px 0 rgba(255,255,255,.12)}
+  th:first-child,td:first-child{text-align:left}
+  th:hover{background:#4A56A0}
+  th .ar{font-size:8px;opacity:.95;margin-left:3px}
+  td{padding:6px 9px;text-align:right;font-size:12px;border-bottom:1px solid #EFF1F7;
+     font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody tr:hover{background:#F6F4FD}
+  tbody tr:last-child td{border-bottom:0}
+  td.f{font-weight:800}
+  td.clk{cursor:pointer}
+  td.clk:hover{text-decoration:underline;color:var(--violet)}
+  .pill{display:inline-block;min-width:56px;padding:2px 8px;border-radius:20px;
+        font-size:11px;font-weight:800;color:#fff;text-align:center}
+  .pill.red{background:var(--red)} .pill.green{background:var(--green)} .pill.blue{background:var(--blue)}
+  /* The totals row pins to the bottom of the same box, so you can scroll the
+     middle of a long list and still read the header and the total. */
+  tfoot td{background:#F6F7FB;font-weight:800;border-top:2px solid var(--line);border-bottom:0}
+  /* Totals stay readable while you scroll the rows above them. */
+  @media(min-width:901px){
+    .tscroll table>tfoot td{position:sticky;bottom:0;z-index:13;
+        box-shadow:0 -1px 0 var(--line)}
+  }
+  /* THIS is what makes the sticky header work. A fixed 660px cap was useless:
+     these tables are only 11 rows tall, so the box never scrolled and the
+     header had nothing to stick to while the PAGE scrolled past it. Sizing the
+     box to whatever viewport is left under the sticky strip and card title
+     means the box itself scrolls, and the header pins inside it. */
+  /* A plain table flows with the PAGE, exactly like fabric.html and
+     daily.html. It is NOT a scroll container, because these tables are only
+     11 rows: a box that never scrolls gives a sticky header nothing to pin
+     to, which is precisely why the first attempt failed. Instead the heading
+     pins to the viewport, below the control strip and the card title bar. */
+  .tscroll{overflow:visible}
+  @media(min-width:901px){
+    .tscroll table>thead th{position:sticky;
+        top:calc(var(--stripH) + var(--cardHdH) + var(--afH,0px));z-index:14}
+  }
+
+  /* ---- matrix ---- */
+  .mx{overflow:auto;
+      max-height:calc(100vh - var(--stripH) - var(--cardHdH) - 34px);
+      scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .mx::-webkit-scrollbar{width:9px;height:9px}
+  .mx::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
+  .mx table{min-width:100%;width:max-content}
+  /* Three sticky layers, so the z-index order matters:
+       6 corner cell   pinned top AND left, must sit above both
+       5 header row    pinned top
+       4 floor column  pinned left */
+  /* Floor column is centred: the codes are all two characters, so left
+     alignment left them looking loose against the centred data columns. */
+  /* The matrix MUST be its own scroll box, because the date columns run off
+     the right. So its headings pin inside that box rather than to the page.
+     Three sticky layers, z-index order matters:
+       6 corner cell   pinned top AND left
+       5 header row    pinned top
+       4 floor column  pinned left */
+  .mx thead th{position:sticky;top:0;z-index:5}
+  .mx tfoot td{position:sticky;bottom:0;z-index:5}
+  .mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:4;background:var(--navy);
+        color:#fff;font-weight:800;text-align:center;min-width:70px}
+  .mx thead th:first-child{z-index:6}
+  .mx tfoot td:first-child{z-index:6}
+  .mx tbody td:first-child{background:#F0F2F8;color:var(--txt);border-right:2px solid var(--line)}
+  /* Row highlight has to reach EVERY cell, including the shaded waste cells
+     and the Range column, both of which carry an inline background that a
+     plain background rule cannot beat. A huge inset shadow tints straight over
+     whatever colour is already there, and unlike filter: it does not create a
+     containing block, so the sticky first column keeps working. */
+  .mx tbody tr:hover td{box-shadow:inset 0 0 0 2000px rgba(114,62,195,.10)}
+  .mx tbody tr:hover td:first-child{box-shadow:inset 0 0 0 2000px rgba(114,62,195,.16)}
+  .mx td{text-align:center;font-size:11.5px;padding:5px 7px;min-width:62px}
+  .mx th{text-align:center;font-size:9px;padding:6px 7px}
+  .mx td.cell{font-weight:700}
+  .mx tfoot td{background:#F6F7FB}
+  .mx tfoot td:first-child{background:#404B8C;color:#fff}
+  .mxlgd{display:flex;gap:14px;align-items:center;padding:7px 13px;font-size:10px;
+         font-weight:700;color:var(--mut);border-top:1px solid var(--line);flex-wrap:wrap}
+  .mxlgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+  /* ---- bar list ---- */
+  .bars{padding:10px 13px 13px;overflow-y:auto;
+        scrollbar-width:thin;scrollbar-color:#C9CEE4 transparent}
+  .bars::-webkit-scrollbar{width:8px}
+  .bars::-webkit-scrollbar-thumb{background:#C9CEE4;border-radius:8px}
+  .brow{display:grid;grid-template-columns:118px 1fr 196px;align-items:center;gap:9px;
+        padding:4px 5px;margin:0 -5px;border-radius:6px}
+  .brow:hover{background:#F2F4FA}
+  .bname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btrack{height:12px;background:#EDEFF6;border-radius:3px;overflow:hidden}
+  .bfill{height:100%;border-radius:3px;background:var(--red);
+         transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  /* three fixed columns so the numbers line up down the whole list */
+  .bval{display:grid;grid-template-columns:60px 62px 74px;align-items:baseline;
+        font-variant-numeric:tabular-nums}
+  .bval span{text-align:right;white-space:nowrap}
+  .bval b{font-size:11.5px;font-weight:800;color:var(--txt)}
+  .bval b.bad{color:var(--red)} .bval b.wst{color:var(--amber)}
+  .bval i{font-style:normal;font-size:8.5px;font-weight:700;color:var(--mut);
+          margin-left:3px;letter-spacing:.2px}
+  .barhd{display:grid;grid-template-columns:118px 1fr 196px;gap:9px;
+         padding:6px 18px 5px 18px;border-bottom:1px solid var(--line);background:#FAFBFE}
+  .barhd .h3c{display:grid;grid-template-columns:60px 62px 74px}
+  .barhd span{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;
+              letter-spacing:.5px;text-align:right;white-space:nowrap}
+  .barhd .lft{text-align:left}
+
+  /* ---- chart ---- */
+  .chartbox{padding:12px 13px 8px;position:relative}
+  #chhost{width:100%;overflow:hidden}
+  /* SVG text is styled here, not with font-size attributes, so it inherits the
+     page font and stays the same physical size as the tables beside it. */
+  #chartsvg text{font-family:'Plus Jakarta Sans',sans-serif}
+  #chartsvg .axl{font-size:10.5px;font-weight:600;fill:#7A81A0}
+  #chartsvg .axb{font-size:10px;font-weight:800}
+  #chartsvg .axt{font-size:11px;font-weight:800;letter-spacing:.3px}
+  /* on-chart value labels */
+  #chartsvg .vlc{font-size:10.5px;font-weight:800;fill:#5B2FA6;
+                 paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  /* waste block: value on top, unit beneath in a smaller weight */
+  #chartsvg .vlw .vn{font-size:10.5px;font-weight:800;fill:#8A5300;
+                     paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  #chartsvg .vlw .vu{font-size:8px;font-weight:700;fill:#A9761F;letter-spacing:.4px;
+                     paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  /* centred in the bar: darker, no halo needed against the amber fill */
+  #chartsvg .vlw.in .vn{fill:#6B4000;stroke:none}
+  #chartsvg .vlw.in .vu{fill:#8A5A12;stroke:none}
+  #chartsvg .hid{opacity:0}
+  .lgd{display:flex;gap:16px;justify-content:center;padding:0 0 8px;font-size:10.5px;
+       font-weight:700;color:var(--mut);flex-wrap:wrap}
+  .lgd i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  #chartsvg{display:block;cursor:crosshair;touch-action:none;max-width:100%}
+  .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
+       background:#252A45;color:#fff;border-radius:9px;padding:8px 11px;font-size:11px;
+       line-height:1.55;box-shadow:0 8px 22px rgba(37,42,69,.28);z-index:12;min-width:172px}
+  .tip.on{opacity:1}
+  .tip h4{font-size:11.5px;font-weight:800;margin-bottom:5px;color:var(--peach);
+          border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:4px}
+  .tip .r{display:flex;justify-content:space-between;gap:14px}
+  .tip .r span{color:#BFC4DC} .tip .r b{font-variant-numeric:tabular-nums}
+  .tip .r b.red{color:#FF9AA3} .tip .r b.green{color:#7FE0A8} .tip .r b.blue{color:#8CC2FF}
+
+  .loading{padding:70px 0;text-align:center;color:var(--mut);font-size:12.5px}
+  .spin{width:26px;height:26px;border:3px solid #E4E6F0;border-top-color:var(--violet);
+        border-radius:50%;display:inline-block;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:50px 0;text-align:center;color:var(--mut);font-size:12.5px}
+  .err{margin:16px;padding:13px 15px;border-radius:10px;background:#FDECEE;
+       border:1px solid #F5C2C7;color:#8B2530;font-size:12px;font-weight:600;line-height:1.6}
+  .note{font-size:10.5px;color:var(--mut);padding:2px 2px 10px;line-height:1.7}
+  /* Side-by-side cards must end level even when one has more rows than the
+   other, so the row is sized by the taller card and both stretch to it. */
+  /* align-items:start, NOT stretch. Stretching made the Floor Ranking card
+     grow to match the Fabric Type list beside it, leaving a large empty band
+     under 13 rows of data. Each card now takes its natural height. The fabric
+     list is capped and scrolls on its own, so it never runs away. */
+  /* align-items:start, NOT stretch. Stretch made BOTH cards grow to the
+     taller one, and since the fabric list has 36 entries it dragged the floor
+     table up with it. Now the Floor Ranking card takes its own natural height
+     and syncPairHeight() caps the fabric list to match, so the pair ends level
+     without either card carrying dead space. */
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--gap);
+       align-items:start;margin-bottom:0}
+  .two>.card{margin-bottom:var(--gap)}
+  #fabcard>.bars{overflow-y:auto}
+
+  @media(max-width:1180px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} .two{grid-template-columns:1fr} }
+  @media(max-width:640px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .acts{margin-left:0} }
+  @media print{ .strip{position:static} .acts,.srch{display:none} body{background:#fff}
+                .card{break-inside:avoid;box-shadow:none}
+                /* release every scroll box so nothing is cut off on paper */
+                .bars,.tscroll,.mx{max-height:none;overflow:visible}
+                th,tfoot td{position:static;box-shadow:none} }
+
+
+  /* ================= the loading island =================
+     Two pieces that work together.
+
+     1. A REAL progress bar across the very top. It used to be a block sliding
+        left to right for ever, which says "something is happening" and
+        nothing else. Left is 0, right is 100, and it only ever moves
+        forwards.
+
+        Most of these fetches are ONE request, so there is no honest fraction
+        to report until it lands. Rather than lie with a fake percentage, it
+        eases toward 90 and waits there: fast at first, slower the longer it
+        takes, which is the same trick GitHub uses and it reads as real
+        because it never goes backwards and never completes early. Where a
+        genuine fraction IS known, the weekly report fetching six days in
+        chunks, barSet() overrides the easing with the true number.
+
+     2. An island under the header saying WHAT is loading. Detached from the
+        title bar, dark, rounded, with a progress ring on the left. It springs
+        in, morphs when the text changes, and springs out.
+     ---------------------------------------------------------------- */
+  #bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
+       pointer-events:none;opacity:0;transition:opacity .3s ease}
+  #bar.on{opacity:1}
+  #bar i{display:block;height:100%;width:0;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#5B33A8,#723EC3 55%,#B07CFF);
+         box-shadow:0 0 10px rgba(176,124,255,.7);
+         transition:width .34s cubic-bezier(.22,.61,.36,1)}
+  /* A highlight travelling along the filled part, so a long wait still looks
+     alive even while the number is barely moving. */
+  #bar i:after{content:'';position:absolute;top:0;right:0;width:90px;height:100%;
+       background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55));
+       animation:barsheen 1.1s ease-in-out infinite}
+  #bar i{position:relative;overflow:hidden}
+  @keyframes barsheen{0%{opacity:.15}50%{opacity:.8}100%{opacity:.15}}
+
+  /* NO CIRCULAR SPINNER. The pill already says what is loading in words and
+     the bar across the top already shows that something is running. A third
+     thing spinning beside them said nothing extra. */
+  .island .ring{display:none !important}
+  .island{position:fixed;top:12px;left:50%;z-index:401;
+          display:inline-flex;align-items:center;gap:11px;
+          background:rgba(12,12,18,.94);color:#fff;
+          -webkit-backdrop-filter:blur(14px) saturate(160%);
+          backdrop-filter:blur(14px) saturate(160%);
+          border-radius:999px;padding:9px 18px 9px 13px;
+          font-size:12px;font-weight:700;letter-spacing:.1px;white-space:nowrap;
+          max-width:min(560px,90vw);overflow:hidden;
+          box-shadow:0 10px 30px rgba(0,0,0,.34), inset 0 0 0 .5px rgba(255,255,255,.14);
+          pointer-events:none;
+          transform:translateX(-50%) translateY(-26px) scale(.80);
+          opacity:0;
+          transition:transform .46s cubic-bezier(.34,1.56,.64,1),
+                     opacity .2s ease}
+  .island.on{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
+
+  /* The progress ring. One CSS variable drives it, set from the same number
+     that drives the bar, so the two can never disagree. */
+  .island .ring{width:17px;height:17px;border-radius:50%;flex:0 0 auto;position:relative;
+       background:conic-gradient(#B07CFF calc(var(--p,0) * 1%), rgba(255,255,255,.16) 0);
+       transition:background .34s linear}
+  .island .ring:after{content:'';position:absolute;inset:3.5px;border-radius:50%;
+       background:#0C0C12}
+  .island .ring:before{content:'';position:absolute;inset:-3px;border-radius:50%;
+       border:1px solid rgba(176,124,255,.35);animation:islepulse 1.6s ease-in-out infinite}
+  @keyframes islepulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.7;transform:scale(1.12)}}
+
+  /* The label morphs rather than cutting, so switching from one report to
+     another feels like the same object changing its mind. */
+  .island .txt{display:inline-block;overflow:hidden;text-overflow:ellipsis;
+       transition:opacity .16s ease}
+  .island.swap .txt{opacity:0}
+  .island .pct{font-variant-numeric:tabular-nums;opacity:.55;font-weight:800;
+       font-size:10.5px;min-width:30px;text-align:right}
+
+  @media (prefers-reduced-motion: reduce){
+    .island{transition:opacity .2s ease}
+    .island .ring:before{animation:none}
+    #bar i:after{animation:none}
+  }
+  /* The old spinner is kept out of the way rather than deleted, so any
+     markup that still asks for one simply shows nothing. */
+  .spin{display:none !important}
   .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
   .mini.load.needs svg{fill:#fff}
   .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
   .mini.load svg{width:13px;height:13px;fill:currentColor}
-  .ready{text-align:center;padding:64px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  .ready{text-align:center;padding:60px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
   .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
-  .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
-  .empty{text-align:center;padding:40px 22px;color:var(--mut);font-size:12px;line-height:1.85}
-  .empty b{color:var(--navy)}
-  .diag{display:inline-block;text-align:left;background:#F6F7FB;border:1px solid var(--line);
-        border-radius:8px;padding:9px 13px;margin:11px 0;font-size:11px;line-height:1.7;
-        font-variant-numeric:tabular-nums}
-  .diag .u{word-break:break-all;color:var(--violet);font-size:10px}
 
-  /* The same loading pill every other report uses, so this page does not
-     announce itself differently. No circular spinner: the words and the bar
-     across the top already say that something is running. */
-  .island{position:fixed;top:12px;left:50%;z-index:401;
-          display:inline-flex;align-items:center;gap:9px;
-          background:rgba(12,12,18,.94);color:#fff;
-          -webkit-backdrop-filter:blur(14px) saturate(160%);
-          backdrop-filter:blur(14px) saturate(160%);
-          border-radius:999px;padding:9px 18px;
-          font-size:12px;font-weight:700;white-space:nowrap;
-          max-width:min(560px,90vw);overflow:hidden;
-          box-shadow:0 10px 30px rgba(0,0,0,.34), inset 0 0 0 .5px rgba(255,255,255,.14);
-          pointer-events:none;
-          transform:translateX(-50%) translateY(-26px) scale(.80);opacity:0;
-          transition:transform .40s cubic-bezier(.34,1.56,.64,1),opacity .22s ease}
-  .island.on{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
-  .island .txt{overflow:hidden;text-overflow:ellipsis}
-
-  svg.chart{display:block;width:100%;height:auto}
-  .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
-       font-weight:700;padding:8px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
-  .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-  .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--violet);
-        border-radius:8px;padding:10px 13px;font-size:11px;color:#4A4A6A;line-height:1.7;margin-bottom:13px}
-  .note b{color:var(--navy)}
-
-  /* heatmap */
-  .hm{overflow:auto;border:1px solid var(--line);border-radius:9px}
-  .hm table{table-layout:fixed;font-size:11px}
-  .hm th.fl{position:sticky;left:0;z-index:6;text-align:left;width:64px}
-  .hm td.fl{position:sticky;left:0;background:#fff;z-index:4;text-align:left;font-weight:800;
-            border-right:1px solid var(--line)}
-  .hm td.c{text-align:center;font-weight:700;color:#fff;font-size:10.5px}
-  .hm td.na{background:#F2F3F8;color:#C3C8DA;text-align:center}
-
-  /* Progress bar, the same DETERMINATE one the other reports use.
-     It used to be a striped gradient sliding on a loop, which never started at
-     the left and never restarted when a new request began: it just kept
-     sliding, so changing the date looked like nothing had happened. Now it
-     fills left to right and is reset to zero on every new run. */
-  .bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
-       pointer-events:none;opacity:0;transition:opacity .3s ease}
-  .bar.on{opacity:1}
-  .bar i{display:block;height:100%;width:0;border-radius:0 3px 3px 0;
-         background:linear-gradient(90deg,#5B33A8,#723EC3 55%,#B07CFF);
-         box-shadow:0 0 10px rgba(176,124,255,.7);
-         transition:width .34s cubic-bezier(.22,.61,.36,1)}
-
-  /* bar lists */
-  .bars{display:flex;flex-direction:column;gap:5px}
-  .brow{display:grid;grid-template-columns:132px 1fr 156px;gap:10px;align-items:center;
-        font-size:11.5px}
-  .bname{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .btrack{background:#F1F2F7;border-radius:5px;height:16px;overflow:hidden}
-  .bfill{height:100%;border-radius:5px}
-  .bval{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--navy);
-        white-space:nowrap}
-  @media(max-width:720px){ .brow{grid-template-columns:96px 1fr 108px} }
-
-  @media print{
-    .strip,.bar{display:none}
-    .card{break-inside:avoid}
-  }
+  .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
+         background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
+         font-size:11.5px;font-weight:700}
+  .dnote.on{display:block;margin:10px auto 0}
   /* ================= date range picker =================
      TWO calendars in ONE popover: the left picks the START date, the right
      picks the END date, each with its own month navigation. They open together
@@ -250,15 +511,34 @@
     .drcals{flex-direction:column;gap:14px}
     .drcal,.drcal table{width:100%}
   }
+
+
+  /* ---------- trend only ---------- */
+  .dir{font-size:12px;font-weight:800}
+  .dir.up{color:var(--green)} .dir.dn{color:var(--red)} .dir.flat{color:var(--mut)}
+  .spark{display:inline-block;vertical-align:-2px;margin-left:6px}
+  .bandbar{display:flex;height:22px;border-radius:5px;overflow:hidden;margin-top:6px}
+  .bandbar i{display:block;height:100%}
+  .bandkey{display:flex;gap:12px;font-size:10px;font-weight:700;color:var(--mut);margin-top:5px;flex-wrap:wrap}
+  .bandkey b{color:var(--txt)}
+  .delta{font-weight:800}
+  .delta.up{color:var(--green)} .delta.dn{color:var(--red)}
 </style>
 </head>
 <body>
+
+<div id="bar"><i></i></div>
+<div id="island" class="island">
+  <span class="txt" id="isleTxt"></span>
+  <span class="pct" id="islePct"></span>
+</div>
+
 
 <div class="strip">
   <h2>Cutting Efficiency Trend</h2>
   <div class="sep"></div>
   <label>Date range</label>
-<div class="drwrap">
+  <div class="drwrap">
     <button class="drbtn" id="drBtn" onclick="drToggle()" title="Choose the date range">
       <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
       <span class="drtxt" id="drLabel">Loading&hellip;</span>
@@ -301,28 +581,30 @@
       </div>
     </div>
   </div>
+
+  <!-- The old boxes stay as hidden state. Everything downstream, the export,
+       the allowance note, the cache keys, still reads f1 and t1, so the picker
+       only has to keep them in step instead of every call site being rewritten. -->
   <input type="hidden" id="f1"><input type="hidden" id="t1">
-  <span class="showing" id="showing"></span>
-  <div class="sep"></div>
-  <div class="chips" id="scopeChips"></div>
   <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this range">
     <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
     <span id="loadTxt">Load</span>
   </button>
+  <span class="showing" id="showing"></span>
+  <div class="sep"></div>
+  <div class="chips" id="scopeChips"></div>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
     </button>
-    <button class="mini" onclick="window.print()" title="Print">
+    <button class="mini prn" onclick="window.print()" title="Print">
       <svg viewBox="0 0 24 24"><path d="M19 8H5a3 3 0 00-3 3v6h4v4h12v-4h4v-6a3 3 0 00-3-3zm-3 11H8v-5h8v5zm3-8a1 1 0 110-2 1 1 0 010 2zM18 3H6v4h12V3z"/></svg> Print
     </button>
   </div>
 </div>
 
-<div class="bar" id="bar"><i></i></div>
-<div id="island" class="island"><span class="txt" id="isleTxt"></span></div>
-<div class="wrap" id="content"><div class="loading">Loading&hellip;</div></div>
-<div id="tip"></div>
+<div id="dnote" class="dnote"></div>
+<div id="content"><div class="loading">Loading&hellip;</div></div>
 
 <script>
 /* =====================================================================
@@ -475,8 +757,17 @@ function drPreset(k){
   var p=null;
   DR.presets.forEach(function(x){ if(x.k===k) p=x; });
   if(!p||!p.get) return;
-  var r=p.get()||[];
-  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  var r=[];
+  /* A preset asked before the date list has arrived cannot work out its range.
+     Say so instead of silently clearing both ends, which looked like the
+     button had done nothing. */
+  try{ r=p.get()||[]; }catch(e){ r=[]; }
+  if(!r[0]||!r[1]){
+    var sel=drEl('drSel');
+    if(sel) sel.innerHTML='<span>Still loading the available days, try again in a moment</span>';
+    return;
+  }
+  DR.dfrom=r[0]; DR.dto=r[1]; DR.dpreset=k;
   drSyncViews();
   drRender();
 }
@@ -631,6 +922,8 @@ var BAR_P=0, BAR_T=null, BAR_HIDE=null;
 function barPaint(){
   var b=$('bar'), i=b?b.firstChild:null;
   if(i) i.style.width=BAR_P+'%';
+  var p=$('islePct');
+  if(p) p.textContent = BAR_P>=100 ? '100%' : Math.round(BAR_P)+'%';
 }
 function barTick(){
   if(BAR_P<90) BAR_P += Math.max(0.4,(90-BAR_P)*0.10);
@@ -905,365 +1198,364 @@ function build(){
    A charting library would be another CDN dependency on a factory network
    that is not always friendly to them, for four chart types.
    ===================================================================== */
-function svgEsc(s){ return esc(s); }
 
-/* Eff% line with the 65 and 90 guides, loss minutes as bars behind it. */
-function chartTrend(days){
-  if(!days.length) return '<div class="empty">No days in this range.</div>';
-  var W=1000,H=280,L=46,R=52,T=16,B=34;
-  var iw=W-L-R, ih=H-T-B;
-  var n=days.length;
-  var maxLoss=0; days.forEach(function(d){ if(d.loss>maxLoss)maxLoss=d.loss });
-  if(maxLoss<=0) maxLoss=1;
-  var lo=100, hi=0;
-  days.forEach(function(d){ if(d.eff<lo)lo=d.eff; if(d.eff>hi)hi=d.eff });
-  lo=Math.max(0,Math.min(60,Math.floor(lo/10)*10));
-  hi=Math.min(140,Math.max(100,Math.ceil(hi/10)*10));
-  function y(v){ return T+ih-((v-lo)/(hi-lo))*ih; }
-  function x(i){ return L+(n===1?iw/2:(i/(n-1))*iw); }
-  var bw=Math.max(3,Math.min(26,iw/Math.max(1,n)*0.5));
+/* =====================================================================
+   RENDER  -  built on the Weekly Fabric report's layout on purpose.
+   Same sticky headings, same matrix, same sortable tables, same chart
+   hover, so moving between the two reports feels like one product.
+   ===================================================================== */
+function render(){
+  if(!D) return;
+  tellParent(STAMP||prettyDate($('t1').value));
+  syncLabels();
 
-  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
-  /* horizontal guides */
-  [65,90,100].forEach(function(v){
-    if(v<lo||v>hi) return;
-    var yy=y(v);
-    h+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="'
-      +(v===65?'#F0C2C6':v===90?'#CFE6D8':'#E4E6F0')+'" stroke-width="1" stroke-dasharray="'
-      +(v===100?'2 3':'4 4')+'"/>'
-      +'<text x="'+(L-7)+'" y="'+(yy+3.5)+'" text-anchor="end" font-size="9.5" fill="#7A81A0" font-weight="700">'+v+'%</text>';
-  });
-  /* loss bars */
-  days.forEach(function(d,i){
-    if(!(d.loss>0)) return;
-    var bh=(d.loss/maxLoss)*(ih*0.42);
-    h+='<rect x="'+(x(i)-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+bh
-      +'" fill="#C77700" opacity=".22" rx="2"><title>'+svgEsc(shortDate(d.date))
-      +': '+num(d.loss)+' loss min</title></rect>';
-  });
-  /* eff line */
-  var pts=days.map(function(d,i){ return x(i)+','+y(d.eff) }).join(' ');
-  h+='<polyline points="'+pts+'" fill="none" stroke="#723EC3" stroke-width="2.4" '
-   + 'stroke-linejoin="round" stroke-linecap="round"/>';
-  days.forEach(function(d,i){
-    h+='<circle cx="'+x(i)+'" cy="'+y(d.eff)+'" r="3.6" fill="'+effColour(d.eff)+'" '
-      +'stroke="#fff" stroke-width="1.4"><title>'+svgEsc(prettyDate(d.date))+'\n'
-      +'Eff '+fmt(d.eff,1)+'%\n'+num(d.man)+' operators\n'+num(d.loss)+' loss min</title></circle>';
-  });
-  /* x labels, thinned so they never collide */
-  var step=Math.ceil(n/12);
-  days.forEach(function(d,i){
-    if(i%step && i!==n-1) return;
-    h+='<text x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9" fill="#7A81A0" '
-      +'font-weight="700">'+svgEsc(shortDate(d.date))+'</text>';
-  });
-  /* right axis for loss */
-  h+='<text x="'+(W-R+8)+'" y="'+(T+ih)+'" font-size="9" fill="#C77700" font-weight="700">0</text>'
-   + '<text x="'+(W-R+8)+'" y="'+(T+ih-ih*0.42+4)+'" font-size="9" fill="#C77700" font-weight="700">'
-   + num(maxLoss)+'</text>';
-  return h+'</svg>';
+  if(!D.rows.length){ renderEmpty(); return; }
+
+  var T=D.totals, h='';
+
+  /* ---------- KPI strip ---------- */
+  var dirCls = T.dir==null?'flat':(T.dir>=0.05?'up':(T.dir<=-0.05?'dn':'flat'));
+  var dirTxt = T.dir==null ? 'not enough days'
+             : (Math.abs(T.dir)<0.05 ? 'holding level'
+             : (T.dir>0?'▲ ':'▼ ')+fmt(Math.abs(T.dir),1)+' pts');
+
+  h+='<div class="kpis">'
+   + kpi('',   'Overall Eff%', fmt(T.eff,1)+'%', '&Sigma; Output Min &divide; &Sigma; Input Min', pctClass(T.eff))
+   + kpi('k2', 'Direction', '<span class="dir '+dirCls+'">'+dirTxt+'</span>',
+              'second half of the period vs the first')
+   + kpi('k3', 'Loss Time', fmt(T.loss/60,1)+' hrs', num(T.loss)+' min across '+T.days+' day(s)')
+   + kpi('k4', 'Operators', num(T.men), 'with data in this range')
+   + kpi('k5', 'Best Day', T.bestDay?fmt(T.bestEff,1)+'%':'&ndash;',
+              T.bestDay?prettyDate(T.bestDay):'no days')
+   +'</div>';
+
+  /* ---------- the trend chart ---------- */
+  h+='<div class="card"><div class="hd"><h3>'+esc(headTitle('Efficiency and Loss by Day'))+'</h3>'
+   + '<span class="hint">'+T.days+' day(s) &bull; hover for the detail</span></div>'
+   + '<div class="bd"><div class="chartwrap" id="chartwrap">'
+   + '<div class="chtip" id="chtip"></div><div id="chhost"></div></div></div>'
+   + '<div class="lgd">'
+   + lg('#723EC3','Eff% (line, right axis)')
+   + lg('#C77700','Loss minutes (bars, left axis)')
+   + lg('#1E8E4E','90% guide') + lg('#D64550','65% guide')
+   + '</div></div>';
+
+  /* ---------- band mix ---------- */
+  h+='<div class="card"><div class="hd"><h3>'+esc(headTitle('Operators by Eff% Band'))+'</h3>'
+   + '<span class="hint">each operator counted once, on his own average</span></div>'
+   + '<div class="bd">'+bandBlock()+'</div></div>';
+
+  /* ---------- two matrices, exactly like the weekly report ---------- */
+  h+='<div class="card"><div class="hd"><h3>'+esc(headTitle('Eff% by Floor and Date'))+'</h3>'
+   + '<span class="hint">'+D.dates.length+' day(s)</span></div>'+mx('eff')+'</div>';
+
+  h+='<div class="card"><div class="hd"><h3>'+esc(headTitle('Loss Minutes by Floor and Date'))+'</h3>'
+   + '<span class="hint">'+num(T.loss)+' min total</span></div>'+mx('loss')+'</div>';
+
+  /* ---------- floor ranking + loss by reason ---------- */
+  h+='<div class="two">'
+   + '<div class="card" id="floorcard"><div class="hd"><h3>'+esc(headTitle('Floor Ranking'))+'</h3>'
+   + '<span class="push"></span><span class="hint">click a heading to sort</span></div>'
+   + floorTable()+'</div>'
+   + '<div class="card" id="losscard"><div class="hd"><h3>'+esc(headTitle('Loss Time by Reason'))+'</h3>'
+   + '<span class="hint">'+(LOSS?num((LOSS.totals||{}).min||0)+' min':'not loaded')+'</span></div>'
+   + '<div class="bd">'+reasonBars()+'</div></div>'
+   + '</div>';
+
+  /* ---------- movers ---------- */
+  h+=moverBlock();
+
+  h+='<div class="note"><b>Eff%</b> is always &Sigma; Output Min &divide; &Sigma; Input Min for whatever is '
+   +'being summarised, never the average of daily percentages, so a short day cannot weigh the same as a '
+   +'full one. <b>Loss time</b> is already deducted from Input Min by the sheet, so it explains a figure '
+   +'rather than adding to it. <b>Direction</b> compares the second half of the period with the first, '
+   +'which is steadier than first day against last.</div>';
+
+  $('content').innerHTML='<div class="wrap">'+h+'</div>';
+  drawChart();
+  syncStickyOffsets();
 }
 
-/* Band mix per day, stacked to 100%. */
-function chartBands(days){
-  if(!days.length) return '<div class="empty">No days in this range.</div>';
-  var W=1000,H=190,L=40,R=14,T=12,B=30;
-  var iw=W-L-R, ih=H-T-B, n=days.length;
-  var bw=Math.max(4,Math.min(38,iw/n*0.72));
-  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
-  [0,25,50,75,100].forEach(function(p){
-    var yy=T+ih-(p/100)*ih;
-    h+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="#EEF0F6" stroke-width="1"/>'
-      +'<text x="'+(L-7)+'" y="'+(yy+3.5)+'" text-anchor="end" font-size="9" fill="#7A81A0" font-weight="700">'+p+'%</text>';
-  });
-  days.forEach(function(d,i){
-    var tot=d.lo+d.mid+d.hi; if(!tot) return;
-    var cx=L+(n===1?iw/2:(i/(n-1))*(iw-bw))+bw/2;
-    var yTop=T+ih, segs=[[d.lo,'#D64550','Below 65%'],[d.mid,'#1E8E4E','65 to 90%'],[d.hi,'#1D6FD0','Above 90%']];
-    segs.forEach(function(sg){
-      if(!sg[0]) return;
-      var sh=(sg[0]/tot)*ih;
-      yTop-=sh;
-      h+='<rect x="'+(cx-bw/2)+'" y="'+yTop+'" width="'+bw+'" height="'+sh+'" fill="'+sg[1]+'" rx="1">'
-        +'<title>'+svgEsc(prettyDate(d.date))+'\n'+sg[2]+': '+sg[0]+' of '+tot+'</title></rect>';
+function kpi(cls,k,v,s,vc){
+  return '<div class="kpi '+cls+'"><div class="k">'+k+'</div>'
+       + '<div class="v '+(vc||'')+'">'+v+'</div><div class="s">'+s+'</div></div>';
+}
+function lg(c,t){ return '<span><i style="background:'+c+'"></i>'+t+'</span>' }
+
+/* Every heading says what it is showing, including the active filter. */
+function headTitle(base){
+  var sc = scopeSel ? (scopeSel==='SOL'||scopeSel==='SSL' ? scopeSel : 'Floor '+scopeSel) : 'All Floors';
+  return base+' — '+sc;
+}
+function syncLabels(){
+  $('showing').textContent = prettyDate($('f1').value)+' to '+prettyDate($('t1').value)
+    + ' · ' + (scopeSel||'All Floors');
+}
+
+function renderEmpty(){
+  var withDate=ROWS.filter(function(r){return r.date}).length, msg;
+  if(!ROWS.length){
+    msg='<b>The API returned no rows for this range.</b>'
+      +'<div class="diag">Asked for <b>'+esc($('f1').value)+'</b> to <b>'+esc($('t1').value)+'</b>'
+      +'<br>Rows received: <b>0</b>'+(LASTURL?('<br><span class="u">'+esc(LASTURL)+'</span>'):'')+'</div>'
+      +'The usual cause is the wrong Code.gs deployed on the efficiency sheet. Open the link above: '
+      +'<b>Tab ... not found</b> means the wrong script is deployed.';
+  }else if(!withDate){
+    msg='<b>The rows carry no date.</b><div class="diag">Rows received: <b>'+ROWS.length+'</b>, with a date: <b>0</b></div>'
+      +'The date is the 12th field, added 20-Aug-2026. Deploy a NEW VERSION of the efficiency script.';
+  }else{
+    msg='<b>Nothing matches this filter.</b>'
+      +'<div class="diag">Rows received: <b>'+ROWS.length+'</b><br>Floor: <b>'+esc(scopeSel||'All Floors')+'</b></div>'
+      +'Press <b>All Floors</b>.';
+  }
+  $('content').innerHTML='<div class="wrap"><div class="empty">'+msg+'</div></div>';
+}
+
+/* ---------- band mix, one bar plus a key ---------- */
+function bandBlock(){
+  var b=D.band, t=(b.lo+b.mid+b.hi)||1;
+  function seg(n,c){ return n?'<i style="width:'+(n/t*100)+'%;background:'+c+'" title="'+n+' of '+t+'"></i>':'' }
+  return '<div class="bandbar">'+seg(b.lo,'#D64550')+seg(b.mid,'#1E8E4E')+seg(b.hi,'#1D6FD0')+'</div>'
+    +'<div class="bandkey">'
+    +'<span><b>'+b.lo+'</b> below 65% ('+fmt(b.lo/t*100,0)+'%)</span>'
+    +'<span><b>'+b.mid+'</b> 65 to 90% ('+fmt(b.mid/t*100,0)+'%)</span>'
+    +'<span><b>'+b.hi+'</b> above 90% ('+fmt(b.hi/t*100,0)+'%)</span>'
+    +'</div>';
+}
+
+/* ---------- matrix, floor down the side, date across ---------- */
+function mx(kind){
+  var floors=D.byFloor.map(function(f){return f.floor});
+  if(!floors.length||!D.dates.length) return '<div class="bd"><div class="empty">Nothing in this range.</div></div>';
+
+  var h='<div class="mx"><table><thead><tr><th>Floor</th>';
+  D.dates.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
+  h+='<th>'+(kind==='eff'?'Period':'Total')+'</th></tr></thead><tbody>';
+
+  var maxLoss=0;
+  if(kind==='loss') D.dates.forEach(function(d){ floors.forEach(function(f){
+    var c=D.cell[f+'|'+d]; if(c&&c.loss>maxLoss) maxLoss=c.loss; }) });
+
+  floors.forEach(function(f){
+    var fr=D.byFloor.filter(function(x){return x.floor===f})[0];
+    h+='<tr><td>'+esc(f)+'</td>';
+    D.dates.forEach(function(d){
+      var c=D.cell[f+'|'+d];
+      if(!c){ h+='<td class="na">&ndash;</td>'; return; }
+      if(kind==='eff'){
+        h+='<td class="cell" style="background:'+effBg(c.eff)+';color:'+effFg(c.eff)+'" title="'
+          +esc(f+'  '+prettyDate(d)+'\nEff '+fmt(c.eff,1)+'%')+'">'+fmt(c.eff,0)+'</td>';
+      }else{
+        var a=maxLoss?c.loss/maxLoss:0;
+        h+='<td class="cell" style="background:rgba(199,119,0,'+(0.08+a*0.72).toFixed(2)+');color:'
+          +(a>0.55?'#fff':'#5A3B00')+'" title="'+esc(f+'  '+prettyDate(d)+'\n'+num(c.loss)+' min')+'">'
+          +(c.loss?num(c.loss):'&ndash;')+'</td>';
+      }
     });
+    h+= kind==='eff'
+      ? '<td class="cell" style="background:'+effBg(fr.eff)+';color:'+effFg(fr.eff)+'">'+fmt(fr.eff,1)+'</td>'
+      : '<td class="cell"><b>'+num(fr.loss)+'</b></td>';
+    h+='</tr>';
   });
-  var step=Math.ceil(n/12);
-  days.forEach(function(d,i){
-    if(i%step && i!==n-1) return;
-    var cx=L+(n===1?iw/2:(i/(n-1))*(iw-bw))+bw/2;
-    h+='<text x="'+cx+'" y="'+(H-10)+'" text-anchor="middle" font-size="9" fill="#7A81A0" font-weight="700">'
-      +svgEsc(shortDate(d.date))+'</text>';
+
+  /* the totals row, pinned to the bottom of the box */
+  h+='</tbody><tfoot><tr><td>All</td>';
+  D.dates.forEach(function(d){
+    var day=D.byDay.filter(function(x){return x.date===d})[0];
+    h+='<td>'+(kind==='eff' ? (day?fmt(day.eff,0):'&ndash;') : (day&&day.loss?num(day.loss):'&ndash;'))+'</td>';
   });
-  return h+'</svg>';
+  h+='<td>'+(kind==='eff'?fmt(D.totals.eff,1):num(D.totals.loss))+'</td></tr></tfoot></table></div>';
+  return h;
+}
+function effBg(p){ return p<65?'#D64550':(p<90?'#1E8E4E':'#1D6FD0') }
+function effFg(){ return '#fff' }
+
+/* ---------- floor ranking, sortable like the weekly report ---------- */
+var FST={k:'eff',d:-1};
+function setFSort(k){ FST.d = (FST.k===k)? -FST.d : (k==='floor'?1:-1); FST.k=k; render(); }
+function far(k){ return FST.k===k ? '<span class="ar">'+(FST.d>0?'▲':'▼')+'</span>' : '' }
+
+function floorTable(){
+  var rows=D.byFloor.slice().sort(function(a,b){
+    var x=a[FST.k], y=b[FST.k];
+    if(typeof x==='string') return FST.d*String(x).localeCompare(String(y));
+    return FST.d*(x-y);
+  });
+  var h='<div class="tscroll"><table><thead><tr>'
+   +'<th onclick="setFSort(\'floor\')">Floor'+far('floor')+'</th>'
+   +'<th onclick="setFSort(\'man\')">Operators'+far('man')+'</th>'
+   +'<th onclick="setFSort(\'nDays\')">Days'+far('nDays')+'</th>'
+   +'<th onclick="setFSort(\'loss\')">Loss Min'+far('loss')+'</th>'
+   +'<th onclick="setFSort(\'eff\')">Eff%'+far('eff')+'</th>'
+   +'</tr></thead><tbody>';
+  rows.forEach(function(f){
+    h+='<tr><td class="f clk" onclick="setScope(\''+f.floor+'\')">'+esc(f.floor)+'</td>'
+     +'<td>'+f.man+'</td><td>'+f.nDays+'</td>'
+     +'<td>'+(f.loss?num(f.loss):'&ndash;')+'</td>'
+     +'<td><span class="pill '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</span></td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td>All</td><td>'+num(D.totals.men)+'</td><td>'+D.totals.days+'</td>'
+   +'<td>'+num(D.totals.loss)+'</td><td>'+fmt(D.totals.eff,1)+'%</td></tr></tfoot></table></div>';
+  return h;
 }
 
-/* Horizontal bars, reused for floor ranking and for loss reasons. */
-function barList(items,opt){
-  opt=opt||{};
-  if(!items.length) return '<div class="empty">'+(opt.empty||'Nothing to show.')+'</div>';
-  var max=0; items.forEach(function(i){ if(i.v>max)max=i.v });
-  if(max<=0) max=1;
+/* ---------- loss reasons ---------- */
+function reasonBars(){
+  if(!LOSS) return '<div class="empty">Loss reasons could not be read from the PIB sheet.<br>'
+    +'The efficiency figures above are unaffected.</div>';
+  var list=(LOSS.byReason||[]).filter(function(r){
+    return !scopeSel || true;      /* the API already scopes when a floor is sent */
+  });
+  if(!list.length) return '<div class="empty">No loss time recorded in this range.</div>';
+  var tot=(LOSS.totals||{}).min||1, max=list[0].min||1;
   var h='<div class="bars">';
-  items.forEach(function(it){
-    h+='<div class="brow"'+(it.tip?' title="'+esc(it.tip)+'"':'')+'>'
-      +'<div class="bname">'+esc(it.k)+'</div>'
-      +'<div class="btrack"><div class="bfill" style="width:'+(it.v/max*100)+'%;background:'
-      +(it.colour||'#723EC3')+'"></div></div>'
-      +'<div class="bval">'+esc(it.label)+'</div></div>';
+  list.forEach(function(r){
+    h+='<div class="brow" title="'+esc(r.reason+': '+num(r.min)+' min, '+r.entries+' entries, '+r.operators+' operators')+'">'
+     +'<div class="bname">'+esc(r.reason)+'</div>'
+     +'<div class="btrack"><div class="bfill" style="width:'+(r.min/max*100)+'%"></div></div>'
+     +'<div class="bval">'+num(r.min)+'m <span style="color:var(--mut);font-weight:700">'
+     +fmt(r.min/tot*100,0)+'% · '+r.entries+'x</span></div></div>';
   });
   return h+'</div>';
 }
 
-/* Floor down the side, date across the top, Eff% in the cell. */
-function heatmap(){
-  if(!D.dates.length) return '<div class="empty">No days in this range.</div>';
-  var floors=D.byFloor.map(function(f){return f.floor});
-  if(!floors.length) return '<div class="empty">No floor has data in this range.</div>';
-  var h='<div class="hm"><table><thead><tr><th class="fl">Floor</th>';
-  D.dates.forEach(function(d){ h+='<th>'+esc(shortDate(d))+'</th>' });
-  h+='<th>Avg</th></tr></thead><tbody>';
-  floors.forEach(function(f){
-    h+='<tr><td class="fl">'+esc(f)+'</td>';
-    D.dates.forEach(function(d){
-      var c=D.cell[f+'|'+d];
-      if(!c||c.eff==null){ h+='<td class="na">&ndash;</td>'; return; }
-      h+='<td class="c" style="background:'+effColour(c.eff)+'" title="'
-        +esc(f+'  '+prettyDate(d)+'\nEff '+fmt(c.eff,1)+'%'+(c.loss>0?('\nLoss '+num(c.loss)+' min'):''))
-        +'">'+fmt(c.eff,0)+'</td>';
-    });
-    var fr=D.byFloor.filter(function(x){return x.floor===f})[0];
-    h+='<td class="c" style="background:'+effColour(fr.eff)+'">'+fmt(fr.eff,0)+'</td></tr>';
-  });
-  return h+'</tbody></table></div>';
-}
-
-/* =====================================================================
-   RENDER
-   ===================================================================== */
-function render(){
-  if(!D){ return; }
-  tellParent(STAMP||prettyDate($('t1').value));
-
-  if(!D.rows.length){
-    /* Three different failures used to read as one flat "no data", which is
-       why a range that clearly HAS data in the sheet looked broken with
-       nothing to act on. Each is now named, with the numbers behind it. */
-    var withDate = ROWS.filter(function(r){ return r.date }).length;
-    var msg;
-
-    if(!ROWS.length){
-      msg = '<b>The API returned no rows for this range.</b>'
-        + '<div class="diag">Asked for <b>'+esc($('f1').value)+'</b> to <b>'+esc($('t1').value)+'</b>'
-        + '<br>Rows received: <b>0</b>'
-        + (LASTURL?('<br><span class="u">'+esc(LASTURL)+'</span>'):'')
-        + '</div>'
-        + 'The usual cause is that the Cutting Report Downloader script was pasted but not '
-        + 'redeployed, so the running copy is the old one. '
-        + '<b>Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy.</b>'
-        + '<br><br>Open the link above in a new tab: if it shows rows, this page has a bug and I need to know. '
-        + 'If it shows an empty list, the sheet or the script is the problem, not the page.';
-    }else if(!withDate){
-      msg = '<b>The rows have no date on them.</b>'
-        + '<div class="diag">Rows received: <b>'+ROWS.length+'</b>, with a date: <b>0</b></div>'
-        + 'A trend needs to know which day each row belongs to. The date is sent as the 12th '
-        + 'field and was added on 20-Aug-2026, so the running script is older than that. '
-        + '<b>Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy.</b>';
-    }else{
-      msg = '<b>Nothing matches the current filter.</b>'
-        + '<div class="diag">Rows received: <b>'+ROWS.length+'</b>'
-        + '<br>Floor filter: <b>'+esc(scopeSel||'All Floors')+'</b></div>'
-        + 'The rows are there but none are on the selected floor. Press <b>All Floors</b>.';
-    }
-
-    $('content').innerHTML='<div class="wrap"><div class="empty">'+msg+'</div></div>';
-    return;
-  }
-
-  var T=D.totals;
-  var dirTxt = T.dir==null ? '<span class="flat">not enough days</span>'
-    : (T.dir>=0.05 ? '<span class="up">&#9650; '+fmt(T.dir,1)+' pts</span>'
-    : (T.dir<=-0.05 ? '<span class="dn">&#9660; '+fmt(Math.abs(T.dir),1)+' pts</span>'
-    : '<span class="flat">level</span>'));
-
-  var h='';
-
-  /* ---- KPI row ---- */
-  h+='<div class="kpis">'
-   +'<div class="kpi"><div class="k">Overall Eff%</div><div class="v '+pctClass(T.eff)+'">'+fmt(T.eff,1)+'%</div>'
-   +'<div class="s">&Sigma; Output Min &divide; &Sigma; Input Min</div></div>'
-   +'<div class="kpi k2"><div class="k">Direction</div><div class="v" style="font-size:19px">'+dirTxt+'</div>'
-   +'<div class="s">second half vs first half of the period</div></div>'
-   +'<div class="kpi k3"><div class="k">Loss Time</div><div class="v">'+fmt(T.loss/60,1)+'</div>'
-   +'<div class="s">hours, '+num(T.loss)+' min over '+T.days+' day(s)</div></div>'
-   +'<div class="kpi k4"><div class="k">Operators</div><div class="v">'+num(T.men)+'</div>'
-   +'<div class="s">with data in this range</div></div>'
-   +'<div class="kpi k5"><div class="k">Above 90%</div><div class="v">'+num(D.band.hi)+'</div>'
-   +'<div class="s">'+fmt(T.men?D.band.hi/T.men*100:0,0)+'% of operators, on their own average</div></div>'
-   +'</div>';
-
-  h+='<div class="note"><b>Eff%</b> here is always &Sigma; Output Min &divide; &Sigma; Input Min for whatever is '
-   +'being summarised, never the average of daily percentages, so a short day cannot weigh the same as a full one. '
-   +'<b>Loss time</b> is already deducted from Input Min by the sheet, so it explains a figure rather than adding to it. '
-   +'<b>Bands</b> in the day chart are per operator-day; the KPI above counts each operator once on his own average.</div>';
-
-  /* ---- trend ---- */
-  h+='<div class="card"><div class="hd"><h3>Efficiency and Loss Time by Day</h3>'
-   +'<span class="hint">'+T.days+' day(s)</span></div><div class="bd">'+chartTrend(D.byDay)+'</div>'
-   +'<div class="lgd"><span><i style="background:#723EC3"></i>Eff% (line)</span>'
-   +'<span><i style="background:#C77700;opacity:.4"></i>Loss minutes (bars, right scale)</span>'
-   +'<span><i style="background:#F0C2C6"></i>65% guide</span>'
-   +'<span><i style="background:#CFE6D8"></i>90% guide</span></div></div>';
-
-  /* ---- band movement ---- */
-  h+='<div class="card"><div class="hd"><h3>Where the Operators Sat, Day by Day</h3>'
-   +'<span class="hint">share of operators in each band</span></div><div class="bd">'+chartBands(D.byDay)+'</div>'
-   +'<div class="lgd"><span><i style="background:#D64550"></i>Below 65%</span>'
-   +'<span><i style="background:#1E8E4E"></i>65 to 90%</span>'
-   +'<span><i style="background:#1D6FD0"></i>Above 90%</span></div></div>';
-
-  /* ---- floor ranking + loss by floor ---- */
-  h+='<div class="two">';
-  h+='<div class="card"><div class="hd"><h3>Floor Ranking</h3><span class="hint">'
-   +D.byFloor.length+' floor(s)</span></div><div class="bd">'
-   + barList(D.byFloor.slice().sort(function(a,b){return b.eff-a.eff}).map(function(f){
-       return {k:'Floor '+f.floor, v:f.eff, colour:effColour(f.eff),
-               label:fmt(f.eff,1)+'%',
-               tip:f.floor+': '+f.man+' operators over '+f.nDays+' day(s), '+num(f.loss)+' loss min'};
-     }))
-   +'</div></div>';
-
-  h+='<div class="card"><div class="hd"><h3>Loss Time by Floor</h3><span class="hint">'
-   +num(T.loss)+' min total</span></div><div class="bd">'
-   + barList(D.byFloor.slice().filter(function(f){return f.loss>0})
-       .sort(function(a,b){return b.loss-a.loss}).map(function(f){
-         return {k:'Floor '+f.floor, v:f.loss, colour:'#C77700',
-                 label:num(f.loss)+' min',
-                 tip:f.floor+': '+fmt(f.loss/60,1)+' hours lost'};
-       }), {empty:'No loss time recorded in this range.'})
-   +'</div></div>';
-  h+='</div>';
-
-  /* ---- heatmap ---- */
-  h+='<div class="card"><div class="hd"><h3>Floor by Date, Eff%</h3>'
-   +'<span class="hint">hover a cell for the detail</span></div><div class="bd">'+heatmap()+'</div>'
-   +'<div class="lgd"><span><i style="background:#D64550"></i>Below 65%</span>'
-   +'<span><i style="background:#C77700"></i>65 to 90%</span>'
-   +'<span><i style="background:#1E8E4E"></i>Above 90%</span></div></div>';
-
-  h+=lossSection();
-  h+=floorTable();
-  h+=moverTables();
-
-  $('content').innerHTML='<div class="wrap">'+h+'</div>';
-}
-
-/* ---------- loss analysis, from the PIB sheet ---------- */
-function lossSection(){
-  if(!LOSS){
-    return '<div class="card"><div class="hd"><h3>Loss Time Analysis</h3></div>'
-      +'<div class="bd"><div class="empty">The loss reasons could not be read from the PIB sheet.<br>'
-      +'The efficiency figures above are unaffected. If this persists, the Loss Time script '
-      +'needs <b>Deploy &rarr; New version</b>.</div></div></div>';
-  }
-  if(!LOSS.byReason.length){
-    return '<div class="card"><div class="hd"><h3>Loss Time Analysis</h3></div>'
-      +'<div class="bd"><div class="empty">No loss time was recorded in this range.</div></div></div>';
-  }
-
-  var t=LOSS.totals;
-  var h='<div class="card"><div class="hd"><h3>Loss Time Analysis</h3>'
-   +'<span class="hint">'+num(t.min)+' min over '+num(t.entries)+' entr'+(t.entries===1?'y':'ies')
-   +', '+num(t.operators)+' operator(s)</span></div><div class="bd">';
-
-  h+='<div class="two">';
-  h+='<div><div class="hint" style="margin-bottom:7px">By reason</div>'
-   + barList(LOSS.byReason.map(function(r){
-       return {k:r.reason, v:r.min, colour:'#C77700',
-               label:num(r.min)+' min  ('+fmt(t.min?r.min/t.min*100:0,0)+'%)',
-               tip:r.reason+': '+r.entries+' entries across '+r.operators+' operator(s)'};
-     }))+'</div>';
-  h+='<div><div class="hint" style="margin-bottom:7px">Loss minutes by day</div>'
-   + barList(Object.keys(LOSS.byDate).sort().map(function(d){
-       return {k:shortDate(d), v:LOSS.byDate[d], colour:'#723EC3',
-               label:num(LOSS.byDate[d])+' min', tip:prettyDate(d)};
-     }))+'</div>';
-  h+='</div>';
-
-  /* worst operators */
-  if(LOSS.topOps.length){
-    h+='<div class="hint" style="margin:14px 0 7px">Operators with the most loss time</div>';
-    h+='<div class="scroll"><table><thead><tr>'
-     +'<th class="l">Floor</th><th class="l">Op ID</th><th class="l">Name</th>'
-     +'<th>Loss Min</th><th>Hours</th><th class="l">Reasons</th></tr></thead><tbody>';
-    var nameOf={};
-    D.ops.forEach(function(o){ nameOf[o.floor+'|'+String(o.opId).replace(/^0+/,'')]=o.name });
-    LOSS.topOps.forEach(function(o){
-      if(scopeSel && !inScope(o.floor)) return;
-      var nm=nameOf[o.floor+'|'+String(o.opId).replace(/^0+/,'')]||'';
-      h+='<tr><td class="l">'+esc(o.floor)+'</td><td class="l">'+esc(o.opId)+'</td>'
-       +'<td class="l">'+esc(nm)+'</td>'
-       +'<td>'+num(o.min)+'</td><td>'+fmt(o.min/60,1)+'</td>'
-       +'<td class="l">'+esc(o.reasons.map(function(r){return r.reason+' '+r.min+'m'}).join(', '))+'</td></tr>';
-    });
-    h+='</tbody></table></div>';
-  }
-  return h+'</div></div>';
-}
-
-/* ---------- floor summary table ---------- */
-function floorTable(){
-  var h='<div class="card"><div class="hd"><h3>Floor Summary</h3>'
-   +'<span class="hint">whole range</span></div><div class="bd"><div class="scroll"><table><thead><tr>'
-   +'<th class="l">Floor</th><th>Operators</th><th>Days</th><th>Input Min</th><th>Output Min</th>'
-   +'<th>Loss Min</th><th>Eff%</th></tr></thead><tbody>';
-  var t={man:0,inMin:0,outMin:0,loss:0};
-  D.byFloor.forEach(function(f){
-    t.man+=f.man; t.inMin+=f.inMin; t.outMin+=f.outMin; t.loss+=f.loss;
-    h+='<tr><td class="l"><b>'+esc(f.floor)+'</b></td><td>'+f.man+'</td><td>'+f.nDays+'</td>'
-     +'<td>'+num(f.inMin)+'</td><td>'+num(f.outMin)+'</td>'
-     +'<td>'+(f.loss>0?num(f.loss):'&ndash;')+'</td>'
-     +'<td><span class="pill '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</span></td></tr>';
-  });
-  var te=t.inMin>0?(t.outMin/t.inMin*100):0;
-  h+='</tbody><tfoot><tr><td class="l">Total</td><td>'+num(t.man)+'</td><td>'+D.totals.days+'</td>'
-   +'<td>'+num(t.inMin)+'</td><td>'+num(t.outMin)+'</td><td>'+num(t.loss)+'</td>'
-   +'<td>'+fmt(te,1)+'%</td></tr></tfoot></table></div></div></div>';
-  return h;
-}
-
-/* ---------- who moved ----------
-   Only operators with at least 4 recorded days appear. Below that the two
-   halves are one day each and the "trend" is just the day-to-day scatter. */
-function moverTables(){
-  var movers=D.ops.filter(function(o){ return o.delta!=null && o.nDays>=4 });
-  if(!movers.length){
-    return '<div class="card"><div class="hd"><h3>Who Moved</h3></div><div class="bd">'
-      +'<div class="empty">A longer range is needed. An operator must have at least '
-      +'4 recorded days before his first half can be compared with his second.</div></div></div>';
-  }
-  var up=movers.slice().sort(function(a,b){return b.delta-a.delta}).slice(0,12);
-  var dn=movers.slice().sort(function(a,b){return a.delta-b.delta}).slice(0,12);
-
-  function tbl(list,cls){
-    var h='<div class="scroll"><table><thead><tr>'
-     +'<th class="l">Floor</th><th class="l">Name</th><th>Days</th>'
-     +'<th>First half</th><th>Second half</th><th>Change</th></tr></thead><tbody>';
+/* ---------- who moved ---------- */
+function moverBlock(){
+  var m=D.ops.filter(function(o){ return o.delta!=null && o.nDays>=4 });
+  if(!m.length) return '<div class="card"><div class="hd"><h3>'+esc(headTitle('Who Moved'))+'</h3></div>'
+    +'<div class="bd"><div class="empty">A longer range is needed. An operator must have at least four '
+    +'recorded days before his first half can be compared with his second.</div></div></div>';
+  var up=m.slice().sort(function(a,b){return b.delta-a.delta}).slice(0,10);
+  var dn=m.slice().sort(function(a,b){return a.delta-b.delta}).slice(0,10);
+  function t(list){
+    var h='<div class="tscroll"><table><thead><tr><th>Floor</th><th>Name</th><th>Days</th>'
+     +'<th>1st half</th><th>2nd half</th><th>Change</th></tr></thead><tbody>';
     list.forEach(function(o){
-      var d=o.delta;
-      h+='<tr><td class="l">'+esc(o.floor)+'</td><td class="l">'+esc(o.name||o.opId)+'</td>'
+      h+='<tr><td class="f">'+esc(o.floor)+'</td><td style="text-align:left">'+esc(o.name||o.opId)+'</td>'
        +'<td>'+o.nDays+'</td><td>'+fmt(o.first,1)+'%</td><td>'+fmt(o.last,1)+'%</td>'
-       +'<td class="'+(d>=0?'up':'dn')+'">'+(d>=0?'&#9650; ':'&#9660; ')+fmt(Math.abs(d),1)+'</td></tr>';
+       +'<td class="delta '+(o.delta>=0?'up':'dn')+'">'+(o.delta>=0?'▲ ':'▼ ')+fmt(Math.abs(o.delta),1)+'</td></tr>';
     });
     return h+'</tbody></table></div>';
   }
-
   return '<div class="two">'
-   +'<div class="card"><div class="hd"><h3>Improving Most</h3>'
-   +'<span class="hint">second half vs first half</span></div><div class="bd">'+tbl(up)+'</div></div>'
-   +'<div class="card"><div class="hd"><h3>Declining Most</h3>'
-   +'<span class="hint">second half vs first half</span></div><div class="bd">'+tbl(dn)+'</div></div>'
-   +'</div>';
+   +'<div class="card"><div class="hd"><h3>'+esc(headTitle('Improving Most'))+'</h3>'
+   +'<span class="hint">2nd half vs 1st</span></div>'+t(up)+'</div>'
+   +'<div class="card"><div class="hd"><h3>'+esc(headTitle('Declining Most'))+'</h3>'
+   +'<span class="hint">2nd half vs 1st</span></div>'+t(dn)+'</div></div>';
+}
+
+/* ---------- the day chart ----------
+   Loss minutes as bars on the left axis, Eff% as a line on the right, with the
+   65 and 90 guides drawn in. Hovering anywhere gives the whole day, the same
+   way the Weekly Fabric chart does. */
+var CH={pts:[],L:0,iw:0,n:0,W:1000};
+function drawChart(){
+  var host=$('chhost'); if(!host||!D||!D.byDay.length) return;
+  var W=Math.max(560,Math.floor(host.clientWidth||960));
+  host.innerHTML=chartSvg(D.byDay,W);
+  wireChart();
+}
+window.addEventListener('resize',function(){ if(D) drawChart(); });
+
+function chartSvg(days,W){
+  var H=300,L=52,R=54,T=18,B=38, iw=W-L-R, ih=H-T-B, n=days.length;
+  var maxLoss=0; days.forEach(function(d){ if(d.loss>maxLoss)maxLoss=d.loss });
+  if(maxLoss<=0) maxLoss=1;
+  var lo=100,hi=0; days.forEach(function(d){ if(d.eff<lo)lo=d.eff; if(d.eff>hi)hi=d.eff });
+  lo=Math.max(0,Math.min(60,Math.floor(lo/10)*10-5));
+  hi=Math.min(150,Math.max(100,Math.ceil(hi/10)*10+5));
+  function y(v){ return T+ih-((v-lo)/(hi-lo))*ih }
+  function x(i){ return L+(n===1?iw/2:(i/(n-1))*iw) }
+  var bw=Math.max(4,Math.min(30,iw/Math.max(1,n)*0.46));
+
+  var h='<svg id="chartsvg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" '
+      + 'style="display:block;width:100%;height:auto;cursor:crosshair">';
+
+  [65,90,100].forEach(function(v){
+    if(v<lo||v>hi) return;
+    var yy=y(v), c=(v===65?'#F3C8CC':v===90?'#CFE6D8':'#E4E6F0');
+    h+='<line x1="'+L+'" y1="'+yy+'" x2="'+(W-R)+'" y2="'+yy+'" stroke="'+c+'" stroke-width="1" '
+      +'stroke-dasharray="'+(v===100?'2 4':'5 4')+'"/>'
+      +'<text x="'+(W-R+8)+'" y="'+(yy+3.5)+'" font-size="9.5" fill="#7A81A0" font-weight="700">'+v+'%</text>';
+  });
+
+  days.forEach(function(d,i){
+    if(!(d.loss>0)) return;
+    var bh=(d.loss/maxLoss)*(ih*0.45);
+    h+='<rect id="bar'+i+'" x="'+(x(i)-bw/2)+'" y="'+(T+ih-bh)+'" width="'+bw+'" height="'+bh
+      +'" fill="#C77700" fill-opacity="0.38" rx="2"/>';
+  });
+  h+='<text x="'+(L-8)+'" y="'+(T+ih)+'" text-anchor="end" font-size="9" fill="#C77700" font-weight="700">0</text>'
+   + '<text x="'+(L-8)+'" y="'+(T+ih-ih*0.45+4)+'" text-anchor="end" font-size="9" fill="#C77700" '
+   + 'font-weight="700">'+num(maxLoss)+'m</text>';
+
+  CH.pts=[]; CH.L=L; CH.iw=iw; CH.n=n; CH.W=W;
+  days.forEach(function(d,i){ CH.pts.push({x:x(i),y:y(d.eff),d:d}) });
+
+  h+='<line id="chair" x1="0" y1="'+T+'" x2="0" y2="'+(T+ih)+'" stroke="#723EC3" '
+   + 'stroke-width="1" stroke-dasharray="3 3" opacity="0"/>';
+  h+='<polyline fill="none" stroke="#723EC3" stroke-width="2.6" stroke-linejoin="round" '
+   + 'stroke-linecap="round" points="'+CH.pts.map(function(p){return p.x+','+p.y}).join(' ')+'"/>';
+  CH.pts.forEach(function(p,i){
+    h+='<circle id="pt'+i+'" cx="'+p.x+'" cy="'+p.y+'" r="3.6" fill="#fff" stroke="#723EC3" stroke-width="2"/>';
+  });
+
+  var step=Math.ceil(n/12);
+  days.forEach(function(d,i){
+    if(i%step && i!==n-1) return;
+    h+='<text x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9" fill="#7A81A0" '
+      +'font-weight="700">'+esc(shortDate(d.date))+'</text>';
+  });
+  return h+'</svg>';
+}
+
+function wireChart(){
+  var svg=$('chartsvg'); if(!svg) return;
+  var box=$('chartwrap'), tip=$('chtip'), hair=$('chair'), last=-1;
+  function hide(){
+    tip.classList.remove('on'); if(hair) hair.setAttribute('opacity','0');
+    if(last>=0){
+      var c=$('pt'+last), b=$('bar'+last);
+      if(c){ c.setAttribute('r','3.6'); c.setAttribute('fill','#fff') }
+      if(b) b.setAttribute('fill-opacity','0.38');
+      last=-1;
+    }
+  }
+  function row(k,v){ return '<div class="r"><span>'+k+'</span><b>'+v+'</b></div>' }
+  function move(ev){
+    var t=(ev.touches&&ev.touches[0])||ev;
+    var rc=svg.getBoundingClientRect();
+    var vx=(t.clientX-rc.left)/rc.width*CH.W;
+    var i=Math.round((vx-CH.L)/CH.iw*(CH.n-1));
+    if(i<0)i=0; if(i>CH.n-1)i=CH.n-1;
+    var p=CH.pts[i]; if(!p) return;
+    if(i!==last){
+      hide(); last=i;
+      var c=$('pt'+i), b=$('bar'+i);
+      if(c){ c.setAttribute('r','5.6'); c.setAttribute('fill','#723EC3') }
+      if(b) b.setAttribute('fill-opacity','0.85');
+      if(hair){ hair.setAttribute('x1',p.x); hair.setAttribute('x2',p.x); hair.setAttribute('opacity','1'); }
+      var d=p.d;
+      tip.innerHTML='<h4>'+esc(prettyDate(d.date))+'</h4>'
+        +row('Eff%','<b class="'+pctClass(d.eff)+'">'+fmt(d.eff,1)+'%</b>')
+        +row('Operators',num(d.man))
+        +row('Input Min',num(d.inMin))
+        +row('Output Min',num(d.outMin))
+        +row('Loss Min','<b>'+(d.loss?num(d.loss):'0')+'</b>')
+        +row('Below 65%','<b class="red">'+d.lo+'</b> of '+(d.lo+d.mid+d.hi));
+      tip.classList.add('on');
+    }
+    var bx=box.getBoundingClientRect();
+    var lx=t.clientX-bx.left+14, ty=t.clientY-bx.top-10;
+    if(lx+tip.offsetWidth>bx.width-8) lx=t.clientX-bx.left-tip.offsetWidth-14;
+    if(ty<4) ty=4;
+    if(ty+tip.offsetHeight>bx.height-4) ty=bx.height-tip.offsetHeight-4;
+    tip.style.left=lx+'px'; tip.style.top=ty+'px';
+  }
+  svg.addEventListener('mousemove',move);
+  svg.addEventListener('mouseleave',hide);
+  svg.addEventListener('touchstart',function(e){move(e);e.preventDefault()},{passive:false});
+  svg.addEventListener('touchmove', function(e){move(e);e.preventDefault()},{passive:false});
 }
 
 /* ---------- Excel ---------- */
@@ -1379,6 +1671,9 @@ function monthRange(off,latest){
 
 /* ---------- boot ---------- */
 function boot(){
+  /* Build the picker FIRST, so its buttons exist while the dates load. */
+  setupPicker();
+
   buildChips();
   busy('Checking available days…');
   track(fetch(EFF_API+'?action=snapshot',{cache:'no-store'})
@@ -1418,7 +1713,7 @@ boot();
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Cutting Efficiency Trend ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -1432,8 +1727,36 @@ boot();
   if(document.readyState!=='loading') stamp();
   else document.addEventListener('DOMContentLoaded', stamp);
 })();
+
+/* ---------- sticky offsets ----------
+   The control strip and every card title bar are sticky, so each scroll box
+   below them has to be told how much height is already pinned above it, or a
+   pinned table heading hides behind the card title. Same helper the Weekly
+   Fabric report uses. */
+function boxH(sel){ var e=document.querySelector(sel); return e?Math.round(e.getBoundingClientRect().height):0; }
+function syncStickyOffsets(){
+  var r=document.documentElement;
+  var strip=boxH('.strip'), hd=boxH('.card>.hd');
+  if(strip>0 && strip<200) r.style.setProperty('--stripH', strip+'px');
+  if(hd>0 && hd<200)       r.style.setProperty('--cardHdH', hd+'px');
+  r.style.setProperty('--afH','0px');
+}
+window.addEventListener('load', syncStickyOffsets);
+window.addEventListener('resize', syncStickyOffsets);
+
+/* Kept because the shared table markup references it. */
+function sortRows(rows,st){
+  var idx={name:0,rolls:1,fails:2,used:3,waste:4};
+  return rows.slice().sort(function(a,b){
+    var x=a[idx[st.k]], y=b[idx[st.k]];
+    if(typeof x==='string') return st.d*String(x).localeCompare(String(y));
+    return st.d*(x-y);
+  });
+}
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Cutting Efficiency Trend -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Cutting Efficiency Trend -->
 </html>

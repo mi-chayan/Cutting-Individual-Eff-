@@ -705,8 +705,17 @@ function drPreset(k){
   var p=null;
   DR.presets.forEach(function(x){ if(x.k===k) p=x; });
   if(!p||!p.get) return;
-  var r=p.get()||[];
-  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  var r=[];
+  /* A preset asked before the date list has arrived cannot work out its range.
+     Say so instead of silently clearing both ends, which looked like the
+     button had done nothing. */
+  try{ r=p.get()||[]; }catch(e){ r=[]; }
+  if(!r[0]||!r[1]){
+    var sel=drEl('drSel');
+    if(sel) sel.innerHTML='<span>Still loading the available days, try again in a moment</span>';
+    return;
+  }
+  DR.dfrom=r[0]; DR.dto=r[1]; DR.dpreset=k;
   drSyncViews();
   drRender();
 }
@@ -967,7 +976,11 @@ var METRICS={
 };
 
 var RAW=[], EFFG={cols:[],rows:[]}, OEEG={cols:[],rows:[]};
-var SNAP=null, STAMP='', THROUGH='', query='', scopeSel='', dateSel='', view='mat', metric='final', gridKind='eff';
+/* SNAP starts as an EMPTY OBJECT, not null. The picker and the chips are now
+   built before the snapshot arrives, and every one of them reads SNAP.weeks,
+   SNAP.dates or SNAP.minDate. With null that threw on the first line and took
+   the whole page down; with {} they simply find nothing yet, which is true. */
+var SNAP={}, STAMP='', THROUGH='', query='', scopeSel='', dateSel='', view='mat', metric='final', gridKind='eff';
 var sortKey='', sortDir=1;
 var mSortKey='total', mSortDir=-1;
 var MROWS={};   /* floor|opId -> matrix row, used by the hover breakdown */
@@ -1054,11 +1067,29 @@ function ssClear(){
 }
 
 window.addEventListener('load', function(){
+  /* Build the picker FIRST, before anything is fetched. It used to be built
+     inside buildPeriod(), which only runs once the snapshot arrives, so
+     opening the picker during that wait showed a calendar with an EMPTY
+     preset column. The presets do not need the snapshot to exist. */
+  setupPicker();
+  buildChips();
+
   var c=ssGet(SNAP_KEY);
   if(c && c.ok){
-    SNAP=c; if(c.roster) ROSTER=c.roster; buildPeriod(); buildChips(); load();
+    SNAP=c; if(c.roster) ROSTER=c.roster;
+    buildPeriod(); buildChips();
+    /* Already held in this tab, so show it rather than making them press
+       Load for data that costs nothing to display. */
+    var ck=currentKey(), cached=ssGet(ck);
+    if(cached && cached.ok){
+      applyData(cached);
+      LOADED=true; DIRTY=false; paintLoadBtn();
+    }else{
+      showReady(); markDirty();
+    }
     getSnapshot(false);            /* quietly check for a newer one */
   }else{
+    showReady(); markDirty();
     getSnapshot(true);
   }
 });
@@ -2318,7 +2349,7 @@ function exportExcel(){
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Weekly Individual PIB ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -2335,5 +2366,7 @@ function exportExcel(){
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Weekly Individual PIB -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Weekly Individual PIB -->
 </html>
