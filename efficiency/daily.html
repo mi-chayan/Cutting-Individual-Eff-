@@ -557,6 +557,10 @@
   #bar i{position:relative;overflow:hidden}
   @keyframes barsheen{0%{opacity:.15}50%{opacity:.8}100%{opacity:.15}}
 
+  /* NO CIRCULAR SPINNER. The pill already says what is loading in words and
+     the bar across the top already shows that something is running. A third
+     thing spinning beside them said nothing extra. */
+  .island .ring{display:none !important}
   .island{position:fixed;top:12px;left:50%;z-index:401;
           display:inline-flex;align-items:center;gap:11px;
           background:rgba(12,12,18,.94);color:#fff;
