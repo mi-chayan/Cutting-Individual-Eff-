@@ -401,6 +401,12 @@
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
   .spin{display:none !important}
+  .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini.load.needs svg{fill:#fff}
+  .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  .mini.load svg{width:13px;height:13px;fill:currentColor}
+  .ready{text-align:center;padding:60px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
 
   .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
          background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
@@ -566,6 +572,10 @@
        the allowance note, the cache keys, still reads f1 and t1, so the picker
        only has to keep them in step instead of every call site being rewritten. -->
   <input type="hidden" id="f1"><input type="hidden" id="t1">
+  <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this range">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+    <span id="loadTxt">Load</span>
+  </button>
   <span class="showing" id="showing"></span>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
@@ -1170,20 +1180,16 @@ function boot(){
   var cd = lsGet(LS_DATES);
   if(cd && cd.dates && cd.dates.length){
     DATES=cd.dates; LATEST=cd.latest;
-    /* Open on whatever range the rest of the dashboard is showing, if there
-       is one, rather than always jumping back to the last seven days. */
+    /* The range is SET but not fetched. Opening a report is not a request for
+       one: the user picks the range they want and presses Load. */
     if(!$('f1').value){
       var wf=ssRead(SD_FROM), wt=ssRead(SD_TO);
-      if(wf && wt){
-        $('f1').value=wf; $('t1').value=wt; markPreset(''); syncLabels(); load();
-      }else{
-        applyPreset('d7');
-      }
-    }else{
-      load();
+      if(wf && wt){ $('f1').value=wf; $('t1').value=wt; markPreset(''); syncLabels(); }
+      else { setPresetRange('d7'); }
     }
+    showReady(); markDirty();
   }else{
-    $('content').innerHTML='<div class="loading">First load, fetching dates&hellip;</div>';
+    $('content').innerHTML='<div class="loading">First load, fetching the list of days&hellip;</div>';
   }
 
   track(fetch(API_URL+'?action=dates'), 'Fabric Weekly, checking available days')
@@ -1203,8 +1209,11 @@ function boot(){
          data, so it is built once DATES is known and rebuilt whenever the
          list grows. */
       setupPicker();
-      if(!cd || !cd.dates || !cd.dates.length) applyPreset('d7');
-      else if(changed) load();          /* a new day landed, refresh silently */
+      /* Still no fetch. If this is the very first visit the range is seeded to
+         the last seven days so Load has something sensible to read, but the
+         reading itself waits for the press. */
+      if(!cd || !cd.dates || !cd.dates.length){ setPresetRange('d7'); }
+      showReady(); markDirty();
     })
     .catch(function(e){ if(!cd) showErr(e) });
 }
@@ -1353,18 +1362,12 @@ function setupPicker(){
     /* days, not bounds. These are only MARKED as empty, never blocked, so a
        day whose report has not been pushed yet can still be selected. */
     days: DATES.slice(),
+    /* Apply IS the Load for this page: the user has just said exactly what
+       they want, so reading it is what they asked for. */
     apply: function(from,to,preset){
       $('f1').value=from; $('t1').value=to;
-      var lbl='Fabric Weekly, '+(PRESET_LABEL[preset]||(prettyDate(from)+' to '+prettyDate(to)));
-      /* Say what is happening BEFORE the wait, not after it. The old control
-         reloaded silently between the two date boxes and looked frozen. */
-      barBusy(true, lbl);
-      busy('Loading '+prettyDate(from)+' to '+prettyDate(to)+'\u2026');
       shareRange(from,to); shareDay(to);
-      refreshDates(true)
-        .then(function(){ load(); })
-        .catch(function(){ load(); })
-        .then(function(){ barBusy(false, lbl); });
+      doLoad();
     }
   });
   drSet($('f1').value, $('t1').value, '');
@@ -1386,6 +1389,49 @@ function lastNDataDays(n){
   if(!DATES.length) return null;
   var pick = DATES.slice(-n);
   return { from: pick[0], to: pick[pick.length-1], count: pick.length };
+}
+
+/* =====================================================================
+   ONE LOADING CONTRACT  (see daily.html for the reasoning)
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true,label); islandShow(label);
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){ if(tok!==RUN.seq) return; barBusy(false,RUN.label); }
+
+var DIRTY=true, LOADED=false;
+function markDirty(){ DIRTY=true; paintLoadBtn(); }
+function paintLoadBtn(){
+  var b=$('loadBtn'); if(!b) return;
+  var t=$('loadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this range' : 'Read this range again';
+}
+function showReady(){
+  LOADED=false;
+  $('content').innerHTML='<div class="ready"><b>Choose a date range, then press Load.</b>'
+    +'Nothing is read from the sheet until you press it, so this page opens instantly.</div>';
+}
+function doLoad(){
+  refreshDates(true).then(function(){ load() }).catch(function(){ load() });
+}
+
+/* Sets the range for a preset WITHOUT loading. applyPreset still exists for
+   the paths that genuinely want to load straight away. */
+function setPresetRange(which){
+  if(!LATEST) return;
+  var ws=weekStart(LATEST), r;
+  if(which==='tw'){ $('f1').value=ws; $('t1').value=LATEST; markPreset('p_tw'); }
+  else if(which==='lw'){ var st=addDays(ws,-WEEK_LEN); $('f1').value=st; $('t1').value=weekEnd(st); markPreset('p_lw'); }
+  else if(which==='d7'){ r=lastNDataDays(7);  if(r){ $('f1').value=r.from; $('t1').value=r.to; } markPreset('p_d7'); }
+  else { r=lastNDataDays(30); if(r){ $('f1').value=r.from; $('t1').value=r.to; } markPreset('p_d30'); }
+  syncLabels();
 }
 
 function applyPreset(which){
@@ -1419,12 +1465,18 @@ function load(){
   if(!f||!t) return;
   shareRange(f,t);
   shareDay(t);
-  if(f>t){ $('content').innerHTML='<div class="err"><b>From date is after To date.</b><br>Fix the order and it will load.</div>'; return }
+  var _label='Fabric Weekly, '+prettyDate(f)+' to '+prettyDate(t);
+  var _tok=runBegin(_label);
+  busy(_label+'\u2026');
+  LOAD_TOK=_tok;
+  if(f>t){ runEnd(_tok); $('content').innerHTML='<div class="err"><b>From date is after To date.</b><br>Fix the order and it will load.</div>'; return }
 
   RANGE = DATES.filter(function(d){ return d>=f && d<=t });
   if(!RANGE.length){
+    runEnd(_tok);
     $('content').innerHTML='<div class="wrap"><div class="empty">No data between '+prettyDate(f)+
       ' and '+prettyDate(t)+'.<br>Those days have not been pushed to the sheet yet.</div></div>';
+    LOADED=true; DIRTY=false; paintLoadBtn();
     return;
   }
 
@@ -1438,7 +1490,11 @@ function load(){
     missing.push(d);
   });
 
-  if(!missing.length){ merge(); render(); return }
+  if(!missing.length){
+    runEnd(_tok); merge(); render();
+    LOADED=true; DIRTY=false; paintLoadBtn();
+    return;
+  }
 
   $('content').innerHTML='<div class="loading">Fetching '+
     missing.length+' new day(s)&hellip;<br><span style="font-size:11px">'+
@@ -1447,8 +1503,7 @@ function load(){
   var chunks=[];
   for(var i=0;i<missing.length;i+=FETCH_CHUNK) chunks.push(missing.slice(i,i+FETCH_CHUNK));
 
-  var lbl='Fabric Weekly, '+prettyDate($('f1').value)+' to '+prettyDate($('t1').value);
-  barBusy(true, lbl);
+  var lbl=_label;
 
   /* A REAL fraction, the only one in the whole dashboard. The days are
      fetched in chunks, so each chunk that lands is a known share of the work
@@ -1466,7 +1521,8 @@ function load(){
         return j;
       });
   })).then(function(all){
-    barBusy(false, lbl);
+    if(_tok!==RUN.seq) return;          /* superseded by a newer Load */
+    runEnd(_tok);
     var oldServer=false;
     all.forEach(function(res){
       if(res.error) throw new Error(res.error);
@@ -1487,7 +1543,11 @@ function load(){
       return;
     }
     merge(); render();
-  }).catch(function(e){ barBusy(false, lbl); showErr(e); });
+    LOADED=true; DIRTY=false; paintLoadBtn();
+  }).catch(function(e){
+    if(_tok!==RUN.seq) return;
+    runEnd(_tok); showErr(e);
+  });
 }
 /* The cache state used to show as a chip in the strip. It was noise: the user
    does not care where the numbers came from, only that they are on screen.

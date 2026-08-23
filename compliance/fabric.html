@@ -444,6 +444,12 @@
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
   .spin{display:none !important}
+  .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini.load.needs svg{fill:#fff}
+  .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  .mini.load svg{width:13px;height:13px;fill:currentColor}
+  .ready{text-align:center;padding:60px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
 
   .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
          background:#FFF0D9;color:#8A5B12;border:1px solid #F2DDB6;border-radius:9px;
@@ -470,6 +476,10 @@
     <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
     <input type="date" id="d1" onchange="pickDate()" onclick="openPicker(this)" aria-label="Report date">
   </span>
+  <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this date">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+    <span id="loadTxt">Load</span>
+  </button>
   <button class="mini" onclick="goLatest()">Latest Day</button>
   <span class="showing" id="showing"></span>
   <div class="acts">
@@ -736,24 +746,52 @@ function boot(){
   var want = wantedDay();
   document.getElementById('d1').value = want;
   syncDateLabel();
-  document.getElementById('content').innerHTML =
-    '<div class="loading">Loading '+prettyDate(want)+'&hellip;</div>';
-
+  /* Cached data in this tab is free, so it paints at once. What no longer
+     happens is a network call nobody asked for. */
   var snap=cacheGet(SNAP_KEY);
-  if(snap) applySnapshot(snap);          /* paint instantly, may be stale */
+  if(snap && snap.latest===want){
+    applySnapshot(snap);
+    LOADED=true; DIRTY=false;
+  }else{
+    showReady('Press Load to read '+prettyDate(want));
+    DIRTY=true;
+  }
+  paintLoadBtn();
+}
 
-  /* Always re-check the server, even when the cache painted. If the sheet has
-     a newer day than the cache, the page silently moves to it. This is what
-     fixes "I pushed this morning but still see yesterday". */
-  track(fetch(API_URL+'?action=snapshot'), 'Fabric Roll Compliance, latest day')
-    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
-    .then(function(res){
-      if(res.error)throw new Error(res.error);
-      cacheSet(SNAP_KEY,res);
-      if(!snap || res.latest!==snap.latest || res.generatedAt!==snap.generatedAt){
-        applySnapshot(res);
-      }
-    }).catch(function(e){ if(!snap) showErr(e); });
+/* =====================================================================
+   ONE LOADING CONTRACT  (see daily.html for the reasoning)
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true,label); islandShow(label);
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){ if(tok!==RUN.seq) return; barBusy(false,RUN.label); }
+
+var DIRTY=true, LOADED=false;
+function markDirty(){ DIRTY=true; paintLoadBtn(); }
+function paintLoadBtn(){
+  var b=document.getElementById('loadBtn'); if(!b) return;
+  var t=document.getElementById('loadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this date' : 'Read this date again';
+}
+function showReady(msg){
+  LOADED=false;
+  document.getElementById('content').innerHTML=
+    '<div class="ready"><b>'+esc(msg)+'</b>'
+    +'Nothing is read from the sheet until you press it, so this page opens instantly.</div>';
+}
+
+/* The Load button. */
+function doLoad(){
+  var d=document.getElementById('d1').value;
+  if(d) fetchDay(d, true);
 }
 
 function dnote(txt){
@@ -791,7 +829,10 @@ function applySnapshot(res){
   DAY = want;
 
   if(want === LATEST){ resetFilters(); render(); }
-  else { pickDate(); }
+  /* A snapshot only arrives because something was pressed, so show the day
+     that was asked for. pickDate() now only ARMS Load, which would leave a
+     deliberate press ending on an empty screen. */
+  else { fetchDay(want, false); }
 }
 
 /* The shell's Refresh delegates to whichever report is open, because only
@@ -925,33 +966,49 @@ function clearCaches(){
   DETAIL={}; DETLOADING={};
 }
 
+/* Choosing a date ARMS Load rather than firing a request, so flicking through
+   days costs nothing and cannot leave a slower older reply on screen. */
 function pickDate(){
   var d=document.getElementById('d1').value;
   if(!d)return;
-  DAY=d;
-  syncDateLabel();   /* show the picked date immediately, not after loading */
-  shareDay(d);       /* every other report opens on this day too */
-  dnote('');
-  if(d===LATEST){
-    var snap=cacheGet(SNAP_KEY);
-    if(snap){ MARKERS=mapMarkers(snap.markers); FLOORRATES=snap.floorRates||{};
-              STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
-  }
-  var cached=cacheGet(DAYPFX+d);
-  if(cached){ MARKERS=mapMarkers(cached.markers); FLOORRATES=cached.floorRates||{};
-              STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
+  DAY=d; syncDateLabel(); shareDay(d); dnote('');
+  showReady('Press Load to read '+prettyDate(d));
+  markDirty();
+}
 
-  document.getElementById('content').innerHTML='<div class="loading">Loading '+prettyDate(d)+'&hellip;</div>';
-  track(fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d)),
-        'Fabric Roll Compliance, '+prettyDate(d))
+/* The actual read. force=true skips the tab cache. */
+function fetchDay(d, force){
+  DAY=d; syncDateLabel(); shareDay(d); dnote('');
+
+  if(!force){
+    var c=(d===LATEST) ? cacheGet(SNAP_KEY) : cacheGet(DAYPFX+d);
+    if(c){
+      MARKERS=mapMarkers(c.markers); FLOORRATES=c.floorRates||{};
+      STAMP=c.generatedAt; tellParent(STAMP); resetFilters(); render();
+      LOADED=true; DIRTY=false; paintLoadBtn();
+      return;
+    }
+  }
+
+  var label='Fabric Roll Compliance, '+prettyDate(d);
+  var tok=runBegin(label);
+  document.getElementById('content').innerHTML='<div class="loading">'+esc(label)+'&hellip;</div>';
+  fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d),{cache:'no-store'})
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
+      if(!runCurrent(tok)) return;
+      runEnd(tok);
       if(res.error)throw new Error(res.error);
       cacheSet(DAYPFX+d,res);
       MARKERS=mapMarkers(res.markers); FLOORRATES=res.floorRates||{};
       STAMP=res.generatedAt; tellParent(STAMP);
       resetFilters(); render();
-    }).catch(showErr);
+      LOADED=true; DIRTY=false; paintLoadBtn();
+    })
+    .catch(function(e){
+      if(!runCurrent(tok)) return;
+      runEnd(tok); showErr(e);
+    });
 }
 
 function resetFilters(){floorFilter='';factFilter='';fabricFilter='';query='';compFilter='all';expandKey=''}
