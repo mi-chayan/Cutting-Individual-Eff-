@@ -95,7 +95,10 @@
   @media(max-width:520px){ .dlg .df{flex-direction:column-reverse}
                            .dlg button{width:100%} }
   .dot{width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;display:none;flex:0 0 auto}
-  .refresh.busy .dot{display:inline-block;animation:sp .8s linear infinite}
+  /* The circular spinner is gone. The button already says "Loading" and the
+     progress bar already says what is loading, so a spinning ring added a
+     third thing saying the same thing. */
+  .refresh.busy .dot{display:none}
   @keyframes sp{to{transform:rotate(360deg)}}
 
   #frame{flex:1 1 auto;width:100%;border:0;display:block;background:var(--bg)}
@@ -298,7 +301,12 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeMenu(
 
 function go(which){
   closeMenu();
-  if(which===curTab) return;
+  /* Only refuse when the frame is ALREADY showing this report. Comparing
+     against curTab alone meant that if the menu and the frame ever drifted
+     apart, clicking the highlighted entry did nothing at all and the only way
+     out was to click a different report first. */
+  var actually = frameTab();
+  if(which===curTab && actually===which) return;
   var dir = TABS.indexOf(which) > TABS.indexOf(curTab) ? 'from-right' : 'from-left';
   curTab = which;
 
@@ -476,11 +484,19 @@ function tabFromSrc(src){
   }
   return null;
 }
-function syncTabFromFrame(){
+/* Where the frame REALLY is, not where it was told to go. */
+function frameTab(){
   var f=document.getElementById('frame');
-  if(!f) return;
-  var which = tabFromSrc(f.getAttribute('src')) ||
-              (function(){ try{ return tabFromSrc(f.contentWindow.location.pathname) }catch(e){ return null } })();
+  if(!f) return null;
+  /* Live location first. The src ATTRIBUTE never changes after the browser
+     restores a session or the user navigates back, so reading it first made
+     the menu confidently report the wrong page. */
+  var live=null;
+  try{ live=tabFromSrc(f.contentWindow.location.pathname) }catch(e){ live=null }
+  return live || tabFromSrc(f.getAttribute('src'));
+}
+function syncTabFromFrame(){
+  var which = frameTab();
   if(!which || which===curTab) return;
   curTab = which;
   TABS.forEach(function(t){
