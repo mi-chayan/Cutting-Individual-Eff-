@@ -78,6 +78,12 @@
   .pill.red{background:#FBE9EB;color:#A3252F} .pill.green{background:#E7F4EC;color:#12653A}
   .pill.blue{background:#E8F0FC;color:#14509E} .pill.amber{background:#FFF6E6;color:#8A5B12}
   .loading{text-align:center;padding:60px;color:var(--mut);font-size:12px}
+  .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini.load.needs svg{fill:#fff}
+  .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  .mini.load svg{width:13px;height:13px;fill:currentColor}
+  .ready{text-align:center;padding:64px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
   .empty{text-align:center;padding:34px;color:var(--mut);font-size:11.5px}
 
@@ -269,6 +275,10 @@
   <span class="showing" id="showing"></span>
   <div class="sep"></div>
   <div class="chips" id="scopeChips"></div>
+  <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this range">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+    <span id="loadTxt">Load</span>
+  </button>
   <div class="acts">
     <button class="mini xls" onclick="exportExcel()" title="Export to Excel">
       <svg viewBox="0 0 24 24"><path d="M12 16l-5-5h3V4h4v7h3l-5 5zm-7 2h14v2H5v-2z"/></svg> Excel
@@ -588,6 +598,36 @@ function barBusy(on){
 }
 function track(p){ barBusy(true); return p.then(function(v){barBusy(false);return v},
                                                 function(e){barBusy(false);throw e}); }
+
+/* =====================================================================
+   ONE LOADING CONTRACT  (see daily.html for the reasoning)
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true);
+  $('showing').textContent=label+'\u2026';
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){ if(tok!==RUN.seq) return; barBusy(false); }
+
+var DIRTY=true, LOADED=false;
+function markDirty(){ DIRTY=true; paintLoadBtn(); }
+function paintLoadBtn(){
+  var b=$('loadBtn'); if(!b) return;
+  var t=$('loadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this range' : 'Read this range again';
+}
+function showReady(){
+  LOADED=false;
+  $('content').innerHTML='<div class="ready"><b>Choose a date range, then press Load.</b>'
+    +'Nothing is read from the sheet until you press it, so this page opens instantly.</div>';
+}
+function doLoad(){ load($('f1').value, $('t1').value, true); }
 function busy(msg){ $('content').innerHTML='<div class="loading">'+esc(msg)+'</div>'; }
 function showErr(e){
   $('content').innerHTML='<div class="err"><b>Could not load.</b><br>'+esc(e&&e.message?e.message:e)
@@ -615,20 +655,29 @@ function load(from,to,force){
 
   var key=from+'|'+to;
   var hit=force?null:cacheGet(key);
-  if(hit){ ROWS=hit.rows||[]; LOSS=hit.loss||null; STAMP=hit.stamp||''; build(); render(); return; }
+  if(hit){
+    ROWS=(hit.rows||[]).map(mapRow); LOSS=hit.loss||null; STAMP=hit.stamp||'';
+    build(); render();
+    LOADED=true; DIRTY=false; paintLoadBtn();
+    return;
+  }
 
-  busy('Loading '+prettyDate(from)+' to '+prettyDate(to)+'…');
+  var label='Cutting Efficiency Trend, '+prettyDate(from)+' to '+prettyDate(to);
+  var tok=runBegin(label);
+  busy(label+'\u2026');
 
   /* Both calls go out together. The loss analysis is not allowed to sink the
      page: if the PIB sheet is unreachable the efficiency trend still draws and
      the loss cards say so. */
-  var a=track(fetch(EFF_API+'?action=data&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
-        .then(function(r){ if(!r.ok) throw new Error('Efficiency API '+r.status); return r.json() }));
-  var b=track(fetch(PIB_API+'?action=lossrange&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
+  var a=fetch(EFF_API+'?action=data&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
+        .then(function(r){ if(!r.ok) throw new Error('Efficiency API '+r.status); return r.json() });
+  var b=fetch(PIB_API+'?action=lossrange&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
         .then(function(r){ return r.ok ? r.json() : null })
-        .catch(function(){ return null }));
+        .catch(function(){ return null });
 
   Promise.all([a,b]).then(function(res){
+    if(!runCurrent(tok)) return;        /* superseded by a newer Load */
+    runEnd(tok);
     var d=res[0]||{};
     if(d.error) throw new Error(d.error);
     ROWS=(d.rows||[]).map(mapRow);
@@ -636,7 +685,11 @@ function load(from,to,force){
     STAMP=d.generatedAt||'';
     cacheSet(key,{rows:d.rows||[],loss:LOSS,stamp:STAMP});
     build(); render();
-  }).catch(showErr);
+    LOADED=true; DIRTY=false; paintLoadBtn();
+  }).catch(function(e){
+    if(!runCurrent(tok)) return;
+    runEnd(tok); showErr(e);
+  });
 }
 
 /* Field 11 is the date. An API deployed before 20-Aug-2026 does not send it,
@@ -1217,7 +1270,8 @@ function setupPicker(){
       {k:'lm',  label:'Last Month',    get:function(){ return monthRange(-1,latest) }}
     ],
     days: DATES.slice(),
-    apply: function(from,to){ load(from,to,false); }
+    /* Apply IS the Load here: the user has just said what they want. */
+    apply: function(from,to){ load(from,to,true); }
   });
   drSet($('f1').value, $('t1').value, '');
 }
@@ -1238,18 +1292,26 @@ function boot(){
       DATES=s.dates||[];
       if(s.generatedAt) STAMP=s.generatedAt;
       setupPicker();
-      var to   = ssRead(SD_TO)   || (DATES.length?DATES[DATES.length-1]:yesterdayISO());
-      var from = ssRead(SD_FROM) || lastNDays(7)[0];
+      /* Default to the LAST 7 DAYS, and set it without reading anything. The
+         page used to fetch on open, which is the slowest thing it did and
+         usually not the range the user wanted. */
+      var d7=lastNDays(7);
+      var to   = ssRead(SD_TO)   || d7[1] || (DATES.length?DATES[DATES.length-1]:yesterdayISO());
+      var from = ssRead(SD_FROM) || d7[0];
       if(from>to) from=to;
       drSet(from,to,'');
-      load(from,to,false);
+      $('f1').value=from; $('t1').value=to;
+      $('showing').textContent=prettyDate(from)+' to '+prettyDate(to);
+      showReady(); markDirty();
    })
    .catch(function(e){
       /* Without the date list the presets cannot be built, but a range can
          still be typed, so the page is not left dead. */
       setupPicker();
       var to=yesterdayISO(), from=addDaysISO(to,-6);
-      drSet(from,to,''); load(from,to,false);
+      drSet(from,to,'');
+      $('f1').value=from; $('t1').value=to;
+      showReady(); markDirty();
    });
 }
 boot();

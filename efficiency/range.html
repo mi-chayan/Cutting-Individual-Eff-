@@ -128,6 +128,13 @@
   tbody tr.grp:hover td{background:#E2E8F7 !important}
   .mono{font-variant-numeric:tabular-nums}
   .loading{text-align:center;padding:56px;color:var(--mut);font-size:12px}
+  /* Armed Load button and the resting state. */
+  .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini.load.needs svg{fill:#fff}
+  .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  .mini.load svg{width:13px;height:13px;fill:currentColor}
+  td.ready{text-align:center;padding:56px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  td.ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
 
   .sc{font-weight:800}
@@ -467,6 +474,10 @@
     <button id="vSum" onclick="setView('sum')">Summary</button>
   </span>
 
+  <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this period">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+    <span id="loadTxt">Load</span>
+  </button>
   <input type="text" id="q" placeholder="Search" oninput="renderKeepFocus()" style="width:150px">
   <span class="showing" id="showing"></span>
 
@@ -1048,6 +1059,39 @@ window.addEventListener('load', function(){
   }
 });
 
+/* =====================================================================
+   ONE LOADING CONTRACT  (see daily.html for the reasoning)
+   Every fetch carries a token; a newer request supersedes an older one and
+   the stale reply is dropped rather than painted.
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true,label); islandShow(label);
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){ if(tok!==RUN.seq) return; barBusy(false,RUN.label); }
+
+/* ---------- the Load button ---------- */
+var DIRTY=true, LOADED=false;
+function markDirty(){ DIRTY=true; paintLoadBtn(); }
+function paintLoadBtn(){
+  var b=el('loadBtn'); if(!b) return;
+  var t=el('loadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this period' : 'Read this period again';
+}
+function showReady(){
+  LOADED=false;
+  el('tb').innerHTML='<tr><td colspan="15" class="ready">'
+    +'<b>Choose a period, then press Load.</b>'
+    +'Nothing is read from the sheet until you press it, so this page opens instantly.'
+    +'</td></tr>';
+}
+
 function getSnapshot(initial){
   track(fetch(PIB_API+'?action=snapshot'), 'Weekly Individual PIB, checking periods').then(function(r){return r.json()}).then(function(s){
     if(!s.ok){ if(initial) fail(s.msg); return; }
@@ -1055,7 +1099,9 @@ function getSnapshot(initial){
     SNAP=s; if(s.roster) ROSTER=s.roster;
     /* Only build the period selector on a cold start. Rebuilding it later would
        reset the week the user had chosen, mid-read. */
-    if(initial){ buildPeriod(); buildChips(); load(); }
+    /* buildPeriod fills the picker and the hidden boxes. load() is NOT called:
+       the period list arriving is not a request for a report. */
+    if(initial){ buildPeriod(); buildChips(); showReady(); markDirty(); }
   }).catch(function(e){ if(initial) fail(e); });
 }
 
@@ -1141,10 +1187,19 @@ function buildPeriod(){
 
    Weeks come from the sheet and each carries its own first and last date, so
    a week preset does not have to guess where the week began. */
+/* A week's real first and last date. The API sends weekSpans since 20-Aug-2026;
+   before that it sent only week NUMBERS, which left every Week preset returning
+   an empty range so the picker's Apply button stayed disabled and the buttons
+   looked broken. The fallback derives the span from the dates the snapshot
+   carries, so an older deployment degrades instead of dying. */
 function weekRange(w){
   var wk=(SNAP.weekSpans||{})[w];
   if(wk && wk.from && wk.to) return [wk.from, wk.to];
-  return [];                       /* handled as a week query, not a date range */
+  /* Fallback: ask the rows already loaded. */
+  var got=RAW.filter(function(r){ return String(r.week)===String(w) && r.date })
+             .map(function(r){ return r.date }).sort();
+  if(got.length) return [got[0], got[got.length-1]];
+  return [];
 }
 
 function drPresetList(){
@@ -1187,12 +1242,8 @@ function setupPicker(){
         el('period').value = (preset==='all') ? 'all' : 'custom';
         el('f1').value=from; el('f2').value=to;
       }
-      var lbl='Weekly Individual PIB, '+(preset ? drLabelFor(preset)
-              : (prettyDate(from)+' to '+prettyDate(to)));
-      /* Say what is loading BEFORE the wait. The old pair of boxes reloaded
-         silently between the two dates and looked frozen. */
-      el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading '
-        + esc(prettyDate(from))+' to '+esc(prettyDate(to))+'&hellip;</td></tr>';
+      /* Apply IS the Load for this page: the user has just told us exactly
+         what they want, so fetching it is what they asked for. */
       load(true);
     }
   });
@@ -1373,15 +1424,32 @@ function load(force){
 
   var ck=DATA_PFX+q;
   var cached = force ? null : ssGet(ck);
-  if(cached && cached.ok) applyData(cached);
-  else el('tb').innerHTML='<tr><td colspan="15" class="loading">Loading&hellip;</td></tr>';
+  if(cached && cached.ok){
+    applyData(cached);
+    LOADED=true; DIRTY=false; paintLoadBtn();
+    return;                     /* cached is free and already correct */
+  }
 
-  track(fetch(PIB_API+q), 'Weekly Individual PIB, '+periodLabel()).then(function(r){return r.json()}).then(function(d){
-    if(!d.ok){ if(!cached) fail(d.msg); return; }
+  var label='Weekly Individual PIB, '+periodLabel();
+  var tok=runBegin(label);
+  el('tb').innerHTML='<tr><td colspan="15" class="loading">'+esc(label)+'&hellip;</td></tr>';
+
+  fetch(PIB_API+q,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!runCurrent(tok)) return;      /* superseded by a newer Load */
+    runEnd(tok);
+    if(!d.ok){ fail(d.msg); return; }
     ssSet(ck,d);
     applyData(d);
-  }).catch(function(e){ if(!cached) fail(e); });
+    LOADED=true; DIRTY=false; paintLoadBtn();
+  }).catch(function(e){
+    if(!runCurrent(tok)) return;
+    runEnd(tok); fail(e);
+  });
 }
+
+/* The Load button. Always forces a re-read, because pressing it is a
+   deliberate "go and look again". */
+function doLoad(){ load(true); }
 
 /* ---------- scope ---------- */
 

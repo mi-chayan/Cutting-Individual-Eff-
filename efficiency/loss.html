@@ -117,6 +117,15 @@
        font-family:inherit;cursor:pointer;letter-spacing:.2px;line-height:1}
   .big svg{width:17px;height:17px}
   .big.reload{background:#fff;color:var(--navy);border-color:#C8CDE4}
+  /* Armed. The button says Load and looks like the next thing to press,
+     because until it is pressed the screen holds no data at all. */
+  .big.reload.needs{background:var(--violet);color:#fff;border-color:var(--violet);
+                    box-shadow:0 3px 10px rgba(114,62,195,.32)}
+  .big.reload.needs svg{fill:#fff}
+  .big.reload.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  /* The resting state. Instructions, not a spinner: nothing is loading. */
+  td.ready{text-align:center;padding:46px 18px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  td.ready b{display:block;color:var(--navy);font-size:14px;margin-bottom:4px}
   .big.reload svg{fill:var(--navy)}
   .big.reload:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
   .big.reload:hover svg{fill:#fff}
@@ -447,7 +456,7 @@
     <span class="dpick">
       <span id="dlabel">&ndash;</span>
       <svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 00-2 2v13a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2V2h-2v2H9V2H7zm12 7v10H5V9h14z"/></svg>
-      <input type="date" id="dt" onchange="loadDay()" onclick="openPicker(this)" aria-label="Entry date">
+      <input type="date" id="dt" onchange="onDateChange()" onclick="openPicker(this)" aria-label="Entry date">
     </span>
     <button class="mini" onclick="goToday()">Today</button>
     <span id="lockPill" class="pill lk hide">Locked</span>
@@ -456,9 +465,9 @@
     <div class="acts">
       <span id="who" style="font-size:11px;color:var(--mut);font-weight:700"></span>
       <span id="pendPill" class="pill pend hide">0 unsaved</span>
-      <button class="big reload" id="reloadBtn" onclick="loadDay(true)">
+      <button class="big reload needs" id="reloadBtn" onclick="doLoad()" title="Load this floor and date">
         <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
-        Reload
+        <span id="reloadTxt">Load</span>
       </button>
       <button class="big submit" id="saveBtn" onclick="doSave()">
         <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"/></svg>
@@ -1089,7 +1098,25 @@ function startApp(){
   el('app').classList.remove('hide');
   el('who').textContent = USER ? (USER+'  ·') : '';
   setupFloorControl();
-  boot();
+  if(!el('dt').value) el('dt').value = TODAY;
+  el('dlabel').textContent = pretty(el('dt').value);
+  /* NOTHING is fetched here. Opening the page used to pull a whole floor
+     before the leader had chosen anything, which is the slowest thing this
+     screen did and it was usually the wrong floor and the wrong day. */
+  showReady();
+  markDirty();
+  tellParent('Loss Time');
+}
+
+/* The resting state: what to do, not a spinner. */
+function showReady(){
+  LOADED=false;
+  el('tb').innerHTML='<tr><td colspan="12" class="ready">'
+    +'<b>Choose a floor and a date, then press Load.</b><br>'
+    +'Nothing is read from the sheet until you do, so this screen opens instantly.'
+    +'</td></tr>';
+  say('smsg','','');
+  updateKpis();
 }
 
 /* The picker appears whenever this login holds MORE THAN ONE floor, whether
@@ -1107,14 +1134,81 @@ function setupFloorControl(){
     el('floorPill').classList.remove('hide');
   }
 }
-function switchFloor(){ FLOOR=el('floorSel').value; boot(); }
+function switchFloor(){
+  FLOOR=el('floorSel').value;
+  /* Changing the floor does not fetch. It arms the Load button instead, so a
+     leader flicking through floors does not fire a request per flick. */
+  showReady(); markDirty();
+}
+
+/* =====================================================================
+   ONE LOADING CONTRACT
+   ---------------------------------------------------------------------
+   Every fetch takes a TOKEN. A newer request bumps the sequence, so when an
+   older reply finally lands it is dropped instead of overwriting the screen.
+   That is what produced "it says loading but shows the wrong day": two
+   requests were racing and the slower, older one won.
+
+   The status line always names the request that is CURRENTLY in flight,
+   never a stale one popped off a stack.
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true,label);
+  islandShow(label);
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){
+  if(tok!==RUN.seq) return;      /* a newer run owns the screen now */
+  barBusy(false,RUN.label);
+}
+
+/* ---------- the Load button ----------
+   Nothing is fetched when the page opens. The floor leader picks a date and a
+   floor and presses Load. Changing either turns the button back into Load, so
+   the button always says what pressing it will do. */
+var DIRTY=true, LOADED=false;
+function markDirty(){
+  DIRTY=true;
+  paintLoadBtn();
+}
+function paintLoadBtn(){
+  var b=el('reloadBtn'); if(!b) return;
+  var t=el('reloadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this floor and date' : 'Read this floor and date again';
+}
 
 /* ---------- load ---------- */
 
+/* Changing the date arms Load rather than firing one. */
+function onDateChange(){
+  el('dlabel').textContent=pretty(el('dt').value);
+  applyLock(el('dt').value);
+  showReady(); markDirty();
+}
+
+/* The one entry point the Load button uses. */
+function doLoad(){
+  if(!TOKEN) return;
+  /* The first Load has to fetch the roster and the reasons too, so it goes
+     through boot. After that only the day changes, which is a lighter call. */
+  if(!LOADED || DIRTY) boot(); else loadDay(true);
+}
+
 function boot(){
-  el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
-  api({action:'boot',token:TOKEN,floor:FLOOR},
-      'Loss Time, floor '+FLOOR+', '+pretty(el('dt').value||TODAY)).then(function(r){
+  var d=el('dt').value||TODAY;
+  var label='Loss Time, floor '+FLOOR+', '+pretty(d);
+  var tok=runBegin(label);
+  el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
+  api({action:'boot',token:TOKEN,floor:FLOOR,date:d}, label).then(function(r){
+    /* A newer Load has started, so this answer is already history. */
+    if(!runCurrent(tok)) return;
+    runEnd(tok);
     if(!r.ok){ fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
     LOCKDATE=r.lockDate||'';
@@ -1128,10 +1222,14 @@ function boot(){
     el('dlabel').textContent=pretty(el('dt').value);
     applyLock(el('dt').value);
     apply(r.day); render();
+    LOADED=true; DIRTY=false; paintLoadBtn();
     /* Tells the shell this page has painted, which ends its "still loading"
        state and lets Refresh be pressed. */
     tellParent('Loss Time \u00b7 '+pretty(el('dt').value||TODAY));
-  }).catch(function(e){ fail(e.message) });
+  }).catch(function(e){
+    if(!runCurrent(tok)) return;
+    runEnd(tok); fail(e.message);
+  });
 }
 
 /* fresh=true bypasses the 10 minute cache the API keeps on the efficiency
@@ -1140,10 +1238,15 @@ function loadDay(fresh){
   var d=el('dt').value||TODAY;
   el('dlabel').textContent=pretty(d);
   say('smsg','','');
-  el('tb').innerHTML='<tr><td colspan="12" class="loading">Loading…</td></tr>';
+  var label='Loss Time, floor '+FLOOR+', '+pretty(d);
+  var tok=runBegin(label);
+  el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
   var q={action:'day',token:TOKEN,floor:FLOOR,date:d};
   if(fresh===true) q.fresh=1;
-  api(q, 'Loss Time, floor '+FLOOR+', '+pretty(d)).then(function(r){
+  q.__tok=tok;
+  api(q, label).then(function(r){
+    if(!runCurrent(tok)) return;      /* superseded by a newer Load */
+    runEnd(tok);
     if(!r.ok){ fail(r.msg); return; }
     if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
     WH={};
@@ -1156,11 +1259,19 @@ function loadDay(fresh){
     }
     applyLock(d);
     apply(r.day); render();
-  }).catch(function(e){ fail(e.message) });
+    LOADED=true; DIRTY=false; paintLoadBtn();
+  }).catch(function(e){
+    if(!runCurrent(tok)) return;
+    runEnd(tok); fail(e.message);
+  });
 }
 
 function goToday(){
-  api({action:'ping'}).then(function(r){ TODAY=r.today; el('dt').value=TODAY; loadDay(); });
+  api({action:'ping'}).then(function(r){
+    TODAY=r.today;
+    el('dt').value=TODAY;
+    onDateChange();          /* arms Load, does not fetch a floor by itself */
+  });
 }
 
 /* The real enforcement is on the server, in apiSave_. This only stops a floor

@@ -104,7 +104,7 @@
      it the whole width left it stretched and airy while the rail beside it was
      cramped. Narrowing it makes room for the loss card and the row reads as
      three even blocks. */
-  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 244px 272px;gap:13px;margin-bottom:15px;align-items:start}
+  .toprow{display:grid;grid-template-columns:minmax(0,1fr) 244px 272px;gap:13px;margin-bottom:15px}
   .toprow #floorcard{margin-bottom:0}
   .kpis{display:flex;flex-direction:column;gap:9px;height:100%}
   /* Compact so three cards plus the donut finish level with the floor table */
@@ -119,14 +119,14 @@
 
   /* ---- efficiency band donut ---- */
   /* Floor Loss Time card, third column of the top row. */
-  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%;min-height:0}
+  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%}
   .losscard{background:var(--card);border:1px solid var(--line);border-radius:10px;
-            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;min-height:0;
+            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;
             display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .losscard:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber,#C77700)}
   .losscard .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   .losscard .sub{font-size:9.5px;color:var(--mut);margin-top:1px}
-  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0}
+  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1 1 auto;min-height:0}
   .lrow{cursor:default}
   .lrhd{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:800;
         margin-bottom:3px;white-space:nowrap}
@@ -248,6 +248,9 @@
   /* a real loss should catch the eye without shouting */
   td.lossy{color:#C77700;font-weight:800}
   td.nolss{color:#C3C8DA}
+  /* MS / AS / MC / AC beside the process name in the detail table. */
+  .tcode{display:inline-block;background:#EFE8FB;color:var(--violet);border-radius:4px;
+         padding:1px 5px;font-size:9px;font-weight:800;letter-spacing:.3px;margin-left:4px}
   /* Floor loss minutes. Same red as the individual Loss Min column so the two
      read as the same idea at two levels. */
   td.lossv{color:var(--red);font-weight:800;font-variant-numeric:tabular-nums}
@@ -577,6 +580,15 @@
   /* The old spinner is kept out of the way rather than deleted, so any
      markup that still asks for one simply shows nothing. */
   .spin{display:none !important}
+  /* Armed Load button. Until it is pressed the page holds no server data, so
+     it should look like the next thing to press. */
+  .mini.load.needs{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .mini.load.needs svg{fill:#fff}
+  .mini.load.needs:hover{background:#5F31A6;border-color:#5F31A6}
+  .mini.load svg{width:13px;height:13px;fill:currentColor}
+  /* Resting state: what to do, not a spinner. */
+  .ready{text-align:center;padding:60px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
+  .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
   /* Said out loud when the date asked for is not in the sheet yet. Falling
      back silently is how "I pushed this morning" turns into an argument. */
   .dnote{display:none;margin:0 auto;max-width:1500px;padding:8px 14px;
@@ -605,6 +617,10 @@
     <input type="date" id="d1" onchange="pickDate()" onclick="openPicker(this)" aria-label="Report date">
   </span>
   <button class="mini" onclick="goLatest()">Latest Day</button>
+  <button class="mini load needs" id="loadBtn" onclick="doLoad()" title="Load this date">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 106 18.36l1.42-1.42A6 6 0 1112 18a5.94 5.94 0 01-4.24-1.76L6.34 17.66A8 8 0 1017.65 6.35zM13 3v6h6l-2.35-2.65z"/></svg>
+    <span id="loadTxt">Load</span>
+  </button>
   <span class="showing" id="showing"></span>
   <div class="acts">
     <button class="mini loss" onclick="openLoss()" title="Enter today's loss time, view previous days">
@@ -1148,21 +1164,108 @@ function boot(){
   document.getElementById('content').innerHTML =
     '<div class="loading">Loading '+prettyDate(want)+'&hellip;</div>';
 
+  /* Anything already cached in this tab is free, so it is painted at once.
+     What does NOT happen any more is a network call nobody asked for: the
+     page used to fetch the snapshot on every open, which is why it felt slow
+     and why it sometimes settled on a day you had not chosen. */
   var snap=cacheGet(SNAP_KEY);
-  if(snap) applySnapshot(snap);          /* paint instantly, may be stale */
+  if(snap && snap.latest===want){
+    applySnapshot(snap);
+    LOADED=true; DIRTY=false;
+  }else{
+    showReady('Press Load to read '+prettyDate(want));
+    DIRTY=true;
+  }
+  paintLoadBtn();
+}
 
-  /* Always re-check the server, even when the cache painted. If the sheet has
-     a newer day than the cache, the page moves to it on its own. This is what
-     fixes "I pushed this morning but still see yesterday". */
-  track(fetch(API_URL+'?action=snapshot'), 'Daily Individual Report, latest day')
+/* The one entry point the Load button uses. */
+function doLoad(){
+  var d=document.getElementById('d1').value;
+  if(!d) return;
+  loadDay(d, true);
+}
+
+/* Fetch ONE day, token guarded. force=true bypasses the tab cache. */
+function loadDay(d, force){
+  DAY=d; syncDateLabel(); shareDay(d); dnote('');
+
+  if(!force){
+    var c=(d===LATEST) ? cacheGet(SNAP_KEY) : cacheGet(DAYPFX+d);
+    if(c){
+      DATA=mapRows(c.rows); STAMP=c.generatedAt; tellParent(STAMP);
+      resetFilters(); render();
+      LOADED=true; DIRTY=false; paintLoadBtn();
+      return;
+    }
+  }
+
+  var label='Daily Individual Report, '+prettyDate(d);
+  var tok=runBegin(label);
+  document.getElementById('content').innerHTML='<div class="loading">'+esc(label)+'&hellip;</div>';
+
+  /* The snapshot is asked for as well when this is the latest day, because
+     that is the call that also refreshes the list of available dates. */
+  var url = API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d);
+  fetch(url,{cache:'no-store'})
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
+      if(!runCurrent(tok)) return;        /* superseded by a newer Load */
+      runEnd(tok);
       if(res.error)throw new Error(res.error);
-      cacheSet(SNAP_KEY,res);
-      if(!snap || res.latest!==snap.latest || res.generatedAt!==snap.generatedAt){
-        applySnapshot(res);
-      }
-    }).catch(function(e){ if(!snap) showErr(e); });
+      cacheSet(DAYPFX+d,res);
+      DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
+      resetFilters(); render();
+      LOADED=true; DIRTY=false; paintLoadBtn();
+    })
+    .catch(function(e){
+      if(!runCurrent(tok)) return;
+      runEnd(tok); showErr(e);
+    });
+}
+
+/* =====================================================================
+   ONE LOADING CONTRACT
+   ---------------------------------------------------------------------
+   Every fetch carries a TOKEN. Starting a newer one bumps the sequence, so a
+   slow older reply is DISCARDED instead of overwriting the screen. The old
+   comment here said "the LAST one to arrive wins", which is exactly the bug:
+   flicking 19th, 20th, 18th and having the 19th answer last left the report
+   showing the 19th while the box said the 18th.
+
+   The status line always names the request that is in flight NOW.
+   ===================================================================== */
+var RUN={seq:0,label:''};
+function runBegin(label){
+  RUN.seq++; RUN.label=label;
+  barBusy(true,label); islandShow(label);
+  return RUN.seq;
+}
+function runCurrent(tok){ return tok===RUN.seq; }
+function runEnd(tok){
+  if(tok!==RUN.seq) return;
+  barBusy(false,RUN.label);
+}
+
+/* ---------- the Load button ----------
+   Nothing is fetched when the page opens. The date is chosen first, then Load
+   is pressed. Changing the date turns the button back into Load, so it always
+   says what pressing it will do. */
+var DIRTY=true, LOADED=false;
+function markDirty(){ DIRTY=true; paintLoadBtn(); }
+function paintLoadBtn(){
+  var b=document.getElementById('loadBtn'); if(!b) return;
+  var t=document.getElementById('loadTxt');
+  var needs = DIRTY || !LOADED;
+  b.classList.toggle('needs', needs);
+  if(t) t.textContent = needs ? 'Load' : 'Reload';
+  b.title = needs ? 'Load this date' : 'Read this date again';
+}
+function showReady(msg){
+  LOADED=false;
+  document.getElementById('content').innerHTML =
+    '<div class="ready"><b>'+esc(msg||('Press Load to read '+prettyDate(document.getElementById('d1').value)))+'</b>'
+    + 'Nothing is read from the sheet until you press it, so this page opens instantly.</div>';
 }
 
 function dnote(txt){
@@ -1202,8 +1305,13 @@ function applySnapshot(res){
 
   if(want === LATEST){
     resetFilters(); render();
+    LOADED=true; DIRTY=false; paintLoadBtn();
   }else{
-    pickDate();          /* fetches that one day, cache first */
+    /* A snapshot only ever arrives because the user pressed something, so
+       showing them the day they asked for is what they meant. pickDate() is
+       NOT used here any more: it now only arms the Load button, which would
+       leave a deliberate press ending in an empty screen. */
+    loadDay(want, false);
   }
 }
 
@@ -1315,17 +1423,28 @@ window.addEventListener('message',function(ev){
    from the sessionStorage snapshot, so after the morning push it kept showing
    yesterday until the tab was closed. Now it asks the server to rebuild and
    re-read, and clears the local caches first so nothing stale can win. */
+/* Latest Day is a deliberate press, so it DOES fetch. It asks the sheet what
+   the newest day is, which is the answer to "I pushed this morning but the
+   dashboard still shows yesterday". */
 function goLatest(){
-  document.getElementById('content').innerHTML=
-    '<div class="loading">Checking for the latest day&hellip;</div>';
+  var label='Checking for the latest day';
+  var tok=runBegin(label);
+  document.getElementById('content').innerHTML='<div class="loading">'+label+'&hellip;</div>';
   clearCaches();
-  track(fetch(API_URL+'?action=snapshot&fresh=1'), 'Checking for the latest day')
+  fetch(API_URL+'?action=snapshot&fresh=1',{cache:'no-store'})
     .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
     .then(function(res){
+      if(!runCurrent(tok)) return;
+      runEnd(tok);
       if(res.error)throw new Error(res.error);
       cacheSet(SNAP_KEY,res);
       applySnapshot(res);
-    }).catch(showErr);
+      LOADED=true; DIRTY=false; paintLoadBtn();
+    })
+    .catch(function(e){
+      if(!runCurrent(tok)) return;
+      runEnd(tok); showErr(e);
+    });
 }
 
 /* Drop every cached snapshot, day and detail this page owns. */
@@ -1341,33 +1460,15 @@ function clearCaches(){
   DETAIL={}; DETLOADING={};
 }
 
+/* Choosing a date ARMS Load. It used to fetch immediately, so flicking
+   through three days fired three requests and whichever answered last won,
+   regardless of which day was actually on screen. */
 function pickDate(){
   var d=document.getElementById('d1').value;
   if(!d)return;
-  DAY=d;
-  syncDateLabel();
-  shareDay(d);            /* every other report opens on this day too */
-  dnote('');
-  if(d===LATEST){
-    var snap=cacheGet(SNAP_KEY);
-    if(snap){ DATA=mapRows(snap.rows); STAMP=snap.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
-  }
-  var cached=cacheGet(DAYPFX+d);
-  if(cached){ DATA=mapRows(cached.rows); STAMP=cached.generatedAt; tellParent(STAMP); resetFilters(); render(); return; }
-
-  document.getElementById('content').innerHTML='<div class="loading">Loading '+prettyDate(d)+'&hellip;</div>';
-  /* The date box stays live while this runs. Changing it again simply starts
-     another load, and the LAST one to arrive wins, which is what a person
-     flicking through three days expects. */
-  track(fetch(API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d)),
-        'Daily Individual Report, '+prettyDate(d))
-    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
-    .then(function(res){
-      if(res.error)throw new Error(res.error);
-      cacheSet(DAYPFX+d,res);
-      DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
-      resetFilters(); render();
-    }).catch(showErr);
+  DAY=d; syncDateLabel(); shareDay(d); dnote('');
+  showReady('Press Load to read '+prettyDate(d));
+  markDirty();
 }
 
 function resetFilters(){floorFilter='';factFilter='';query='';effFloorFilter='all';effIndFilter='all';expandKey=''}
@@ -1618,28 +1719,6 @@ function syncDateLabel(){
 }
 
 /* ---------- render ---------- */
-/* Match the Loss Time by Type card to the actual Floor Efficiency table height.
-   The floor table stays at its natural height; extra loss rows scroll only
-   inside #lossrows instead of making the whole top row taller. */
-function syncTopRowHeights(){
-  var floorCard=document.getElementById('floorcard');
-  var lossRail=document.querySelector('.toprow .lossrail');
-  if(!floorCard || !lossRail) return;
-
-  if(!window.matchMedia('(min-width:901px)').matches){
-    lossRail.style.height='auto';
-    return;
-  }
-
-  lossRail.style.height='auto';
-  var h=Math.ceil(floorCard.getBoundingClientRect().height);
-  if(h>0) lossRail.style.height=h+'px';
-}
-
-window.addEventListener('resize',function(){
-  requestAnimationFrame(syncTopRowHeights);
-});
-
 function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   syncDateLabel();
@@ -1758,7 +1837,6 @@ function render(){
   loadReasons(DAY);
   paintReasons();
   syncStickyOffsets();
-  requestAnimationFrame(syncTopRowHeights);
 
   /* Quietly warm cut-level data for whatever floors are on screen, so the
      drill-down opens instantly when the user clicks. */
@@ -1890,7 +1968,10 @@ function detailBlock(o,colspan){
   rows.forEach(function(r,i){
     h+='<tr><td>'+(i+1)+'</td>'
       +'<td class="l"><b>'+esc(r[1])+'</b></td>'
-      +'<td>'+esc(r[9])+'</td>'
+      /* Process with its TYPE. "Spreading" alone does not say whether it was
+         manual or automatic, which is the thing being judged. The detail rows
+         already carry the type (field 10), it was simply not shown. */
+      +'<td class="l">'+esc(r[9])+(r[10]?' <span class="tcode">'+esc(r[10])+'</span>':'')+'</td>'
       +'<td class="l">'+esc(r[2])+'</td>'
       +'<td class="l">'+esc(r[3])+'</td><td>'+esc(r[4])+'</td>'
       +'<td>'+fmt(r[5],2)+'</td><td>'+fmt(r[6],2)+'</td><td>'+fmt(r[7],0)+'</td><td>'+fmt(r[8],0)+'</td>'
