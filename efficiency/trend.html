@@ -127,11 +127,18 @@
   .hm td.c{text-align:center;font-weight:700;color:#fff;font-size:10.5px}
   .hm td.na{background:#F2F3F8;color:#C3C8DA;text-align:center}
 
-  /* progress bar, same idea as the other reports */
-  .bar{height:3px;background:transparent;flex:0 0 auto}
-  .bar.on{background:linear-gradient(90deg,var(--violet),var(--peach),var(--violet));
-          background-size:200% 100%;animation:slide 1.1s linear infinite}
-  @keyframes slide{from{background-position:0 0}to{background-position:-200% 0}}
+  /* Progress bar, the same DETERMINATE one the other reports use.
+     It used to be a striped gradient sliding on a loop, which never started at
+     the left and never restarted when a new request began: it just kept
+     sliding, so changing the date looked like nothing had happened. Now it
+     fills left to right and is reset to zero on every new run. */
+  .bar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:400;
+       pointer-events:none;opacity:0;transition:opacity .3s ease}
+  .bar.on{opacity:1}
+  .bar i{display:block;height:100%;width:0;border-radius:0 3px 3px 0;
+         background:linear-gradient(90deg,#5B33A8,#723EC3 55%,#B07CFF);
+         box-shadow:0 0 10px rgba(176,124,255,.7);
+         transition:width .34s cubic-bezier(.22,.61,.36,1)}
 
   /* bar lists */
   .bars{display:flex;flex-direction:column;gap:5px}
@@ -617,12 +624,35 @@ function shortDate(iso){
 function pctClass(p){ return p<65?'red':(p<90?'amber':'green'); }
 function effColour(p){ return p<65?'#D64550':(p<90?'#C77700':'#1E8E4E'); }
 
-/* ---------- progress ---------- */
-var BUSY=0;
-function barBusy(on){
-  BUSY=Math.max(0,BUSY+(on?1:-1));
-  $('bar').className = BUSY?'bar on':'bar';
+/* ---------- progress ----------
+   Eases toward 90 and waits there. The step shrinks as it climbs, so a slow
+   request crawls rather than stalling dead or pretending to have finished. */
+var BAR_P=0, BAR_T=null, BAR_HIDE=null;
+function barPaint(){
+  var b=$('bar'), i=b?b.firstChild:null;
+  if(i) i.style.width=BAR_P+'%';
 }
+function barTick(){
+  if(BAR_P<90) BAR_P += Math.max(0.4,(90-BAR_P)*0.10);
+  barPaint();
+}
+function barStart(){
+  if(BAR_HIDE){ clearTimeout(BAR_HIDE); BAR_HIDE=null; }
+  if(BAR_T) clearInterval(BAR_T);
+  BAR_P=8; barPaint();                 /* every run begins at the LEFT */
+  $('bar').className='bar on';
+  BAR_T=setInterval(barTick,280);
+}
+function barStop(){
+  if(BAR_T){ clearInterval(BAR_T); BAR_T=null; }
+  BAR_P=100; barPaint();
+  /* Let 100% be seen, or the bar looks like it gave up at 80. */
+  BAR_HIDE=setTimeout(function(){
+    $('bar').className='bar';
+    setTimeout(function(){ BAR_P=0; barPaint(); },320);
+  },360);
+}
+function barBusy(on){ if(on) barStart(); else barStop(); }
 function track(p){ barBusy(true); return p.then(function(v){barBusy(false);return v},
                                                 function(e){barBusy(false);throw e}); }
 
@@ -639,7 +669,9 @@ function islandHide(){ var i=$('island'); if(i) i.classList.remove('on'); }
 
 function runBegin(label){
   RUN.seq++; RUN.label=label;
-  barBusy(true);
+  /* Restart from the left. Changing the date mid-load has to LOOK like a new
+     request, not like the old one carrying on. */
+  barStart();
   islandShow(label);
   $('showing').textContent=label+'\u2026';
   return RUN.seq;
@@ -1379,6 +1411,29 @@ function boot(){
 }
 boot();
 
+
+/* ---------- which copy am I looking at? ----------
+   Published files get cached by the browser and by Cloudflare, so "I uploaded
+   it" and "the site is running it" are two different statements. This prints
+   the build stamp into the footer and the console, which settles the question
+   in two seconds instead of a round of guessing. */
+(function(){
+  var B='23 Aug 2026 16:59';
+  try{ console.log('%c SNOWTEX build '+B+' | Cutting Efficiency Trend ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
+  function stamp(){
+    var f=document.querySelector('.ftr, .printfoot, footer');
+    if(f && f.textContent.indexOf('build')<0){
+      var s=document.createElement('span');
+      s.style.cssText='opacity:.55;font-size:9.5px;margin-left:10px';
+      s.textContent='build '+B;
+      f.appendChild(s);
+    }
+  }
+  if(document.readyState!=='loading') stamp();
+  else document.addEventListener('DOMContentLoaded', stamp);
+})();
 </script>
 </body>
+
+<!-- BUILD 23 Aug 2026 16:59 | Cutting Efficiency Trend -->
 </html>

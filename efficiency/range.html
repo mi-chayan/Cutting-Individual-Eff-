@@ -260,6 +260,10 @@
   #bar i{position:relative;overflow:hidden}
   @keyframes barsheen{0%{opacity:.15}50%{opacity:.8}100%{opacity:.15}}
 
+  /* NO CIRCULAR SPINNER. The pill already says what is loading in words and
+     the bar across the top already shows that something is running. A third
+     thing spinning beside them said nothing extra. */
+  .island .ring{display:none !important}
   .island{position:fixed;top:12px;left:50%;z-index:401;
           display:inline-flex;align-items:center;gap:11px;
           background:rgba(12,12,18,.94);color:#fff;
@@ -2307,6 +2311,29 @@ function exportExcel(){
 
   xlsWrap(t,'PIB','SOSL_PIB_'+safeName(viewTxt)+'_'+safeName(periodLabel())+'_'+(scopeSel||'All')+'.xls');
 }
+
+/* ---------- which copy am I looking at? ----------
+   Published files get cached by the browser and by Cloudflare, so "I uploaded
+   it" and "the site is running it" are two different statements. This prints
+   the build stamp into the footer and the console, which settles the question
+   in two seconds instead of a round of guessing. */
+(function(){
+  var B='23 Aug 2026 16:59';
+  try{ console.log('%c SNOWTEX build '+B+' | Weekly Individual PIB ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
+  function stamp(){
+    var f=document.querySelector('.ftr, .printfoot, footer');
+    if(f && f.textContent.indexOf('build')<0){
+      var s=document.createElement('span');
+      s.style.cssText='opacity:.55;font-size:9.5px;margin-left:10px';
+      s.textContent='build '+B;
+      f.appendChild(s);
+    }
+  }
+  if(document.readyState!=='loading') stamp();
+  else document.addEventListener('DOMContentLoaded', stamp);
+})();
 </script>
 </body>
+
+<!-- BUILD 23 Aug 2026 16:59 | Weekly Individual PIB -->
 </html>
