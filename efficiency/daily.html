@@ -119,14 +119,30 @@
 
   /* ---- efficiency band donut ---- */
   /* Floor Loss Time card, third column of the top row. */
-  .lossrail{display:flex;flex-direction:column;gap:9px;height:100%}
+  /* The rail is a FIXED FRAME, not a growing column.
+     The card inside is absolutely positioned, so however many loss reasons
+     there are it can never push the top row taller. It used to be a normal
+     block, so a day with fifteen reasons stretched the whole row and left the
+     floor table and the KPI cards floating in white space. The row height now
+     comes from the floor table, and the reason list scrolls inside it. */
+  .lossrail{position:relative;height:100%;min-height:210px}
   .losscard{background:var(--card);border:1px solid var(--line);border-radius:10px;
-            padding:9px 12px;position:relative;overflow:hidden;flex:1 1 auto;
+            padding:9px 12px;position:absolute;inset:0;overflow:hidden;
             display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,42,69,.05)}
   .losscard:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--amber,#C77700)}
   .losscard .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
   .losscard .sub{font-size:9.5px;color:var(--mut);margin-top:1px}
-  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1 1 auto;min-height:0}
+  /* Only this list scrolls. The card's title and the totals line stay put, so
+     you always know what you are looking at while scrolling the reasons. */
+  .lrows{margin-top:8px;display:flex;flex-direction:column;gap:6px;
+         overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;
+         scrollbar-gutter:stable;padding-right:2px}
+  .lrows::-webkit-scrollbar{width:7px}
+  .lrows::-webkit-scrollbar-thumb{background:#D6D9E4;border-radius:4px}
+  .lrows::-webkit-scrollbar-thumb:hover{background:#BFC4D6}
+  /* A quiet cue that there is more below the fold. */
+  .losscard:after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:14px;
+                  background:linear-gradient(to top,#fff,rgba(255,255,255,0));pointer-events:none}
   .lrow{cursor:default}
   .lrhd{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:800;
         margin-bottom:3px;white-space:nowrap}
@@ -352,7 +368,11 @@
     .wrap{padding:11px 11px 22px}
     .search{width:170px}
     .toprow{grid-template-columns:1fr;gap:11px}
-    .lossrail{width:auto}
+    /* Stacked on a narrow screen, so the frame trick is undone: there is no
+       row to match any more and the card should simply take what it needs. */
+    .lossrail{position:static;height:auto;min-height:0}
+    .losscard{position:static;inset:auto}
+    .lrows{max-height:300px}
     .toprow #floorcard{margin-bottom:0}
     .kpis{flex-direction:row;flex-wrap:wrap;height:auto}
     .kpis .kpi{flex:1 1 180px}
