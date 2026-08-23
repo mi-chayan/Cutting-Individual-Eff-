@@ -85,7 +85,30 @@
   .ready{text-align:center;padding:64px 20px;color:var(--mut);font-size:12.5px;line-height:1.9}
   .ready b{display:block;color:var(--navy);font-size:15px;margin-bottom:5px}
   .err{padding:22px;color:var(--red);font-size:12.5px;line-height:1.8;font-weight:600}
-  .empty{text-align:center;padding:34px;color:var(--mut);font-size:11.5px}
+  .empty{text-align:center;padding:40px 22px;color:var(--mut);font-size:12px;line-height:1.85}
+  .empty b{color:var(--navy)}
+  .diag{display:inline-block;text-align:left;background:#F6F7FB;border:1px solid var(--line);
+        border-radius:8px;padding:9px 13px;margin:11px 0;font-size:11px;line-height:1.7;
+        font-variant-numeric:tabular-nums}
+  .diag .u{word-break:break-all;color:var(--violet);font-size:10px}
+
+  /* The same loading pill every other report uses, so this page does not
+     announce itself differently. No circular spinner: the words and the bar
+     across the top already say that something is running. */
+  .island{position:fixed;top:12px;left:50%;z-index:401;
+          display:inline-flex;align-items:center;gap:9px;
+          background:rgba(12,12,18,.94);color:#fff;
+          -webkit-backdrop-filter:blur(14px) saturate(160%);
+          backdrop-filter:blur(14px) saturate(160%);
+          border-radius:999px;padding:9px 18px;
+          font-size:12px;font-weight:700;white-space:nowrap;
+          max-width:min(560px,90vw);overflow:hidden;
+          box-shadow:0 10px 30px rgba(0,0,0,.34), inset 0 0 0 .5px rgba(255,255,255,.14);
+          pointer-events:none;
+          transform:translateX(-50%) translateY(-26px) scale(.80);opacity:0;
+          transition:transform .40s cubic-bezier(.34,1.56,.64,1),opacity .22s ease}
+  .island.on{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
+  .island .txt{overflow:hidden;text-overflow:ellipsis}
 
   svg.chart{display:block;width:100%;height:auto}
   .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
@@ -290,6 +313,7 @@
 </div>
 
 <div class="bar" id="bar"><i></i></div>
+<div id="island" class="island"><span class="txt" id="isleTxt"></span></div>
 <div class="wrap" id="content"><div class="loading">Loading&hellip;</div></div>
 <div id="tip"></div>
 
@@ -571,6 +595,9 @@ var SOL=['1A','1B','1C','1D','1E','3A'], SSL=['2A','2B','2C','2D','2E'];
 var CACHE_PFX='sosl_trend_';
 
 var ROWS=[], LOSS=null, DATES=[], STAMP='';
+/* The exact URL of the last data call, so an empty result can show what was
+   actually asked for instead of leaving everyone guessing. */
+var LASTURL='';
 var scopeSel='';           /* '', 'SOL', 'SSL', or one floor */
 var D=null;                /* everything the page draws, built by build() */
 
@@ -603,14 +630,25 @@ function track(p){ barBusy(true); return p.then(function(v){barBusy(false);retur
    ONE LOADING CONTRACT  (see daily.html for the reasoning)
    ===================================================================== */
 var RUN={seq:0,label:''};
+function islandShow(t){
+  var i=$('island'), x=$('isleTxt');
+  if(!i||!x) return;
+  x.textContent=t; i.classList.add('on');
+}
+function islandHide(){ var i=$('island'); if(i) i.classList.remove('on'); }
+
 function runBegin(label){
   RUN.seq++; RUN.label=label;
   barBusy(true);
+  islandShow(label);
   $('showing').textContent=label+'\u2026';
   return RUN.seq;
 }
 function runCurrent(tok){ return tok===RUN.seq; }
-function runEnd(tok){ if(tok!==RUN.seq) return; barBusy(false); }
+function runEnd(tok){
+  if(tok!==RUN.seq) return;
+  barBusy(false); islandHide();
+}
 
 var DIRTY=true, LOADED=false;
 function markDirty(){ DIRTY=true; paintLoadBtn(); }
@@ -669,7 +707,8 @@ function load(from,to,force){
   /* Both calls go out together. The loss analysis is not allowed to sink the
      page: if the PIB sheet is unreachable the efficiency trend still draws and
      the loss cards say so. */
-  var a=fetch(EFF_API+'?action=data&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
+  LASTURL = EFF_API+'?action=data&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to);
+  var a=fetch(LASTURL,{cache:'no-store'})
         .then(function(r){ if(!r.ok) throw new Error('Efficiency API '+r.status); return r.json() });
   var b=fetch(PIB_API+'?action=lossrange&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to),{cache:'no-store'})
         .then(function(r){ return r.ok ? r.json() : null })
@@ -975,13 +1014,37 @@ function render(){
   tellParent(STAMP||prettyDate($('t1').value));
 
   if(!D.rows.length){
-    var noDate = ROWS.length && !ROWS.some(function(r){return r.date});
-    $('content').innerHTML='<div class="wrap"><div class="empty">'
-      + (noDate
-         ? 'The efficiency API is not sending a date on each row yet, so a trend cannot be drawn.<br><br>'
-           +'<b>Deploy &rarr; Manage deployments &rarr; New version</b> on the Cutting Report Downloader script.'
-         : 'No data between '+esc(prettyDate($('f1').value))+' and '+esc(prettyDate($('t1').value))+'.')
-      + '</div></div>';
+    /* Three different failures used to read as one flat "no data", which is
+       why a range that clearly HAS data in the sheet looked broken with
+       nothing to act on. Each is now named, with the numbers behind it. */
+    var withDate = ROWS.filter(function(r){ return r.date }).length;
+    var msg;
+
+    if(!ROWS.length){
+      msg = '<b>The API returned no rows for this range.</b>'
+        + '<div class="diag">Asked for <b>'+esc($('f1').value)+'</b> to <b>'+esc($('t1').value)+'</b>'
+        + '<br>Rows received: <b>0</b>'
+        + (LASTURL?('<br><span class="u">'+esc(LASTURL)+'</span>'):'')
+        + '</div>'
+        + 'The usual cause is that the Cutting Report Downloader script was pasted but not '
+        + 'redeployed, so the running copy is the old one. '
+        + '<b>Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy.</b>'
+        + '<br><br>Open the link above in a new tab: if it shows rows, this page has a bug and I need to know. '
+        + 'If it shows an empty list, the sheet or the script is the problem, not the page.';
+    }else if(!withDate){
+      msg = '<b>The rows have no date on them.</b>'
+        + '<div class="diag">Rows received: <b>'+ROWS.length+'</b>, with a date: <b>0</b></div>'
+        + 'A trend needs to know which day each row belongs to. The date is sent as the 12th '
+        + 'field and was added on 20-Aug-2026, so the running script is older than that. '
+        + '<b>Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy.</b>';
+    }else{
+      msg = '<b>Nothing matches the current filter.</b>'
+        + '<div class="diag">Rows received: <b>'+ROWS.length+'</b>'
+        + '<br>Floor filter: <b>'+esc(scopeSel||'All Floors')+'</b></div>'
+        + 'The rows are there but none are on the selected floor. Press <b>All Floors</b>.';
+    }
+
+    $('content').innerHTML='<div class="wrap"><div class="empty">'+msg+'</div></div>';
     return;
   }
 
