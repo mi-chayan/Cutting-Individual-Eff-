@@ -752,9 +752,19 @@ function boot(){
   syncDateLabel();
   /* Cached data in this tab is free, so it paints at once. What no longer
      happens is a network call nobody asked for. */
+  /* If this day is already held, show it. Load is only for data we do not
+     have; making someone click for a cached day is friction for nothing. */
   var snap=cacheGet(SNAP_KEY);
+  var day =cacheGet(DAYPFX+want);
+
   if(snap && snap.latest===want){
     applySnapshot(snap);
+    LOADED=true; DIRTY=false;
+  }else if(day){
+    DAY=want;
+    MARKERS=mapMarkers(day.markers); FLOORRATES=day.floorRates||{};
+    STAMP=day.generatedAt; tellParent(STAMP);
+    resetFilters(); render();
     LOADED=true; DIRTY=false;
   }else{
     showReady('Press Load to read '+prettyDate(want));
@@ -1623,7 +1633,7 @@ syncStickyOffsets();
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Daily Fabric Roll Compliance ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -1640,5 +1650,7 @@ syncStickyOffsets();
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Daily Fabric Roll Compliance -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Daily Fabric Roll Compliance -->
 </html>

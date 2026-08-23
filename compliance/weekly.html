@@ -745,8 +745,17 @@ function drPreset(k){
   var p=null;
   DR.presets.forEach(function(x){ if(x.k===k) p=x; });
   if(!p||!p.get) return;
-  var r=p.get()||[];
-  DR.dfrom=r[0]||''; DR.dto=r[1]||''; DR.dpreset=k;
+  var r=[];
+  /* A preset asked before the date list has arrived cannot work out its range.
+     Say so instead of silently clearing both ends, which looked like the
+     button had done nothing. */
+  try{ r=p.get()||[]; }catch(e){ r=[]; }
+  if(!r[0]||!r[1]){
+    var sel=drEl('drSel');
+    if(sel) sel.innerHTML='<span>Still loading the available days, try again in a moment</span>';
+    return;
+  }
+  DR.dfrom=r[0]; DR.dto=r[1]; DR.dpreset=k;
   drSyncViews();
   drRender();
 }
@@ -1172,6 +1181,12 @@ function clearAllDays(){
 
 /* ---------- boot ---------- */
 function boot(){
+  /* Build the picker FIRST. It used to be built only after the date list came
+     back, so opening it during that wait showed a calendar with an EMPTY
+     preset column and no buttons at all. The presets do not need the dates to
+     exist; they only need them to compute a range when clicked. */
+  setupPicker();
+
   /* The shell blanks its clock when you switch reports and waits for the
      report to post its own. This page used to post only when it actually
      fetched, so a fully cached load left "Last updated" empty. Post the last
@@ -2429,7 +2444,7 @@ boot();
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 16:59';
+  var B='23 Aug 2026 17:58';
   try{ console.log('%c SNOWTEX build '+B+' | Weekly Fabric Roll Compliance ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -2446,5 +2461,7 @@ boot();
 </script>
 </body>
 
-<!-- BUILD 23 Aug 2026 16:59 | Weekly Fabric Roll Compliance -->
+
+
+<!-- BUILD 23 Aug 2026 17:58 | Weekly Fabric Roll Compliance -->
 </html>
