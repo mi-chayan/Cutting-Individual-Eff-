@@ -335,6 +335,7 @@
           max-height:400px;overflow:auto}
   .drside b{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
             letter-spacing:.5px;padding:7px 8px 3px}
+  .drpsoff{opacity:.45;cursor:default;display:block}
   .drps{text-align:left;background:none;border:0;border-radius:7px;padding:7px 9px;
         font-family:inherit;font-size:12px;font-weight:700;color:var(--txt);cursor:pointer;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -671,10 +672,44 @@ function drSyncBtn(){
                       : 'Pick a date range');
 }
 
+/* ---------- the period list is fetched LAZILY ----------
+   'cold'    never asked for
+   'loading' a request is in flight
+   'ready'   SNAP carries weeks
+   'failed'  the request came back unusable
+
+   It is fetched the first time the picker is OPENED, because that is the first
+   moment the week list is of any use to anybody. Before that the page has
+   asked the server for nothing at all, which is what every other report here
+   already did and this one did not. */
+var PERIODS_STATE = 'cold';
+
+function ensurePeriods(){
+  if(PERIODS_STATE==='loading' || PERIODS_STATE==='ready') return;
+  PERIODS_STATE='loading';
+  rebuildPresets();                       /* shows "Loading weeks..." at once */
+  getSnapshot(false, function(){
+    PERIODS_STATE = (SNAP && SNAP.weeks && SNAP.weeks.length) ? 'ready' : 'failed';
+    rebuildPresets();
+  });
+}
+
+/* Rebuild the preset column IN PLACE, keeping whatever the user has already
+   drafted. This is the fix for "sometimes I get old week dates": the rebuild
+   used to sit behind `if (initial)`, so a fresh snapshot replaced SNAP while
+   the buttons on screen went on showing the week list from the parked copy. */
+function rebuildPresets(){
+  DR.presets = drPresetList();
+  if(DR.open) drRender();
+}
+
 function drToggle(){ DR.open ? drClose() : drOpen(); }
 
 function drOpen(){
   DR.open=true;
+  /* Opening the picker is the first honest signal that the week list is
+     wanted. Nothing is fetched before this. */
+  if(typeof ensurePeriods==='function') ensurePeriods();
   DR.dfrom=DR.from; DR.dto=DR.to; DR.dpreset=DR.preset;   /* draft, Cancel restores */
   drSyncViews();
   drEl('drPop').classList.add('on');
@@ -772,6 +807,9 @@ function drRender(){
   var sh='';
   DR.presets.forEach(function(p){
     if(p.group){ sh+='<b>'+p.group+'</b>'; return; }
+    /* A placeholder line, not a button. Clicking it would do nothing, and a
+       button that does nothing is worse than a line that never pretended. */
+    if(p.disabled){ sh+='<span class="drps drpsoff">'+p.label+'</span>'; return; }
     sh+='<button class="drps'+(DR.dpreset===p.k?' on':'')+'" onclick="drPreset(\''+p.k+'\')">'
       + p.label+'</button>';
   });
@@ -964,7 +1002,29 @@ function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
    three metrics would otherwise be misleading.
    ------------------------------------------------------------------ */
 
-var PIB_API = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
+/* The edge cache on this same origin, with the Apps Script deployment behind
+   it as the fallback. This page reads the Cutting Individual PIB sheet.
+
+   Eleven leaders opening this report inside the same minute reach Apps Script
+   ONCE instead of eleven times, and Apps Script serialises requests against one
+   spreadsheet, so the eleventh used to wait for the other ten.
+
+   The probe is raced against a clock. A request that hangs is exactly the
+   failure a probe exists to protect against and must not become the failure
+   itself. If the clock wins the edge is KEPT, not abandoned: this page was
+   served from the same origin, so slow is not the same as absent, and a
+   genuinely missing endpoint answers 404 fast. */
+var PIB_API_EDGE   = "/api/pib";
+var PIB_API_DIRECT = "https://script.google.com/macros/s/AKfycbyx4_1Oe3q03fWNEwIWWeicfSssI-g7TF1_sZrUFakWRsmSf8rGJXj1bHOJ6tS7w9_tDA/exec";
+var PIB_API        = PIB_API_EDGE;
+
+Promise.race([
+  fetch(PIB_API_EDGE+'?action=ping',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if(!j || !j.ok) PIB_API = PIB_API_DIRECT; })
+    .catch(function(){ PIB_API = PIB_API_DIRECT; }),
+  new Promise(function(done){ setTimeout(done, 2500); })
+]);
 
 var SOL_FLOORS=['1A','1B','1C','1D','1E','3A'];
 var SSL_FLOORS=['2A','2B','2C','2D','2E'];
@@ -1077,7 +1137,8 @@ window.addEventListener('load', function(){
   var c=ssGet(SNAP_KEY);
   if(c && c.ok){
     SNAP=c; if(c.roster) ROSTER=c.roster;
-    buildPeriod(); buildChips();
+    PERIODS_STATE='ready';         /* the parked copy is enough to draw with */
+    buildPeriod(); buildChips(); rebuildPresets();
     /* Already held in this tab, so show it rather than making them press
        Load for data that costs nothing to display. */
     var ck=currentKey(), cached=ssGet(ck);
@@ -1087,10 +1148,17 @@ window.addEventListener('load', function(){
     }else{
       showReady(); markDirty();
     }
-    getSnapshot(false);            /* quietly check for a newer one */
+    /* A parked period list can be a day old, so it is re-checked, but QUIETLY
+       and in the background. It repaints the preset column when it lands and
+       does not touch what the user has drafted. */
+    getSnapshot(false);
   }else{
+    /* COLD START: fetch NOTHING.
+       This used to call getSnapshot(true) here, which is what made the page
+       appear to load a report before a period had been chosen. The week list
+       is fetched when the picker is opened, or when Load is pressed, which
+       are the two moments it is actually needed. */
     showReady(); markDirty();
-    getSnapshot(true);
   }
 });
 
@@ -1127,17 +1195,32 @@ function showReady(){
     +'</td></tr>';
 }
 
-function getSnapshot(initial){
-  track(fetch(PIB_API+'?action=snapshot'), 'Weekly Individual PIB, checking periods').then(function(r){return r.json()}).then(function(s){
-    if(!s.ok){ if(initial) fail(s.msg); return; }
-    ssSet(SNAP_KEY,s);
-    SNAP=s; if(s.roster) ROSTER=s.roster;
-    /* Only build the period selector on a cold start. Rebuilding it later would
-       reset the week the user had chosen, mid-read. */
-    /* buildPeriod fills the picker and the hidden boxes. load() is NOT called:
-       the period list arriving is not a request for a report. */
-    if(initial){ buildPeriod(); buildChips(); showReady(); markDirty(); }
-  }).catch(function(e){ if(initial) fail(e); });
+/* `initial` still means "this is the cold start, a failure is worth showing".
+   `done` is called either way, so ensurePeriods can settle its state.
+
+   The fetch is deliberately NOT wrapped in track(). track() drives the page
+   wide progress bar, which is what made opening this report look as though it
+   were reading a report before anything had been selected. Fetching the list
+   of available periods is not reading a report, and it should not look like
+   one. The picker says "Loading weeks" in its own column instead. */
+function getSnapshot(initial, done){
+  fetch(PIB_API+'?action=snapshot',{cache:'no-store'})
+    .then(function(r){ return r.json() })
+    .then(function(s){
+      if(!s || !s.ok){ if(initial) fail((s&&s.msg)||'No period list returned'); if(done) done(); return; }
+      ssSet(SNAP_KEY,s);
+      SNAP=s; if(s.roster) ROSTER=s.roster;
+      /* ALWAYS rebuild, not just on a cold start. The old `if (initial)` guard
+         is exactly why a warm tab kept showing last week's week list. The
+         user's drafted dates survive because rebuildPresets only replaces the
+         preset column, it does not touch DR.dfrom or DR.dto. */
+      buildPeriod();
+      buildChips();
+      rebuildPresets();
+      if(initial){ showReady(); markDirty(); }
+      if(done) done();
+    })
+    .catch(function(e){ if(initial) fail(e); if(done) done(); });
 }
 
 /* ---------- Refresh ----------
@@ -1243,12 +1326,23 @@ function drPresetList(){
     {k:'d30', label:'Last 30 Days', get:function(){ return lastNDataDaysR(30); }},
     {group:'Everything'},
     {k:'all', label:'All data',     get:function(){ return [SNAP.minDate||'', SNAP.maxDate||'']; }}];
+
+  /* THE WEEKS HEADING IS ALWAYS THERE.
+     It used to appear only once the snapshot had arrived, so opening the
+     picker before that showed a preset column with no weeks in it at all and
+     nothing to say why. A missing heading reads as "this feature is gone"; a
+     heading with one disabled line under it reads as "not ready yet", which is
+     the truth. */
+  list.push({group:'Weeks'});
   var wks=(SNAP.weeks||[]);
   if(wks.length){
-    list.push({group:'Weeks'});
     wks.forEach(function(w){
       list.push({k:'w'+w, label:'Week '+w, get:function(){ return weekRange(w); }});
     });
+  }else{
+    list.push({k:'', label:(PERIODS_STATE==='loading' ? 'Loading weeks\u2026'
+                          : PERIODS_STATE==='failed'  ? 'Weeks unavailable, press Load'
+                          : 'Open to load weeks'), disabled:true});
   }
   return list;
 }
@@ -1484,7 +1578,30 @@ function load(force){
 
 /* The Load button. Always forces a re-read, because pressing it is a
    deliberate "go and look again". */
-function doLoad(){ load(true); }
+/* Pressing Load from a cold start has to work even though no period list has
+   ever been fetched. The hidden boxes are empty then, so Load would ask for an
+   empty range. Fetch the list first, default to the last seven days the sheet
+   holds, and then load that. */
+function doLoad(){
+  if(PERIODS_STATE!=='ready' && !(SNAP && SNAP.weeks && SNAP.weeks.length)){
+    var tok=runBegin('Weekly Individual PIB, reading the available periods');
+    PERIODS_STATE='loading';
+    getSnapshot(false, function(){
+      PERIODS_STATE = (SNAP && SNAP.weeks && SNAP.weeks.length) ? 'ready' : 'failed';
+      rebuildPresets();
+      runEnd(tok);
+      if(!el('f1').value || !el('f2').value){
+        var r=lastNDataDaysR(7);
+        if(r[0] && r[1]){ el('f1').value=r[0]; el('f2').value=r[1];
+                          el('period').value='custom'; drSet(r[0],r[1],'d7'); }
+      }
+      if(el('f1').value && el('f2').value) load(true);
+      else showReady();
+    });
+    return;
+  }
+  load(true);
+}
 
 /* ---------- scope ---------- */
 
