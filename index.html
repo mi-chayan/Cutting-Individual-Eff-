@@ -246,7 +246,29 @@ if (window.self !== window.top) {
    nothing here fetches it. The efficiency pages call the edge cache at
    /api/eff and fall back to this URL when the edge is not published. */
 var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
-var FAB_API = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+/* The edge cache on this same origin, with the Apps Script deployment behind
+   it as the fallback. The shell reads the compliance date strip from here.
+
+   Eleven leaders opening this report inside the same minute reach Apps Script
+   ONCE instead of eleven times, and Apps Script serialises requests against one
+   spreadsheet, so the eleventh used to wait for the other ten.
+
+   The probe is raced against a clock. A request that hangs is exactly the
+   failure a probe exists to protect against and must not become the failure
+   itself. If the clock wins the edge is KEPT, not abandoned: this page was
+   served from the same origin, so slow is not the same as absent, and a
+   genuinely missing endpoint answers 404 fast. */
+var FAB_API_EDGE   = "/api/fab";
+var FAB_API_DIRECT = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+var FAB_API        = FAB_API_EDGE;
+
+Promise.race([
+  fetch(FAB_API_EDGE+'?action=ping',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if(!j || !j.ok) FAB_API = FAB_API_DIRECT; })
+    .catch(function(){ FAB_API = FAB_API_DIRECT; }),
+  new Promise(function(done){ setTimeout(done, 2500); })
+]);
 /* Third system. The weekly PIB report reads reviewed rows from the Cutting
    Individual PIB sheet, which is a different spreadsheet with its own script.
    Paste its /exec link here AND into PIB_API in efficiency/range.html. */
