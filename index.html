@@ -242,6 +242,9 @@ if (window.self !== window.top) {
      efficiency/  -> sheet "Cutting Individual Effi% _"   (EFF_API)
      compliance/  -> sheet "Fabric Comlpliance"           (FAB_API)
    Each system's Code.gs lives with its own downloader, not in this repo. */
+/* Record only. The shell delegates Refresh to the report in the iframe, so
+   nothing here fetches it. The efficiency pages call the edge cache at
+   /api/eff and fall back to this URL when the edge is not published. */
 var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 var FAB_API = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
 /* Third system. The weekly PIB report reads reviewed rows from the Cutting

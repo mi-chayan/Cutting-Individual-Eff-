@@ -236,6 +236,8 @@
   .chk.sm{width:13px;height:13px;padding:10px;margin:-10px}
   .whhint{font-size:9px;font-weight:700;opacity:.65}
   .whv{font-variant-numeric:tabular-nums;font-weight:700}
+  .whwait{color:var(--mut);opacity:.45;letter-spacing:2px;animation:whpulse 1.1s ease-in-out infinite}
+  @keyframes whpulse{0%,100%{opacity:.25}50%{opacity:.6}}
   .whna{color:var(--mut);opacity:.6}
 
   /* The operator name is the button now. Clicking it opens the entry popup,
@@ -645,13 +647,27 @@ var WARN_MIN = 600;          /* 10 hours. Warns, never blocks. */
    between 8 and 10:30 AM, so loss entered during the day used to sit invisible
    until the next morning. Saving asks that API to rebuild immediately. Fire and
    forget: if it fails the loss is still saved and the morning run catches it. */
-var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+/* The nudge goes through the EDGE CACHE, and that is the whole point of it.
+   Sending fresh=1 there does three things in one request: Apps Script writes
+   the minutes into column AG, the edge DROPS its cached copy of that date, and
+   the new answer is written back in. So the moment this returns, every other
+   floor reading that day sees the corrected figures rather than a copy up to
+   five minutes old. Going straight to Apps Script would still save the loss
+   but would leave the cache holding the old numbers. */
+var EFF_API    = "/api/eff";
+var EFF_DIRECT = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
 
 function nudgeDashboard(dateStr, floorStr){
-  var q = EFF_API+'?action=snapshot&fresh=1'
+  var q = '?action=snapshot&fresh=1'
         + (dateStr ? '&lossdate='+encodeURIComponent(dateStr) : '')
         + (floorStr ? '&lossfloor='+encodeURIComponent(floorStr) : '');
-  fetch(q, {cache:'no-store'}).catch(function(){});
+
+  /* If the edge is not published yet, go direct rather than skip the sync.
+     The loss is saved either way, so this must never be allowed to throw. */
+  fetch(EFF_API+q, {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('edge '+r.status); return r.json(); })
+    .then(function(j){ if(!j || j.error) throw new Error('edge error'); })
+    .catch(function(){ fetch(EFF_DIRECT+q, {cache:'no-store'}).catch(function(){}); });
 }
 
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
@@ -677,6 +693,10 @@ var PICKED='';
    goes backwards and never reaches 100 until the work is actually done, which
    is what keeps it honest. Where a real fraction is known, call barSet(). */
 var BUSY_N = 0, BUSY_LABELS = [], BAR_P = 0, BAR_T = null, BAR_HIDE = null;
+/* Set the moment a real fraction arrives, which on this page means a STAGE
+   has finished. From then on the easing animation is off, because a made up
+   number next to a real one is worse than either on its own. */
+var BAR_REAL = false;
 
 function barPaint(){
   var b=document.getElementById('bar'), i=b?b.firstChild:null;
@@ -687,15 +707,23 @@ function barPaint(){
   if(p) p.textContent = BAR_P>=100 ? '100%' : Math.round(BAR_P)+'%';
 }
 
-/* Ease toward 90 and stop. The step shrinks as it climbs, so a slow request
-   crawls rather than stalling dead or pretending to finish. */
+/* The FALLBACK only, and it is why the bar always looked stuck at 90: nothing
+   moved it past that point until the whole request finished. It now runs only
+   until the first stage completes, and every load here completes a stage. */
 function barTick(){
+  if(BAR_REAL) return;
   if(BAR_P < 90) BAR_P += Math.max(0.4, (90 - BAR_P) * 0.10);
   barPaint();
 }
 
-/** A real fraction, 0 to 1. Only ever moves the bar forwards. */
+/** A real fraction, 0 to 1. Kills the easing and only moves forwards.
+    On this page the number MEANS something: 50 is the operator list painted,
+    100 is the efficiency figures in. */
 function barSet(frac){
+  if(!BAR_REAL){
+    BAR_REAL = true;
+    if(BAR_T){ clearInterval(BAR_T); BAR_T = null; }
+  }
   var v = Math.max(0, Math.min(1, Number(frac)||0)) * 100;
   if(v > BAR_P) { BAR_P = v; barPaint(); }
 }
@@ -767,12 +795,23 @@ function toast(text, cls, ms){
   }, ms||3800);
 }
 
+/* True between stage one and stage two: the list is on screen, the figures
+   are still on their way. Every figure cell shows one clear waiting mark while
+   it is set, so nothing reads as "the report was never pushed" when the truth
+   is simply "not fetched yet". They are two very different things to a floor
+   leader and the old dash said both. */
+var WH_PENDING = false;
+function pendCell(){
+  return '<span class="whwait" title="Reading the efficiency sheet">&middot;&middot;&middot;</span>';
+}
+
 function facts(id){ return WH[String(id).replace(/^0+/,'')] || null; }
 function whOf(id){
   var f=facts(id);
   return (f && typeof f.wh==='number' && f.wh>0) ? f.wh : null;
 }
 function whCell(id){
+  if(WH_PENDING) return pendCell();
   var v=whOf(id);
   return v===null ? '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>'
                   : '<span class="whv">'+v.toFixed(2)+'</span>';
@@ -783,6 +822,7 @@ function workMin(id){
   return v===null ? null : Math.round(v*60);
 }
 function workCell(id){
+  if(WH_PENDING) return pendCell();
   var m=workMin(id);
   return m===null ? '<span class="whna">&ndash;</span>' : '<span class="whv">'+m+'</span>';
 }
@@ -805,6 +845,7 @@ function project(id, mins){
 }
 
 function effCell(id){
+  if(WH_PENDING) return pendCell();
   var f=facts(id);
   if(!f || f.inn===null || f.inn===undefined)
     return '<span class="whna" title="The report for this date has not been loaded yet">&ndash;</span>';
@@ -830,6 +871,7 @@ function effCell(id){
 }
 
 function inCell(id){
+  if(WH_PENDING) return pendCell();
   var f=facts(id);
   if(!f || f.inn===null || f.inn===undefined) return '<span class="whna">&ndash;</span>';
   var m=totMin(VAL[id], id);
@@ -843,6 +885,7 @@ function inCell(id){
 }
 
 function outCell(id){
+  if(WH_PENDING) return pendCell();
   var f=facts(id);
   if(!f || f.out===null || f.out===undefined) return '<span class="whna">&ndash;</span>';
   return '<span class="effnow">'+Math.round(f.out)+'</span>';
@@ -1119,13 +1162,20 @@ function replayCache(){
   var c=lcGet(FLOOR,d);
   if(!c) return false;
   OPS=c.operators||[]; RSN=c.reasons||[]; LOCKDATE=c.lockDate||'';
-  WH={};
-  (OPS||[]).forEach(function(o){
-    if(typeof o.wh==='number' && o.wh>0){
-      WH[String(o.id).replace(/^0+/,'')] =
-        { wh:o.wh, inn:o.inn, out:o.out, eff:o.eff, loss:Number(o.loss)||0 };
-    }
-  });
+  /* The figures are parked SEPARATELY now, because the operators no longer
+     carry them: stage one never asks for them. The old shape, where they were
+     stamped onto each operator, is still read so a tab that was open across
+     the change replays correctly instead of showing a column of dashes. */
+  WH = c.wh || {};
+  if(!c.wh){
+    (OPS||[]).forEach(function(o){
+      if(typeof o.wh==='number' && o.wh>0){
+        WH[String(o.id).replace(/^0+/,'')] =
+          { wh:o.wh, inn:o.inn, out:o.out, eff:o.eff, loss:Number(o.loss)||0 };
+      }
+    });
+  }
+  WH_PENDING=false;
   el('dlabel').textContent=pretty(d);
   applyLock(d);
   apply(c.day||{entries:[]}); render();
@@ -1258,34 +1308,97 @@ function boot(){
   var label='Loss Time, floor '+FLOOR+', '+pretty(d);
   var tok=runBegin(label);
   el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
-  api({action:'boot',token:TOKEN,floor:FLOOR,date:d}, label).then(function(r){
+  /* nowh=1 is STAGE ONE: the operator list, the reasons and whatever is
+     already saved, none of which touches the efficiency spreadsheet. */
+  api({action:'boot',token:TOKEN,floor:FLOOR,date:d,nowh:1}, label).then(function(r){
     /* A newer Load has started, so this answer is already history. */
     if(!runCurrent(tok)) return;
-    runEnd(tok);
-    if(!r.ok){ fail(r.msg); return; }
+    if(!r.ok){ runEnd(tok); fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
     LOCKDATE=r.lockDate||'';
-    WH={}; OPS.forEach(function(o){
-      if(typeof o.wh==='number' && o.wh>0){
+
+    /* An older deployment of the Apps Script ignores nowh and stamps the
+       figures onto the operators anyway. Take them when they are there rather
+       than asking a second time for something already in hand. */
+    WH={}; var stamped=false;
+    OPS.forEach(function(o){
+      if(o && (typeof o.wh==='number' || o.inn!==undefined)){
+        stamped=true;
         WH[String(o.id).replace(/^0+/,'')] =
-          { wh:o.wh, inn:o.inn, out:o.out, eff:o.eff, loss:Number(o.loss)||0 };
+          { wh:(typeof o.wh==='number'?o.wh:null), inn:o.inn, out:o.out,
+            eff:o.eff, loss:Number(o.loss)||0 };
       }
     });
+    WH_PENDING = !stamped;
+
     if(!el('dt').value) el('dt').value=TODAY;
-    el('dlabel').textContent=pretty(el('dt').value);
-    applyLock(el('dt').value);
-    apply(r.day); render();
+    var dd = el('dt').value||TODAY;
+    el('dlabel').textContent=pretty(dd);
+    applyLock(dd);
+    apply(r.day);
+    render();                       /* stage one, the whole list at once */
+    barSet(0.5);
     LOADED=true; DIRTY=false; paintLoadBtn();
+
     /* Park it, so returning to this floor and day is instant instead of
        asking for Load again. */
-    lcSet(FLOOR, el('dt').value||TODAY,
-          {operators:r.operators, reasons:r.reasons, lockDate:r.lockDate||'', day:r.day});
+    lcSet(FLOOR, dd,
+          {operators:r.operators, reasons:r.reasons, lockDate:r.lockDate||'',
+           day:r.day, wh:(stamped?WH:null)});
     /* Tells the shell this page has painted, which ends its "still loading"
        state and lets Refresh be pressed. */
-    tellParent('Loss Time \u00b7 '+pretty(el('dt').value||TODAY));
+    tellParent('Loss Time \u00b7 '+pretty(dd));
+
+    if(stamped){ barSet(1); runEnd(tok); }
+    else       { loadFigures(dd, tok, false); }   /* stage two */
   }).catch(function(e){
     if(!runCurrent(tok)) return;
     runEnd(tok); fail(e.message);
+  });
+}
+
+/* ---------- STAGE TWO ----------
+   The efficiency figures, on their own, applied in ONE repaint.
+
+   This is the slow half and it is slow for a specific reason: it is the only
+   part of the screen that lives in the EFFICIENCY spreadsheet, which is around
+   4.7 million cells, and merely opening it costs more than everything else on
+   this page put together. Splitting it out is what lets the operator list and
+   the saved entries appear straight away.
+
+   Every figure lands together. No row is filled before its neighbour. */
+function loadFigures(d, tok, fresh){
+  WH_PENDING = true;
+  islandShow('Reading the efficiency figures');
+  var q={action:'wh',token:TOKEN,floor:FLOOR,date:d};
+  if(fresh===true) q.fresh=1;
+
+  return api(q).then(function(r){
+    if(!runCurrent(tok)) return;         /* a newer Load owns the screen */
+    WH={};
+    if(r && r.ok && r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
+      var f=r.wh[k];
+      /* Tolerate the old shape, where the map held a bare number, so a stale
+         deployment of the Apps Script cannot blank the working hour column. */
+      WH[String(k).replace(/^0+/,'')] =
+        (typeof f==='number') ? {wh:f,inn:null,out:null,eff:null,loss:0} : f;
+    }
+    WH_PENDING=false;
+    barSet(1);
+    render();                            /* ONE repaint, every figure at once */
+    runEnd(tok);
+    var prev=lcGet(FLOOR,d);
+    if(prev){ prev.wh=WH; lcSet(FLOOR,d,prev); }
+  }).catch(function(e){
+    if(!runCurrent(tok)) return;
+    /* The figures failing must never make the page unusable. The operator list
+       and the saved entries are correct without them, and recording loss time
+       is the job this page exists for. */
+    WH_PENDING=false; WH={};
+    barSet(1);
+    render();
+    runEnd(tok);
+    toast('Could not read the efficiency figures. You can still enter loss time.','r');
   });
 }
 
@@ -1298,27 +1411,39 @@ function loadDay(fresh){
   var label='Loss Time, floor '+FLOOR+', '+pretty(d);
   var tok=runBegin(label);
   el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
-  var q={action:'day',token:TOKEN,floor:FLOOR,date:d};
+  /* Same two stage split as boot. Stage one reads only the Loss Time sheet. */
+  var q={action:'day',token:TOKEN,floor:FLOOR,date:d,nowh:1};
   if(fresh===true) q.fresh=1;
   q.__tok=tok;
   api(q, label).then(function(r){
     if(!runCurrent(tok)) return;      /* superseded by a newer Load */
-    runEnd(tok);
-    if(!r.ok){ fail(r.msg); return; }
+    if(!r.ok){ runEnd(tok); fail(r.msg); return; }
     if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
-    WH={};
-    if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
-      var f=r.wh[k];
-      /* Tolerate the old shape, where the map held a bare number, so a stale
-         deployment of the Apps Script cannot blank the working hour column. */
-      WH[String(k).replace(/^0+/,'')] =
-        (typeof f==='number') ? {wh:f,inn:null,out:null,eff:null,loss:0} : f;
+
+    /* An older deployment ignores nowh and sends the figures anyway. */
+    WH={}; var stamped=false;
+    if(r.wh){
+      stamped=true;
+      for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
+        var f=r.wh[k];
+        /* Tolerate the old shape, where the map held a bare number, so a stale
+           deployment of the Apps Script cannot blank the working hour column. */
+        WH[String(k).replace(/^0+/,'')] =
+          (typeof f==='number') ? {wh:f,inn:null,out:null,eff:null,loss:0} : f;
+      }
     }
+    WH_PENDING = !stamped;
+
     applyLock(d);
-    apply(r.day); render();
+    apply(r.day);
+    render();                       /* stage one, the whole list at once */
+    barSet(0.5);
     LOADED=true; DIRTY=false; paintLoadBtn();
     var prev=lcGet(FLOOR,d);
-    if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; lcSet(FLOOR,d,prev); }
+    if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; if(stamped) prev.wh=WH; lcSet(FLOOR,d,prev); }
+
+    if(stamped){ barSet(1); runEnd(tok); }
+    else       { loadFigures(d, tok, fresh===true); }   /* stage two */
   }).catch(function(e){
     if(!runCurrent(tok)) return;
     runEnd(tok); fail(e.message);
@@ -1623,6 +1748,15 @@ function opById(id){
 function openModal(id){
   if(LOCKED){
     toast('This date is locked. '+esc(pretty(LOCKDATE))+' and earlier cannot be edited.','r');
+    return;
+  }
+  /* The entry box shows what a number of minutes WOULD do to Input Min and
+     Eff%. Opening it before those figures have arrived would show that preview
+     against nothing, which is worse than a two second wait. If the figures
+     fail outright, WH_PENDING is cleared and entry is allowed anyway: the loss
+     still needs recording and the preview is a courtesy, not the job. */
+  if(WH_PENDING){
+    toast('Reading the efficiency figures. One moment.','');
     return;
   }
   var o=opById(id);

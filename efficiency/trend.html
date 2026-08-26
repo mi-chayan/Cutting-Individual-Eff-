@@ -885,7 +885,19 @@ function drApply(){
    summarised. Averaging daily percentages is never done: a two hour Saturday
    would then weigh the same as a full Tuesday.
    ===================================================================== */
-var EFF_API = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+/* The edge cache on this same origin, with the Apps Script deployment behind
+   it. Nothing on this page fetches until Load is pressed, so this one small
+   probe has always settled by the time a URL is built. */
+var EFF_EDGE   = "/api/eff";
+var EFF_DIRECT = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+var EFF_API    = EFF_EDGE;
+
+try{
+  fetch(EFF_EDGE+'?action=ping',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if(!j || !j.ok) EFF_API = EFF_DIRECT; })
+    .catch(function(){ EFF_API = EFF_DIRECT; });
+}catch(e){ EFF_API = EFF_DIRECT; }
 var PIB_API = "https://script.google.com/macros/s/AKfycbxsRF9KqFfg5zGntReKUCZxj_8lpVcT3GJwg5gmqTDQqGROzc-61uAeEavSprQMdYx2/exec";
 
 var FLOOR_ORDER=['1A','1B','1C','1D','1E','3A','2A','2B','2C','2D','2E'];

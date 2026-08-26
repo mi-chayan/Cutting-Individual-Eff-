@@ -716,6 +716,10 @@
    goes backwards and never reaches 100 until the work is actually done, which
    is what keeps it honest. Where a real fraction is known, call barSet(). */
 var BUSY_N = 0, BUSY_LABELS = [], BAR_P = 0, BAR_T = null, BAR_HIDE = null;
+/* Set the moment a MEASURED fraction arrives. From then on the easing
+   animation is switched off for the rest of the request, because a made up
+   number sitting next to a real one is worse than either on its own. */
+var BAR_REAL = false;
 
 function barPaint(){
   var b=document.getElementById('bar'), i=b?b.firstChild:null;
@@ -726,17 +730,59 @@ function barPaint(){
   if(p) p.textContent = BAR_P>=100 ? '100%' : Math.round(BAR_P)+'%';
 }
 
-/* Ease toward 90 and stop. The step shrinks as it climbs, so a slow request
-   crawls rather than stalling dead or pretending to finish. */
+/* The FALLBACK only. It eases toward 90 and stops, which is precisely why
+   the old bar always appeared stuck at 90: nothing moved it past that point
+   until the whole request finished. It now runs only until the first real
+   measurement arrives, and every load on this page produces one. */
 function barTick(){
+  if(BAR_REAL) return;
   if(BAR_P < 90) BAR_P += Math.max(0.4, (90 - BAR_P) * 0.10);
   barPaint();
 }
 
-/** A real fraction, 0 to 1. Only ever moves the bar forwards. */
+/** A MEASURED fraction, 0 to 1. Kills the easing and only moves forwards.
+    Called with bytes received over bytes expected while a payload streams in,
+    so the number on screen is the download that is really happening. */
 function barSet(frac){
+  if(!BAR_REAL){
+    BAR_REAL = true;
+    if(BAR_T){ clearInterval(BAR_T); BAR_T = null; }
+  }
   var v = Math.max(0, Math.min(1, Number(frac)||0)) * 100;
   if(v > BAR_P) { BAR_P = v; barPaint(); }
+}
+
+/* ---------- a download that reports itself ----------
+   Reads the response body as it arrives and reports bytes received against
+   bytes expected. The count comes from x-eff-bytes, set by the edge cache,
+   NOT from content-length: when a response is gzipped, content-length is the
+   compressed size while the reader hands over decompressed bytes, so the bar
+   would sprint past 100 and then sit still.
+
+   If the header is missing, or the browser cannot stream, this falls back to
+   a plain json() read. The caller still gets a real number then, just a
+   coarse one: one step per group instead of a smooth climb. */
+function fetchJson(url, onFrac){
+  return fetch(url,{cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('API '+r.status);
+    var total = parseInt(r.headers.get('x-eff-bytes')||'',10);
+    if(!(total>0) || !r.body || !r.body.getReader || typeof TextDecoder==='undefined'){
+      return r.json();
+    }
+    var reader=r.body.getReader(), got=0, chunks=[];
+    return (function pump(){
+      return reader.read().then(function(step){
+        if(step.done){
+          var buf=new Uint8Array(got), at=0;
+          for(var i=0;i<chunks.length;i++){ buf.set(chunks[i],at); at+=chunks[i].length; }
+          return JSON.parse(new TextDecoder('utf-8').decode(buf));
+        }
+        chunks.push(step.value); got+=step.value.length;
+        if(onFrac) onFrac(Math.min(1, got/total));
+        return pump();
+      });
+    })();
+  });
 }
 
 function islandShow(label){
@@ -762,7 +808,7 @@ function barBusy(on, label){
     if(label) BUSY_LABELS.push(label);
     if(BUSY_N === 1){
       if(BAR_HIDE){ clearTimeout(BAR_HIDE); BAR_HIDE=null; }
-      BAR_P = 8; barPaint();
+      BAR_P = 8; BAR_REAL = false; barPaint();
       var b=document.getElementById('bar'); if(b) b.className='on';
       if(BAR_T) clearInterval(BAR_T);
       BAR_T = setInterval(barTick, 280);
@@ -818,7 +864,40 @@ function wantedFrom(){ return ssRead(SD_FROM) || wantedDay(); }
 function wantedTo(){   return ssRead(SD_TO)   || wantedDay(); }
 function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
 
-var API_URL = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+/* ---------- which API answers ----------
+   API_URL points at the EDGE CACHE, a Cloudflare Pages Function living at
+   functions/api/eff.js on this same origin. It answers eleven floor leaders
+   from Cloudflare instead of queueing all eleven against one spreadsheet.
+
+   API_DIRECT is the Apps Script deployment underneath it. The page asks the
+   edge once, on open, and silently falls back to going direct if it is not
+   there. Without that, a day when functions/ has not been published yet would
+   blank every report on the site, and the cause would look like a broken
+   deployment rather than a missing file. */
+var API_URL    = "/api/eff";
+var API_DIRECT = "https://script.google.com/macros/s/AKfycbxQ2BmHNHGuMpy244VH_Tl2CwlB9Yu6HZUfg28XvqR4TWPcQowPQSMQuaNR27-wuSSP/exec";
+
+/* The probe is RACED AGAINST A CLOCK, and that is not defensive padding. It
+   gates every load on the page, so a probe that never answers would freeze the
+   Load button with nothing on screen and nothing to click. A request that
+   hangs is exactly the failure a probe is supposed to protect against, and it
+   must not become the failure itself.
+
+   If the clock wins, the edge is KEPT rather than abandoned: this page was
+   served from the same origin, so the origin is plainly reachable and slow is
+   not the same as absent. A genuinely missing endpoint answers 404 fast. */
+var API_PROBE_MS = 2500;
+
+var API_READY = Promise.race([
+  fetch(API_URL+'?action=ping',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      if(!j || !j.ok){ API_URL = API_DIRECT; console.warn('edge cache absent, going direct to Apps Script'); }
+      else { console.log('edge cache live'); }
+    })
+    .catch(function(){ API_URL = API_DIRECT; console.warn('edge cache unreachable, going direct'); }),
+  new Promise(function(done){ setTimeout(done, API_PROBE_MS); })
+]);
 var SNAP_KEY='sosl_snapshot_v1', DAYPFX='sosl_day_';
 
 /* ---------- Loss Time entry ----------
@@ -1225,8 +1304,33 @@ function doLoad(){
   loadDay(d, true);
 }
 
+/* ---------- progressive load ----------
+   A day is fetched as TWO requests, one per factory, instead of one payload
+   carrying all eleven floors. SOL comes back and is PAINTED AT ONCE, then SSL
+   arrives and is merged into the same table.
+
+   Two things fall out of that. The first table is on screen after one small
+   payload rather than after the whole factory, which is what the sheet-side
+   change makes possible: the date lookup now walks UP from the bottom of each
+   tab, so finding today's block is the cheap part. And the progress bar has a
+   real denominator to work with, groups asked for, rather than easing toward
+   90 and waiting there.
+
+   These groups must match FLOOR_GROUPS in the Apps Script and in
+   functions/api/eff.js, which cache each group under its own key. */
+var LOAD_GROUPS=[
+  {name:'SOL', floors:'1A,1B,1C,1D,1E,3A'},
+  {name:'SSL', floors:'2A,2B,2C,2D,2E'}
+];
+
+/* Every entry point goes through here so that no URL is ever built before the
+   probe above has settled which API is answering. The probe is one small
+   request fired on page open, and nothing fetches on open, so in practice it
+   has always finished long before a finger reaches the Load button. */
+function loadDay(d, force){ API_READY.then(function(){ loadDayNow(d, force); }); }
+
 /* Fetch ONE day, token guarded. force=true bypasses the tab cache. */
-function loadDay(d, force){
+function loadDayNow(d, force){
   DAY=d; syncDateLabel(); shareDay(d); dnote('');
 
   if(!force){
@@ -1240,27 +1344,72 @@ function loadDay(d, force){
   }
 
   var label='Daily Individual Report, '+prettyDate(d);
+  var n=LOAD_GROUPS.length;
   var tok=runBegin(label);
   document.getElementById('content').innerHTML='<div class="loading">'+esc(label)+'&hellip;</div>';
 
-  /* The snapshot is asked for as well when this is the latest day, because
-     that is the call that also refreshes the list of available dates. */
-  var url = API_URL+'?action=data&from='+encodeURIComponent(d)+'&to='+encodeURIComponent(d);
-  fetch(url,{cache:'no-store'})
-    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
+  var acc=[], done=0, first=true, stampSeen='', frac=new Array(n);
+  for(var z=0;z<n;z++) frac[z]=0;
+
+  /* One bar for two downloads: each group owns an equal slice of the width,
+     and its own byte progress moves only within that slice. */
+  function bump(){
+    var s=0; for(var i=0;i<n;i++) s+=frac[i];
+    barSet(s/n);
+  }
+
+  LOAD_GROUPS.forEach(function(g, gi){
+    var url = API_URL+'?action=data&from='+encodeURIComponent(d)
+            + '&to='+encodeURIComponent(d)
+            + '&floors='+encodeURIComponent(g.floors);
+
+    fetchJson(url, function(f){
+      if(!runCurrent(tok)) return;
+      frac[gi]=f; bump();
+    })
     .then(function(res){
-      if(!runCurrent(tok)) return;        /* superseded by a newer Load */
-      runEnd(tok);
-      if(res.error)throw new Error(res.error);
-      cacheSet(DAYPFX+d,res);
-      DATA=mapRows(res.rows); STAMP=res.generatedAt; tellParent(STAMP);
-      resetFilters(); render();
-      LOADED=true; DIRTY=false; paintLoadBtn();
+      if(!runCurrent(tok)) return;          /* superseded by a newer Load */
+      if(res.error) throw new Error(res.error);
+
+      /* FILTER TO THE GROUP THAT WAS ASKED FOR.
+         An Apps Script deployment that predates the floors parameter ignores
+         it and cheerfully returns all eleven floors to BOTH requests, which
+         would put every operator on screen twice and double every total. That
+         made the deploy order load bearing: script first, then HTML, or the
+         report silently lies. Filtering here removes the ordering entirely, so
+         either half can go up first and the numbers stay right. */
+      var want=g.floors.split(',');
+      var got=(res.rows||[]).filter(function(r){ return want.indexOf(r[0])>=0 });
+      acc=acc.concat(got);
+      if(res.generatedAt) stampSeen=res.generatedAt;
+      done++; frac[gi]=1; bump();
+
+      /* PAINT NOW. Holding SOL back until SSL lands would throw away the only
+         reason for splitting them in the first place. */
+      DATA=mapRows(acc); STAMP=stampSeen; tellParent(STAMP);
+      if(first){ resetFilters(); first=false; }
+      render();
+
+      if(done<n){
+        var waiting=LOAD_GROUPS.filter(function(x,i){ return i!==gi && frac[i]<1 })
+                               .map(function(x){ return x.name });
+        if(waiting.length) dnote('Showing '+g.name+'. '+waiting.join(' and ')+' still loading.');
+        islandShow(label+', '+g.name+' in');
+      }else{
+        dnote('');
+        runEnd(tok);
+        cacheSet(DAYPFX+d,{rows:acc,generatedAt:stampSeen});
+        LOADED=true; DIRTY=false; paintLoadBtn();
+      }
     })
     .catch(function(e){
       if(!runCurrent(tok)) return;
-      runEnd(tok); showErr(e);
+      /* One group failing must never blank a group that already arrived.
+         Keep what is on screen and name the factory that is missing. */
+      if(done){ dnote(g.name+' floors did not load. '+e.message); runEnd(tok); }
+      else { runEnd(tok); showErr(e); }
     });
+  });
 }
 
 /* =====================================================================
@@ -1422,7 +1571,9 @@ function rewarmDays(list){
   if(window.requestIdleCallback) requestIdleCallback(run,{timeout:6000}); else setTimeout(run,900);
 }
 
-function refreshNow(){
+function refreshNow(){ API_READY.then(refreshNowGo); }
+
+function refreshNowGo(){
   var d = DAY || LATEST;
   clearDay(d);
   /* The loss-time sync needs the date being viewed, not "the latest". */
@@ -1433,8 +1584,11 @@ function refreshNow(){
   document.getElementById('content').innerHTML=
     '<div class="loading">Refreshing '+prettyDate(d)+'&hellip;</div>';
 
-  track(fetch(url,{cache:'no-store'}), 'Refreshing Daily Individual Report, '+prettyDate(d))
-    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json(); })
+  var rlabel='Refreshing Daily Individual Report, '+prettyDate(d);
+  barBusy(true, rlabel);
+  fetchJson(url, barSet)
+    .then(function(res){ barBusy(false, rlabel); return res; },
+          function(e){ barBusy(false, rlabel); throw e; })
     .then(function(res){
       if(res.error) throw new Error(res.error);
       if(d===LATEST){ cacheSet(SNAP_KEY,res); applySnapshot(res); }
@@ -1465,25 +1619,61 @@ window.addEventListener('message',function(ev){
 /* Latest Day is a deliberate press, so it DOES fetch. It asks the sheet what
    the newest day is, which is the answer to "I pushed this morning but the
    dashboard still shows yesterday". */
-function goLatest(){
+/* TWO STEPS, and the first one is nearly instant.
+     step 1  ?action=snapshot        the edge cache answers from Cloudflare,
+                                     so a table is on screen straight away
+     step 2  ?action=snapshot&fresh=1 pulls loss time across all eleven floors
+                                     and rebuilds. Authoritative, and slow, so
+                                     it happens BEHIND the table rather than in
+                                     front of an empty screen.
+   If step 2 comes back with the same day and the same stamp, nothing repaints
+   and the user never knows it ran. If the morning push has landed since, the
+   screen updates itself. This is the call that used to sit at 90% for minutes
+   with nothing to look at. */
+function goLatest(){ API_READY.then(goLatestNow); }
+
+function goLatestNow(){
   var label='Checking for the latest day';
   var tok=runBegin(label);
   document.getElementById('content').innerHTML='<div class="loading">'+label+'&hellip;</div>';
   clearCaches();
-  fetch(API_URL+'?action=snapshot&fresh=1',{cache:'no-store'})
-    .then(function(r){ if(!r.ok)throw new Error('API '+r.status); return r.json(); })
-    .then(function(res){
-      if(!runCurrent(tok)) return;
-      runEnd(tok);
-      if(res.error)throw new Error(res.error);
-      cacheSet(SNAP_KEY,res);
-      applySnapshot(res);
-      LOADED=true; DIRTY=false; paintLoadBtn();
-    })
-    .catch(function(e){
-      if(!runCurrent(tok)) return;
-      runEnd(tok); showErr(e);
+
+  var painted=false;
+
+  fetchJson(API_URL+'?action=snapshot', function(f){
+    if(runCurrent(tok)) barSet(f*0.35);        /* step 1 owns the first third */
+  })
+  .then(function(res){
+    if(!runCurrent(tok) || !res || res.error) return;
+    cacheSet(SNAP_KEY,res);
+    applySnapshot(res);
+    LOADED=true; DIRTY=false; paintLoadBtn();
+    painted=true;
+    islandShow('Confirming with the sheet');
+  })
+  .catch(function(){ /* step 2 is the one that must succeed */ })
+  .then(function(){
+    return fetchJson(API_URL+'?action=snapshot&fresh=1', function(f){
+      if(runCurrent(tok)) barSet(0.35 + f*0.65);
     });
+  })
+  .then(function(res){
+    if(!runCurrent(tok)) return;
+    runEnd(tok);
+    if(res.error) throw new Error(res.error);
+    cacheSet(SNAP_KEY,res);
+    applySnapshot(res);
+    LOADED=true; DIRTY=false; paintLoadBtn();
+  })
+  .catch(function(e){
+    if(!runCurrent(tok)) return;
+    runEnd(tok);
+    /* A failed confirmation on top of a table that already painted is a note,
+       not an error screen. Blanking good data because the slow half failed is
+       the worse outcome. */
+    if(painted) dnote('Showing the cached day. Could not confirm with the sheet: '+e.message);
+    else showErr(e);
+  });
 }
 
 /* Drop every cached snapshot, day and detail this page owns. */
@@ -2165,7 +2355,7 @@ syncStickyOffsets();
    the build stamp into the footer and the console, which settles the question
    in two seconds instead of a round of guessing. */
 (function(){
-  var B='23 Aug 2026 17:58';
+  var B='26 Aug 2026 09:04';
   try{ console.log('%c SNOWTEX build '+B+' | Daily Individual Eff% ','background:#333D6D;color:#fff;padding:2px 6px;border-radius:3px'); }catch(e){}
   function stamp(){
     var f=document.querySelector('.ftr, .printfoot, footer');
@@ -2184,5 +2374,5 @@ syncStickyOffsets();
 
 
 
-<!-- BUILD 23 Aug 2026 17:58 | Daily Individual Eff% -->
+<!-- BUILD 26 Aug 2026 09:04 | Daily Individual Eff% -->
 </html>
