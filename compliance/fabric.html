@@ -649,7 +649,29 @@ function shareRange(a,b){ if(a) ssWrite(SD_FROM,a); if(b) ssWrite(SD_TO,b); }
                    sherpa; 1.00 otherwise
    ===================================================================== */
 
-var API_URL = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+/* The edge cache on this same origin, with the Apps Script deployment behind
+   it as the fallback. This page reads the Fabric Roll Compliance sheet.
+
+   Eleven leaders opening this report inside the same minute reach Apps Script
+   ONCE instead of eleven times, and Apps Script serialises requests against one
+   spreadsheet, so the eleventh used to wait for the other ten.
+
+   The probe is raced against a clock. A request that hangs is exactly the
+   failure a probe exists to protect against and must not become the failure
+   itself. If the clock wins the edge is KEPT, not abandoned: this page was
+   served from the same origin, so slow is not the same as absent, and a
+   genuinely missing endpoint answers 404 fast. */
+var API_URL_EDGE   = "/api/fab";
+var API_URL_DIRECT = "https://script.google.com/macros/s/AKfycbyUKWEap2AzQqsJ99nYAwj281xETRg7fIQJ2GWR6lQGOL6lM2FBQO0IFMUMSwdO0atz/exec";
+var API_URL        = API_URL_EDGE;
+
+Promise.race([
+  fetch(API_URL_EDGE+'?action=ping',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if(!j || !j.ok) API_URL = API_URL_DIRECT; })
+    .catch(function(){ API_URL = API_URL_DIRECT; }),
+  new Promise(function(done){ setTimeout(done, 2500); })
+]);
 /* Cache keys carry a version. Bumped to v2 on 12-Aug-2026 when the Buyer
    column shifted every marker/roll field along by one. A sessionStorage
    copy saved before that change has the old shape and would paint garbage,
