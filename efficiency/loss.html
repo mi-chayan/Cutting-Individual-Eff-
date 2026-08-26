@@ -1336,6 +1336,23 @@ function boot(){
     el('dlabel').textContent=pretty(dd);
     applyLock(dd);
     apply(r.day);
+
+    /* THE CHIP MUST AGREE WITH THE DATE BOX.
+       apiBoot_ used to ignore the date the page sent and answer for today, so
+       a leader could pick the 25th, be shown the 26th's entries, which were
+       none, and conclude that loss time he had definitely submitted had gone
+       missing. The only visible clue was this chip disagreeing with the box
+       above it. Never paint a day the page did not ask for without saying so.
+       Once the script is redeployed this cannot fire; until then it turns a
+       silent wrong answer into an obvious one. */
+    if(r.day && r.day.dateStr && r.day.dateStr!==dd){
+      var warn='The server answered for '+pretty(r.day.dateStr)+' but '+pretty(dd)
+             +' was asked for, so the entries below are the wrong day. '
+             +'Press Reload. If it keeps happening the Loss Time script needs redeploying.';
+      say('smsg', esc(warn), 'r');
+      toast('Wrong day returned. Press Reload.','r', 6000);
+    }
+
     render();                       /* stage one, the whole list at once */
     barSet(0.5);
     LOADED=true; DIRTY=false; paintLoadBtn();
