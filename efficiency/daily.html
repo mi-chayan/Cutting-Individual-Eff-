@@ -1378,6 +1378,7 @@ function loadDayNow(d, force){
   document.getElementById('content').innerHTML='<div class="loading">'+esc(label)+'&hellip;</div>';
 
   var acc=[], done=0, first=true, stampSeen='', frac=new Array(n);
+  var missingFloors=[];
   for(var z=0;z<n;z++) frac[z]=0;
 
   /* One bar for two downloads: each group owns an equal slice of the width,
@@ -1419,13 +1420,32 @@ function loadDayNow(d, force){
       if(first){ resetFilters(); first=false; }
       render();
 
+      /* WHICH FLOORS ANSWERED, and which said nothing.
+         A floor that returns no rows is invisible on this page: the table
+         simply has ten rows instead of eleven and looks perfectly normal. That
+         is how 26 Aug went out with floor 2A missing entirely and nobody knew
+         until somebody counted. Silence is not the same as zero. */
+      want.forEach(function(fl){
+        if(!got.some(function(r){ return r[0]===fl })) missingFloors.push(fl);
+      });
+
       if(done<n){
         var waiting=LOAD_GROUPS.filter(function(x,i){ return i!==gi && frac[i]<1 })
                                .map(function(x){ return x.name });
         if(waiting.length) dnote('Showing '+g.name+'. '+waiting.join(' and ')+' still loading.');
         islandShow(label+', '+g.name+' in');
       }else{
-        dnote('');
+        /* Say it plainly, and name the floor. "No data for 2A" is something a
+           person can act on; a table quietly one row short is not. */
+        if(missingFloors.length){
+          dnote(missingFloors.length===1
+            ? 'Floor '+missingFloors[0]+' has no data for '+prettyDate(d)
+              +'. It was not pushed to the sheet. Everything below excludes it.'
+            : 'Floors '+missingFloors.join(', ')+' have no data for '+prettyDate(d)
+              +'. They were not pushed to the sheet. Everything below excludes them.');
+        }else{
+          dnote('');
+        }
         runEnd(tok);
         cacheSet(DAYPFX+d,{rows:acc,generatedAt:stampSeen});
         LOADED=true; DIRTY=false; paintLoadBtn();

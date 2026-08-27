@@ -1576,7 +1576,38 @@ function load(force){
   var tok=runBegin(label);
   el('tb').innerHTML='<tr><td colspan="15" class="loading">'+esc(label)+'&hellip;</td></tr>';
 
-  fetch(PIB_API+qf,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+  /* If the edge cache cannot answer in time it replies with JSON saying so,
+     and the report then asks Apps Script directly and waits as long as the
+     sheet needs. This is the path that matters: a weekly rebuild reads the
+     whole Database_PIB tab and can legitimately take a minute, which is longer
+     than any proxy should be asked to hold a connection open.
+
+     It also catches a reply that is not JSON at all. A proxy erroring returns
+     an HTML page, and "Unexpected token '<'" tells a floor leader nothing. */
+  function askPib(url){
+    return fetch(url,{cache:'no-store'}).then(function(r){
+      return r.text().then(function(txt){
+        var t=(txt||'').trim();
+        if(t.charAt(0)!=='{' && t.charAt(0)!=='[') throw new Error('not-json');
+        return JSON.parse(t);
+      });
+    });
+  }
+
+  askPib(PIB_API+qf)
+    .then(function(d){
+      if(d && d.retryDirect && PIB_API!==PIB_API_DIRECT){
+        islandShow('Reading the sheet directly, this one takes longer');
+        return askPib(PIB_API_DIRECT+qf);
+      }
+      return d;
+    })
+    .catch(function(e){
+      /* Anything the edge did wrong is recoverable by going round it. */
+      if(PIB_API!==PIB_API_DIRECT) return askPib(PIB_API_DIRECT+qf);
+      throw e;
+    })
+    .then(function(d){
     if(!runCurrent(tok)) return;      /* superseded by a newer Load */
     runEnd(tok);
     if(!d.ok){ fail(d.msg); return; }
