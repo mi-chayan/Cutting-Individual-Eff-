@@ -64,6 +64,27 @@ const DEFAULT_TTL = 300;      // seconds an entry is considered fresh
 const LONG_TTL    = 21600;    // for answers about days that are already closed
 const HARD_TTL    = 86400;    // seconds before an entry is dropped outright
 
+/* How long this edge will wait on Apps Script before giving up on ITS OWN
+   attempt. Not a limit on the report: when this expires the caller is told to
+   go direct, and a browser will wait as long as the sheet needs.
+
+   It exists because a proxy that hangs is worse than no proxy. Cloudflare will
+   eventually kill the request and answer with its own HTML error page, and a
+   page expecting JSON then dies on "<!DOCTYPE" with a message that explains
+   nothing. Bounding the wait here means the failure is always OUR json. */
+const UPSTREAM_MS = 20000;
+
+/** fetch with a deadline. Rejects rather than hanging until Cloudflare does. */
+async function fetchBounded(url, ms) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms || UPSTREAM_MS);
+  try {
+    return await fetch(url, { cf: { cacheTtl: 0 }, signal: ctl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const src = String(params.src || '').toLowerCase();
@@ -112,12 +133,19 @@ export async function onRequest(context) {
   /* fresh=1 is the Refresh button. It must reach the sheet, and the answer it
      brings back becomes the new cached copy rather than being thrown away. */
   if (p.get('fresh') === '1') {
-    const r = await fetch(up.toString(), { cf: { cacheTtl: 0 } });
-    const body = await r.text();
-    if (r.ok && looksLikeJson(body)) {
-      context.waitUntil(store.put(key, body, HARD_TTL));
+    try {
+      const r = await fetchBounded(up.toString());
+      const body = await r.text();
+      if (r.ok && looksLikeJson(body)) {
+        context.waitUntil(store.put(key, body, HARD_TTL));
+        return respond(body, r.status, 'BYPASS');
+      }
+      return giveUp(context, store, up.toString(), key, null, 'BYPASS-FAIL');
+    } catch (e) {
+      /* A forced read is the Refresh button, so a stale copy is exactly what
+         the user just said they did not want. Send them direct instead. */
+      return giveUp(context, store, up.toString(), key, null, 'BYPASS-SLOW');
     }
-    return respond(body, r.status, 'BYPASS');
   }
 
   const hit = await store.get(key);
@@ -132,17 +160,47 @@ export async function onRequest(context) {
     return respond(hit.body, 200, 'HIT', age);
   }
 
-  const r = await fetch(up.toString(), { cf: { cacheTtl: 0 } });
-  const body = await r.text();
-  if (r.ok && looksLikeJson(body)) {
-    context.waitUntil(store.put(key, body, HARD_TTL));
+  try {
+    const r = await fetchBounded(up.toString());
+    const body = await r.text();
+    if (r.ok && looksLikeJson(body)) {
+      context.waitUntil(store.put(key, body, HARD_TTL));
+      return respond(body, r.status, 'MISS');
+    }
+    return giveUp(context, store, up.toString(), key, hit, 'MISS-FAIL');
+  } catch (e) {
+    return giveUp(context, store, up.toString(), key, hit, 'MISS-SLOW');
   }
-  return respond(body, r.status, 'MISS');
+}
+
+/**
+ * The upstream was too slow or answered with something that is not JSON.
+ *
+ * Serve a stale copy if there is one, because old figures beat no report. If
+ * there is none, reply with JSON telling the page to ask Apps Script itself.
+ * The status is 200 on purpose: the page must PARSE this, and a 5xx would send
+ * it down the error path where it can do nothing useful.
+ *
+ * Either way the cache is warmed in the background, so this happens once and
+ * the next reader gets a hit rather than the same wait.
+ */
+function giveUp(context, store, upstream, key, hit, state) {
+  context.waitUntil(refresh(store, upstream, key));
+  if (hit) return respond(hit.body, 200, state + '-STALE',
+                          Math.max(0, Math.floor(Date.now() / 1000) - hit.at));
+  return respond(JSON.stringify({
+    ok: false,
+    retryDirect: true,
+    msg: 'The sheet is taking longer than this cache will wait. '
+       + 'Reading it directly instead.'
+  }), 200, state);
 }
 
 async function refresh(store, upstream, key) {
   try {
-    const r = await fetch(upstream, { cf: { cacheTtl: 0 } });
+    /* Twice the foreground budget. Nobody is waiting on this one, and the
+       whole point is to have an answer ready before the next reader arrives. */
+    const r = await fetchBounded(upstream, UPSTREAM_MS * 2);
     const body = await r.text();
     if (r.ok && looksLikeJson(body)) await store.put(key, body, HARD_TTL);
   } catch (e) { /* a failed background refresh must never reach a reader */ }
