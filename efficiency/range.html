@@ -1249,7 +1249,9 @@ function refreshNow(){
   }catch(e){}
 
   /* Phase 1: re-pull the period on screen, cache bypassed. */
-  track(fetch(PIB_API+'?action=snapshot',{cache:'no-store'}), 'Refreshing Weekly Individual PIB')
+  /* Same reasoning: the period list has to be re-read from the sheet, not
+     handed back from a cache, or a newly reviewed week stays invisible. */
+  track(fetch(PIB_API+'?action=snapshot&fresh=1',{cache:'no-store'}), 'Refreshing Weekly Individual PIB')
     .then(function(r){ return r.json() })
     .then(function(sn){ if(sn && sn.ok){ ssSet(SNAP_KEY,sn); SNAP=sn; if(sn.roster) ROSTER=sn.roster; } })
     .catch(function(){})
@@ -1551,6 +1553,9 @@ function load(force){
   }else if(v==='all'){ q='?action=data'; }
   else { q='?action=data&week='+encodeURIComponent(v.slice(1)); }
 
+  /* The cache KEY never carries fresh=1. If it did, a forced read and a normal
+     read of the same period would be two different entries and the forced
+     answer would never be reused. */
   var ck=DATA_PFX+q;
   var cached = force ? null : ssGet(ck);
   if(cached && cached.ok){
@@ -1559,11 +1564,19 @@ function load(force){
     return;                     /* cached is free and already correct */
   }
 
+  /* FORCE HAS TO REACH THE SERVER.
+     It used to clear only this tab's copy and then ask for the very same URL,
+     so the Apps Script cache and the edge cache both answered with what they
+     already held. Editing the sheet and pressing Refresh showed the old
+     numbers every time, which is precisely what Refresh exists to prevent.
+     fresh=1 is what makes both layers go back to the sheet. */
+  var qf = q + (force ? (q.indexOf('?')>=0 ? '&' : '?') + 'fresh=1' : '');
+
   var label='Weekly Individual PIB, '+periodLabel();
   var tok=runBegin(label);
   el('tb').innerHTML='<tr><td colspan="15" class="loading">'+esc(label)+'&hellip;</td></tr>';
 
-  fetch(PIB_API+q,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+  fetch(PIB_API+qf,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!runCurrent(tok)) return;      /* superseded by a newer Load */
     runEnd(tok);
     if(!d.ok){ fail(d.msg); return; }

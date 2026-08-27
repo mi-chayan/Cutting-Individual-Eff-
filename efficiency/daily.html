@@ -301,6 +301,8 @@
   tr.totalrow .pct{color:#fff !important}
 
   .pct{font-weight:800}
+  .lossy.unav{color:var(--mut);font-weight:800;font-size:10.5px;letter-spacing:.2px;
+    font-variant-numeric:normal;white-space:nowrap;background:none}
   .pct.red{color:var(--red)} .pct.green{color:var(--green)} .pct.blue{color:var(--blue)}
   .idshort{display:none}
   .lblp{display:none}   /* short header label, print only */
@@ -1117,7 +1119,34 @@ document.addEventListener('scroll', function(){
 /* Reasons arrive after render, so the tooltips are attached in place rather
    than forcing a full re-render. */
 function paintReasons(){
-  var cells=document.querySelectorAll('td.lossy[data-lk]');
+  /* The Eff% cells too. The unavailable flag rides in with the reasons, so a
+     cell painted before they arrived is showing a percentage that should have
+     been the word Unavailable. */
+  var ecells=document.querySelectorAll('td.pct[data-elk]');
+  for(var ei=0; ei<ecells.length; ei++){
+    var etd=ecells[ei], ee=LOSSR[etd.getAttribute('data-elk')];
+    if(ee && ee.unav && etd.textContent!=='\u2013'){
+      etd.className='pct nolss';
+      etd.innerHTML='&ndash;';
+      etd.title='No efficiency is calculated for a day the operator was'
+              + ' marked unavailable.';
+    }
+  }
+
+  /* The Loss Time column too. The unavailable flag rides in with the reasons,
+     so a cell painted before they arrived is showing minutes where it should
+     be showing the word. */
+  var ucells=document.querySelectorAll('td[data-lk]');
+  for(var ui=0; ui<ucells.length; ui++){
+    var utd=ucells[ui], ue=LOSSR[utd.getAttribute('data-lk')];
+    if(ue && ue.unav && utd.textContent!=='Unavailable'){
+      utd.className='lossy unav';
+      utd.textContent='Unavailable';
+      utd.title='Marked unavailable on the Loss Time page';
+    }
+  }
+
+  var cells=document.querySelectorAll('td.lossy[data-lk]:not(.unav)');
   for(var i=0;i<cells.length;i++){
     var td=cells[i];
     var e=LOSSR[td.getAttribute('data-lk')];
@@ -1795,9 +1824,51 @@ function showErr(e){
    showed, which is why it looked like a filtering bug. Setting the attribute
    through the DOM needs no escaping at all, so the whole class of problem is
    gone rather than patched. */
+/* ---------- Unavailable ----------
+   A floor leader can mark an operator UNAVAILABLE on the Loss Time page: he
+   was not on the floor that day at all. An efficiency percentage for a man who
+   was never there is not a low score, it is a meaningless one, and shown in the
+   same column as real scores it drags the eye to a problem that does not exist.
+
+   The flag already travels with the loss reasons, so nothing extra is fetched
+   for this. It arrives a moment after the table paints, which is why
+   paintReasons() repaints these cells as well as the loss ones. */
+function isUnav(o){
+  var e = LOSSR[lossKey(o.floor, o.opId)];
+  return !!(e && e.unav);
+}
+
+function effTd(o){
+  var lk = escAttr(lossKey(o.floor, o.opId));
+
+  /* No percentage for a man who was not on the floor. It is not a low score,
+     it is a meaningless one, and sitting in a column of real scores it drags
+     the eye to a problem that does not exist. A dash, and the Loss Time column
+     beside it says why. */
+  if(isUnav(o)){
+    return '<td class="pct nolss" data-elk="'+lk+'"'
+         + ' title="No efficiency is calculated for a day the operator was'
+         + ' marked unavailable.">&ndash;</td>';
+  }
+  return '<td class="pct '+pctClass(o.eff)+'" data-elk="'+lk+'">'+fmt(o.eff,0)+'%</td>';
+}
+
 function lossTd(o){
-  if(!(o.lossMin>0)) return '<td class="nolss">&ndash;</td>';
-  return '<td class="lossy" data-lk="'+escAttr(lossKey(o.floor,o.opId))+'"'
+  var lk = escAttr(lossKey(o.floor,o.opId));
+
+  /* UNAVAILABLE BELONGS HERE, in the Loss Time column, because that is where
+     it was entered. A floor leader ticks Unavailable on the Loss Time page and
+     this is the column that reports what that page holds. Minutes and the word
+     never appear together: a man who was not on the floor did not lose time,
+     he was absent, and those are different facts. The minutes, if any were
+     recorded anyway, are still in the hover. */
+  if(isUnav(o)){
+    return '<td class="lossy unav" data-lk="'+lk+'" data-nm="'+escAttr(o.name)+'"'
+         + ' title="Marked unavailable on the Loss Time page">Unavailable</td>';
+  }
+
+  if(!(o.lossMin>0)) return '<td class="nolss" data-lk="'+lk+'">&ndash;</td>';
+  return '<td class="lossy" data-lk="'+lk+'"'
        + ' data-nm="'+escAttr(o.name)+'">'+fmt(o.lossMin,0)+'</td>';
 }
 
@@ -2049,7 +2120,7 @@ function render(){
       +'<td>'+fmt(o.avgEng,0)+'%</td><td class="hs">'+o.typeStr+'</td>'
       +lossTd(o)
       +'<td class="hp">'+fmt(o.inMin,0)+'</td><td class="hp">'+fmt(o.outMin,0)+'</td>'
-      +'<td class="pct '+pctClass(o.eff)+'">'+fmt(o.eff,0)+'%</td></tr>';
+      +effTd(o)+'</tr>';
     /* MUST match the number of columns in the operator table above. Adding
        the Loss Min column made that 11; leaving this at 10 left the expanded
        cut detail one column short of the right edge. */
