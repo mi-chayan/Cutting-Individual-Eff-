@@ -74,7 +74,7 @@ const FLOOR_GROUPS = {
    entries or be used to make the origin do unexpected work. */
 const ALLOWED = ['action','from','to','date','floor','floors','fresh','lossdate','lossfloor'];
 
-const ACTIONS = ['snapshot','data','detail','purge','ping'];
+const ACTIONS = ['snapshot','data','detail','purge','ping','reindex'];
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -104,6 +104,17 @@ export async function onRequest(context) {
   if (action === 'ping') {
     const r = await fetch(up.toString(), { cf: { cacheTtl: 0 } });
     return passthrough(r, 'PING');
+  }
+
+  /* ---- reindex: added 02-Sep-2026 alongside the Code.gs fix for the 2D/2E
+     missing-floor bug. Always forwarded straight to Apps Script, never
+     cached at the edge, because it is a maintenance call, not a read. It
+     fixes the ORIGIN's date index; it does not clear what the edge already
+     has cached, so follow it with a purge for the affected date (or wait
+     for the normal TTL) if a bad answer was already cached here too. */
+  if (action === 'reindex') {
+    const r = await fetch(up.toString(), { cf: { cacheTtl: 0 } });
+    return passthrough(r, 'REINDEX');
   }
 
   // ---- purge: drop what this date can affect, then warm it back up ----
