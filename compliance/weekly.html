@@ -1500,6 +1500,22 @@ function applyPreset(which){
 }
 
 /* ---------- load: only the days we do not already hold ---------- */
+/* A day request the edge gave up on (retryDirect:true, edge waited 20s and
+   the sheet was still not done) is retried once straight against the Apps
+   Script instead of being read as "this day has no data". Without this a
+   slow first-time read on an uncached day rendered the whole range as
+   'No rolls between X and Y' even though the sheet had rows. */
+function fetchDays(url, extra, c, opts){
+  return fetch(url+'?action=days'+extra+'&dates='+encodeURIComponent(c.join(',')), opts)
+    .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    .then(function(j){
+      if(j && j.retryDirect && url!==API_URL_DIRECT){
+        return fetchDays(API_URL_DIRECT, extra, c, opts);
+      }
+      return j;
+    });
+}
+
 function load(){
   var r=normaliseRange();
   var f=r.from, t=r.to;
@@ -1551,8 +1567,7 @@ function load(){
      and barSet() reports it instead of the eased guess. */
   var doneChunks = 0;
   Promise.all(chunks.map(function(c){
-    return fetch(API_URL+'?action=days&dates='+encodeURIComponent(c.join(',')))
-      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    return fetchDays(API_URL,'',c)
       .then(function(j){
         doneChunks++;
         /* Capped at 0.95: the rows still have to be parsed and painted after
@@ -1567,6 +1582,7 @@ function load(){
     var oldServer=false;
     all.forEach(function(res){
       if(res.error) throw new Error(res.error);
+      if(!res.days) throw new Error(res.msg || 'Could not read the sheet for one or more days.');
       var d=res.days||{};
       for(var k in d) if(d.hasOwnProperty(k)){
         if(d[k] && d[k].v!==DAY_SCHEMA) oldServer=true;
@@ -2406,14 +2422,14 @@ function forceDays(list){
   barBusy(true, flbl);
   var fdone=0;
   return Promise.all(chunks.map(function(c){
-    return fetch(API_URL+'?action=days&fresh=1&dates='+encodeURIComponent(c.join(',')),
-                 {cache:'no-store'})
-      .then(function(r){ if(!r.ok) throw new Error('API '+r.status); return r.json() })
+    return fetchDays(API_URL,'&fresh=1',c,{cache:'no-store'})
       .then(function(j){ fdone++; barSet(Math.min(0.95, fdone/chunks.length)); return j; });
   })).then(function(all){
     barBusy(false, flbl);
     all.forEach(function(res){
-      if(!res || res.error || !res.days) return;
+      if(!res) throw new Error('No response from the server.');
+      if(res.error) throw new Error(res.error);
+      if(!res.days) throw new Error(res.msg || 'Could not rebuild one or more days.');
       for(var k in res.days) if(res.days.hasOwnProperty(k)){
         if(res.days[k] && res.days[k].v!==DAY_SCHEMA) continue;
         DAYS[k]=res.days[k]; lsSet(LS_DAY+k,res.days[k]);
