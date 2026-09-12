@@ -1538,19 +1538,39 @@ function apply(day){
   el('hdDate').textContent = pretty(day.dateStr);
 }
 
-/* ---------- the cap ----------
-     cap = WH*60 - fixed break - unavailable time
-         = current Input Min + loss already saved
-   Beyond it Input Min goes negative, and a negative input does not stay in one
-   cell: Team Eff% and the KPI both sum input minutes across the floor, so one
-   bad entry drags the whole floor's figure with it.
+/* ---------- the cap, tightened 12-Sep-2026 ----------
+     Gross = WH*60 - fixed break - unavailable time
+           = current Input Min + loss already saved
+     cap   = Gross - Engaged Min
+
+   A man cannot lose time he was busy working, so the ceiling is the part of
+   his day he was NOT engaged. Chayan's rule, in his words: "user cant give
+   more loss time than WH x (1 - Engagement%)". The ERP records active time
+   only, confirmed before this shipped, so deducting a stoppage as loss counts
+   it once and not twice.
+
+   Yeasin, 2D, 8-Sep-2026: Gross 701, engaged 622, cap 79. The 120 minutes that
+   were entered are 41 more than the day had left, and the old Gross-only
+   ceiling of 701 waved them straight through.
+
+   The number comes from the SERVER, which is the whole point: apiSave_
+   enforces the same figure, so this page can never promise one ceiling and the
+   Submit refuse on another. A deployment that predates the `cap` field falls
+   back to the old Gross rule rather than losing the cap altogether.
+
    Null when that date has not been pushed, because the cap is genuinely
    unknown then and entry must never be frozen by a missing report. */
 function capOf(id){
   var f=facts(id);
   if(!f || f.inn===null || f.inn===undefined) return null;
+  if(typeof f.cap === 'number') return f.cap>0 ? f.cap : 0;
   var base=f.inn + (Number(f.loss)||0);
   return base>0 ? base : 0;
+}
+/* Minutes the ERP booked him to markers, for the message beside the cap. */
+function engagedOf(id){
+  var f=facts(id);
+  return (f && typeof f.engaged === 'number') ? f.engaged : null;
 }
 function overCap(id,v){
   if(!v || v.unav) return false;
@@ -1576,8 +1596,11 @@ function lossCell(id){
   var h='<div class="losswrap">';
   if(overCap(id,v)){
     var cap=Math.floor(capOf(id));
-    h+='<span class="overmin" title="Only '+cap+' minutes were available on this date. '
-      +'More loss than that would make Adjusted Input Min negative. If the operator was out all day, tick Unavailable instead.">'
+    var eng=engagedOf(id);
+    h+='<span class="overmin" title="Only '+cap+' minutes of this day were free to lose'
+      +(eng!==null&&eng>0?'. He was working for '+Math.round(eng)+' of them':'')
+      +'. A man cannot lose time he was working. If he was out all day, tick '
+      +'Unavailable instead.">'
       + m+' &gt; '+cap+'</span>';
   }else{
     h+='<span class="lossmin">'+m+'</span>';
@@ -2079,6 +2102,17 @@ function refreshModalTotals(){
 
   var rows='<tr><td>Available minutes</td><td class="n">'+avail+'</td></tr>';
 
+  /* The ceiling, shown as the two numbers it is made of rather than as a rule
+     the leader has to take on trust. Available minus the minutes he was
+     actually working IS the most he can possibly have lost. */
+  var engM = engagedOf(MID);
+  if(engM!==null && engM>0 && cap!==null){
+    rows+='<tr class="sub"><td>Worked on markers</td><td class="n">'
+        + Math.round(engM)+'</td></tr>'
+        + '<tr class="sub"><td><b>Free to lose</b></td><td class="n"><b>'
+        + Math.floor(cap)+'</b></td></tr>';
+  }
+
   if(MDRAFT.unav){
     rows+='<tr class="sub"><td>Unavailable all day</td><td class="n">&ndash;</td></tr>'
         + '<tr class="fin"><td>Individual PIB</td><td class="n">N/A</td></tr>';
@@ -2231,8 +2265,9 @@ function doSave(){
   });
 
   if(over.length){
-    say('smsg','<b>Cannot submit.</b> Loss is more than the minutes available for '
-      + over.join(', ') + '. Check whether the unit should be Min or Hr. '
+    say('smsg','<b>Cannot submit.</b> Loss is more than the day had left for '
+      + over.join(', ') + '. A man cannot lose time he was working. '
+      + 'Check whether the unit should be Min or Hr. '
       + 'If the operator was out for the whole day, tick <b>Unavailable</b> instead.','r');
     return;
   }

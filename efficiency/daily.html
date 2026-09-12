@@ -1116,9 +1116,36 @@ document.addEventListener('scroll', function(){
   var t=document.getElementById('losstip'); if(t) t.classList.remove('on');
 }, true);
 
+/* The date whose aggregates have already been recomputed with the Unavailable
+   flags in hand. Guards the one re-render below against looping. */
+var AGG_DAY='';
+function anyUnav(){
+  for(var k in LOSSR){ if(LOSSR[k] && LOSSR[k].unav) return true; }
+  return false;
+}
+
 /* Reasons arrive after render, so the tooltips are attached in place rather
    than forcing a full re-render. */
 function paintReasons(){
+  /* ---- one re-render when the flags land, added 12-Sep-2026 ----
+     Patching cells in place is enough for the individual table, because each
+     cell owns its own answer. It is NOT enough for Team Eff%, Man Count, the
+     below 65% count or the band chart: those are SUMS, and they were added up
+     a moment ago while every man still looked available. Nothing short of
+     recomputing them can fix that.
+
+     Safe against looping on three counts: AGG_DAY is stamped BEFORE render()
+     is called, render() calls paintReasons() on its way out and that call
+     takes the guard, and loadReasons() is already a no-op for a date it holds.
+     Skipped entirely when nobody is unavailable, which is most days, so the
+     usual path costs one loop over a small map. */
+  if(AGG_DAY!==LOSSR_DAY && LOSSR_DAY===DAY && anyUnav()){
+    AGG_DAY=LOSSR_DAY;
+    render();
+    return;
+  }
+  AGG_DAY=LOSSR_DAY;
+
   /* The Eff% cells too. The unavailable flag rides in with the reasons, so a
      cell painted before they arrived is showing a percentage that should have
      been the word Unavailable. */
@@ -1858,8 +1885,32 @@ function isUnav(o){
   return !!(e && e.unav);
 }
 
+/* ---------- No data ----------
+   A man who is in the Roster for this floor but whom the ERP export never
+   mentioned. The downloader writes him a row carrying his name and nothing
+   else, tagged NO DATA in column AH, so the floor can SEE who is missing
+   instead of only noticing the count looks short.
+
+   He is not a 0% operator. A zero would say he stood there all day and
+   produced nothing, which is a different fact, and it would drag every
+   average that touched it. So he is kept out of Team Eff%, Man Count, the
+   below 65% count and the band chart, exactly like an unavailable man. */
+function isNoData(o){
+  return !!(o && o.types && o.types[NO_DATA_TAG]);
+}
+var NO_DATA_TAG = 'NO DATA';
+
 function effTd(o){
   var lk = escAttr(lossKey(o.floor, o.opId));
+
+  /* In the Roster, absent from the export. No percentage exists to show, and
+     a zero would accuse a man of standing idle when the truth is that the
+     report has nothing for him at all. */
+  if(isNoData(o)){
+    return '<td class="pct nolss" title="No data was pushed for this operator'
+         + ' on this date. He is on this floor in the Roster but the export'
+         + ' never mentioned him.">&ndash;</td>';
+  }
 
   /* No percentage for a man who was not on the floor. It is not a low score,
      it is a meaningless one, and sitting in a column of real scores it drags
@@ -1875,6 +1926,14 @@ function effTd(o){
 
 function lossTd(o){
   var lk = escAttr(lossKey(o.floor,o.opId));
+
+  /* The word goes in this column because this is the column that reports what
+     is known about the man's day, and what is known is nothing. */
+  if(isNoData(o)){
+    return '<td class="lossy unav" data-nm="'+escAttr(o.name)+'"'
+         + ' title="This operator is on this floor in the Roster, but the ERP'
+         + ' export for this date has no rows for him.">No data</td>';
+  }
 
   /* UNAVAILABLE BELONGS HERE, in the Loss Time column, because that is where
      it was entered. A floor leader ticks Unavailable on the Loss Time page and
@@ -1939,11 +1998,47 @@ function operatorAgg(){
     return o;
   });
 }
+/* Man Count, with the men who are NOT inside it named beside it rather than
+   quietly missing. A count that shrinks with no explanation on screen is how a
+   correct number starts looking like a bug. */
+function manTd(man, unav, nodata){
+  unav = unav||0; nodata = nodata||0;
+  var extra = unav + nodata;
+  if(!extra) return '<td>'+man+'</td>';
+  var bits=[];
+  if(unav)   bits.push(unav+' marked unavailable');
+  if(nodata) bits.push(nodata+' with no data pushed');
+  return '<td style="cursor:help" title="'+bits.join(', ')
+       + ', not counted in Team Eff%">'+man
+       + ' <span style="color:var(--mut);font-weight:700">+'+extra+'</span></td>';
+}
+
 function floorAgg(ops){
   var map={};
-  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0,lossMin:0}});
+  FLOOR_ORDER.forEach(function(f){map[f]={floor:f,man:0,inMin:0,outMin:0,u65:0,lossMin:0,unav:0,nodata:0}});
   ops.forEach(function(o){
     var f=map[o.floor]; if(!f)return;
+
+    /* ---- UNAVAILABLE IS EXCLUDED HERE, changed 12-Sep-2026 ----
+       This is the line the whole flag was missing. Marking a man Unavailable
+       used to blank his own Eff% cell and nothing else: his Input and Output
+       stayed inside this sum, so a floor leader could mark a proxy unavailable
+       on both his floors and watch Team Eff% not move by 0.1%. The flag was
+       decorative.
+
+       A man who was not on this floor contributes no minutes to it, so he
+       contributes nothing here: not Input, not Output, not Man Count, not the
+       below 65% count, and not the floor's loss minutes either. He was absent,
+       he did not lose time, and those are different facts.
+
+       He is counted in `unav` rather than simply dropped, so Man Count can
+       never look quietly short of men with no explanation on screen. */
+    if(isUnav(o)){ f.unav++; return; }
+
+    /* In the Roster, absent from the export. Counted so the gap is visible,
+       never averaged, because he has no minutes either way. */
+    if(isNoData(o)){ f.nodata++; return; }
+
     f.man++; f.inMin+=o.inMin; f.outMin+=o.outMin;
     /* Loss minutes for the floor. Already deducted from Input Min by the
        sheet, so this column explains the Input figure rather than adding to
@@ -1963,21 +2058,22 @@ function currentSets(){
   var floorsAll=floorAgg(ops);
 
   /* Total row covers the selected factory only, or both when none is picked */
-  var grand={man:0,inMin:0,outMin:0,u65:0,lossMin:0};
+  var grand={man:0,inMin:0,outMin:0,u65:0,lossMin:0,unav:0,nodata:0};
   floorsAll.filter(function(f){return inScope(f.floor)})
     .forEach(function(f){grand.man+=f.man;grand.inMin+=f.inMin;grand.outMin+=f.outMin;
-                         grand.u65+=f.u65;grand.lossMin+=f.lossMin||0});
+                         grand.u65+=f.u65;grand.lossMin+=f.lossMin||0;
+                         grand.unav+=f.unav||0;grand.nodata+=f.nodata||0});
   grand.eff=grand.inMin>0?(grand.outMin/grand.inMin*100):0;
 
   /* KPI totals follow the floor selection, else the factory scope */
   var tot;
   if(floorFilter){
     var sel=floorsAll.filter(function(f){return f.floor===floorFilter})[0]
-            || {man:0,inMin:0,outMin:0,u65:0,eff:0,lossMin:0};
+            || {man:0,inMin:0,outMin:0,u65:0,eff:0,lossMin:0,unav:0,nodata:0};
     /* lossMin must be carried here too, or the Excel total silently reads 0
        whenever a single floor is selected. */
     tot={man:sel.man,inMin:sel.inMin,outMin:sel.outMin,u65:sel.u65,eff:sel.eff,
-         lossMin:sel.lossMin||0};
+         lossMin:sel.lossMin||0,unav:sel.unav||0,nodata:sel.nodata||0};
   } else {
     tot=grand;
   }
@@ -1985,6 +2081,10 @@ function currentSets(){
   /* Operator counts per efficiency band, in the same scope the KPI cards use,
      so the chart follows both the factory and the floor selection. */
   var bandOps = ops.filter(function(o){
+    /* Same rule as floorAgg. A man with no percentage cannot sit in a
+       percentage band, and counting him in the lowest one was inventing a
+       poor performer out of somebody who was not there. */
+    if(isUnav(o) || isNoData(o)) return false;
     return floorFilter ? o.floor===floorFilter : inScope(o.floor);
   });
   var bands={lo:0,mid:0,hi:0,total:bandOps.length};
@@ -2009,6 +2109,12 @@ function currentSets(){
   var indShown=ops.filter(function(o){
     if(!inScope(o.floor))return false;
     if(floorFilter&&o.floor!==floorFilter)return false;
+    /* An unavailable man stays in the list on "All", because the list is where
+       a leader reads WHY a name has no figure. He drops out the moment a
+       percentage band is chosen, since he has no percentage to be compared
+       with: he was showing up under Below 65% purely because his hidden eff
+       was zero. */
+    if(effIndFilter!=='all' && (isUnav(o) || isNoData(o)))return false;
     if(!effPass(o.eff,effIndFilter))return false;
     if(query){
       var q=query.toLowerCase();
@@ -2087,14 +2193,16 @@ function render(){
   if(!S.floorsShown.length)h+='<tr><td colspan="5" class="empty">No floor matches this filter.</td></tr>';
   S.floorsShown.forEach(function(f){
     h+='<tr class="clickable'+(floorFilter===f.floor?' active-floor':'')+'" onclick="toggleFloor(\''+f.floor+'\')">'
-      +'<td><b>'+f.floor+'</b></td><td>'+f.man+'</td>'
+      +'<td><b>'+f.floor+'</b></td>'
+      +manTd(f.man, f.unav, f.nodata)
       +'<td class="'+(f.lossMin>0?'lossv hasr':'nolss')+'"'
       +  (f.lossMin>0?(' data-flk="'+escAttr(f.floor)+'" data-fmin="'+fmt(f.lossMin,0)+'"'):'')
       +  '>'+(f.lossMin>0?fmt(f.lossMin,0):'&ndash;')+'</td>'
       +'<td class="pct '+pctClass(f.eff)+'">'+fmt(f.eff,1)+'%</td>'
       +'<td>'+f.u65+'</td></tr>';
   });
-  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td><td>'+S.grand.man+'</td>'
+  h+='<tr class="totalrow clickable" onclick="toggleFloor(\'\')"><td>Total</td>'
+    +manTd(S.grand.man, S.grand.unav, S.grand.nodata)
     +'<td>'+(S.grand.lossMin>0?fmt(S.grand.lossMin,0):'&ndash;')+'</td>'
     +'<td class="pct">'+fmt(S.grand.eff,1)+'%</td><td>'+S.grand.u65+'</td></tr>';
   h+='</tbody></table></div></div>';
