@@ -325,21 +325,27 @@
      which is the only place that comparison belongs. The working hour
      arithmetic sits under Available as one small grey caption instead of two
      more rows. */
-  .fx{padding:13px 18px;background:#FAFBFE;border-bottom:1px solid var(--line)}
-  .fxt{width:100%;border-collapse:collapse;font-size:13px}
-  .fxt td{padding:5px 0;vertical-align:middle}
+  /* The header and footer stay put, everything else, breakdown AND add-new,
+     scrolls as one piece. See the HTML comment above .mscroll for why: a
+     fixed breakdown was squeezing Add New into whatever was left over,
+     which on a laptop screen could be two rows. */
+  .mscroll{overflow-y:auto;flex:1 1 auto;min-height:0}
+
+  .fx{padding:11px 18px;background:#FAFBFE;border-bottom:1px solid var(--line)}
+  .fxt{width:100%;border-collapse:collapse;font-size:12.5px}
+  .fxt td{padding:4px 0;vertical-align:middle}
   .fxt td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:800;white-space:nowrap}
   .fxt tr.sub td.n{color:var(--red)}
-  .fxt tr.fin td{border-top:2px solid var(--navy);padding-top:9px;
-                 font-size:14px;font-weight:800;color:var(--navy)}
-  .fxt tr.fin td.n{font-size:19px}
+  .fxt tr.fin td{border-top:2px solid var(--navy);padding-top:7px;
+                 font-size:13.5px;font-weight:800;color:var(--navy)}
+  .fxt tr.fin td.n{font-size:17px}
   .fxcap{font-size:9.5px;color:var(--mut);font-weight:600;margin:-2px 0 4px}
-  .effrow{display:flex;gap:9px;margin-top:11px}
-  .effbox{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;text-align:center}
+  .effrow{display:flex;gap:9px;margin-top:9px}
+  .effbox{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 11px;text-align:center}
   .effbox .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-  .effbox .v{font-size:16px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .effbox .v{font-size:15px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
 
-  .mbd{padding:15px 18px;overflow-y:auto;flex:1 1 auto}
+  .mbd{padding:13px 18px}
   .sect{font-size:9px;font-weight:800;color:var(--mut);text-transform:uppercase;
         letter-spacing:.8px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
   .sect:after{content:'';flex:1 1 auto;height:1px;background:var(--line)}
@@ -361,6 +367,12 @@
         padding:9px 10px;transition:border-color .12s,box-shadow .12s}
   .erow:hover{border-color:#C8B0EE}
   .erow.filled{border-color:#D9C6F5;background:#FCFAFF;box-shadow:0 1px 3px rgba(114,62,195,.08)}
+  /* Total across all rows is past what was free to lose. Marks every row, not
+     just the last one typed, since it is the SUM that is at fault, and shows
+     right where the leader is looking instead of only in the summary above,
+     which can sit above the fold once a second or third reason is added. */
+  .erow.over{border-color:var(--red)!important;background:#FBE9EB!important;box-shadow:none}
+  .erow.over input{color:var(--red)}
   .erow .no{width:24px;height:24px;border-radius:7px;background:#EFE8FB;color:var(--violet);
             font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .erow.filled .no{background:var(--violet);color:#fff}
@@ -438,9 +450,19 @@
   <div class="bd">
     <h3>Floor Login</h3>
     <div class="msg" id="lmsg"></div>
-    <input type="text" id="uid" placeholder="ID" autocomplete="off">
-    <input type="password" id="pwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="big submit" onclick="doLogin()">Sign in</button>
+    <!-- A real form, not just two loose inputs, because Chrome's own
+         username memory (separate from its password manager) keys off a
+         form context. autocomplete="username" is the token that makes the
+         browser offer the ID again next time without asking to save
+         anything else. The password field keeps autocomplete="off" so it
+         is never bundled into a save-password prompt, only the ID is
+         remembered. preventDefault keeps this an SPA call, not a real
+         page submit. -->
+    <form autocomplete="on" onsubmit="event.preventDefault();doLogin();return false;">
+      <input type="text" id="uid" name="uid" placeholder="ID" autocomplete="username">
+      <input type="password" id="pwd" name="pwd" placeholder="Password" autocomplete="off">
+      <button type="submit" class="big submit">Sign in</button>
+    </form>
   </div>
 </div>
 
@@ -561,6 +583,14 @@
       <button class="x" onclick="closeModal()" title="Close without saving, Esc">&times;</button>
     </div>
 
+    <!-- Everything between the header and the footer scrolls as ONE piece.
+         It used to be split, the breakdown fixed above a small scrolling
+         strip that held Add New and the warning, so on a short screen the
+         one part a leader has to act on was squeezed into a sliver while
+         the summary sat there in full uncroppable view. Now the summary can
+         scroll out of the way like anything else, and Add New gets whatever
+         room the modal actually has. -->
+    <div class="mscroll">
     <!-- The full subtraction, line by line. See refreshModalTotals. -->
     <div class="fx">
       <table class="fxt" id="mBreak"></table>
@@ -594,6 +624,7 @@
 
       <div class="mwarn" id="mWarn"></div>
     </div>
+    </div><!-- /mscroll -->
 
     <div class="mft">
       <div class="note">Nothing is saved yet. <b>Done</b> puts it on the list, then press <b>Submit</b>.</div>
@@ -1832,7 +1863,12 @@ function openModal(id){
       '<span class="chip">'+esc(o.process||'-')+'</span>'
     + '<span class="chip">Floor '+esc(FLOOR)+'</span>'
     + '<span class="chip">'+esc(pretty(el('dt').value))+'</span>'
-    + '<span class="chip">WH '+(wh===null?'not loaded':wh.toFixed(2))+'</span>';
+    + '<span class="chip">WH '+(wh===null?'not loaded':wh.toFixed(2))+'</span>'
+    /* Engagement% (ERP), reference only, lives here now rather than as its
+       own row in the breakdown below. Filled in by refreshModalTotals, which
+       runs after this and on every keystroke, so a late-arriving figure is
+       never stuck showing nothing. */
+    + '<span class="chip" id="mChipEng" style="display:none"></span>';
 
   /* Already in the report? Then this submit ADDS to it, and the button says
      so. "Done" on a man who already holds 40 minutes reads like a fresh
@@ -2109,24 +2145,28 @@ function refreshModalTotals(){
 
   var rows='<tr><td>Available minutes</td><td class="n">'+avail+'</td></tr>';
 
-  /* ERP's own Engagement% (column F), reference only. Shown whenever the
-     sheet has it, independent of whether the minute-based cap below is
-     ready, so the leader always sees something rather than a blank gap. */
-  var engPct = engPctOf(MID);
-  if(engPct!==null){
-    rows+='<tr class="sub"><td>Engagement % (ERP)</td><td class="n">'
-        + engPct.toFixed(1)+'%</td></tr>';
+  /* ERP's own Engagement% (column F) now lives as a chip in the header,
+     not a row here, so the breakdown table stays short enough to see in
+     full without scrolling. Reference only, filled whenever the sheet has
+     it, independent of whether the minute-based cap below is ready. */
+  var engChip = el('mChipEng');
+  if(engChip){
+    var engPct = engPctOf(MID);
+    if(engPct!==null){
+      engChip.textContent = 'Eng '+engPct.toFixed(0)+'%';
+      engChip.style.display = '';
+    } else {
+      engChip.style.display = 'none';
+    }
   }
 
-  /* The ceiling, shown as the two numbers it is made of rather than as a rule
-     the leader has to take on trust. Available minus the minutes he was
-     actually working IS the most he can possibly have lost. */
+  /* The ceiling, ONE row: worked-on-markers and what is left of the day,
+     side by side rather than stacked, so the two numbers that make up the
+     cap cost one row instead of two. */
   var engM = engagedOf(MID);
   if(engM!==null && engM>0 && cap!==null){
-    rows+='<tr class="sub"><td>Worked on markers</td><td class="n">'
-        + Math.round(engM)+'</td></tr>'
-        + '<tr class="sub"><td><b>Free to lose</b></td><td class="n"><b>'
-        + Math.floor(cap)+'</b></td></tr>';
+    rows+='<tr class="sub"><td>Worked '+Math.round(engM)+' min'
+        + '</td><td class="n"><b>Free to lose '+Math.floor(cap)+'</b></td></tr>';
   }
 
   if(MDRAFT.unav){
@@ -2168,6 +2208,17 @@ function refreshModalTotals(){
       +' <span class="effarr">&rarr;</span> <span class="'+cls+'">'+ne.toFixed(1)+'%</span>';
   }
 
+  /* Every entry row turns red the instant the running total passes the cap,
+     right beside the field being typed into. The summary line above already
+     says it, but that can be out of view once a second reason is added, and
+     a red field stops a leader mid-keystroke in a way a sentence above does
+     not. Done stays disabled either way, this is only so he never has to
+     find out by pressing it. */
+  var overLimit = (cap!==null && m>cap);
+  document.querySelectorAll('#mRows .erow').forEach(function(r){
+    r.classList.toggle('over', overLimit);
+  });
+
   /* Warnings inside the popup, where the person can still act on them. */
   var w=el('mWarn'), txt='', cls2='';
   var missing=(MDRAFT.add||[]).some(function(e){
@@ -2178,9 +2229,9 @@ function refreshModalTotals(){
   });
   var removing=(MDRAFT.remove||[]).length;
   if(cap!==null && m>cap){
-    txt='Only <b>'+Math.floor(cap)+' minutes</b> were available on this date. '
-      + 'More than that would leave no input minutes at all. Check the Min / Hr unit, '
-      + 'or tick Unavailable if the operator was out all day.';
+    txt='Only <b>'+Math.floor(cap)+' minutes free to lose</b> today, he was engaged on '
+      + 'markers for the rest. '+m+' entered is '+(m-Math.floor(cap))+' too many. '
+      + 'Check the Min / Hr unit, or tick Unavailable if he was out all day.';
     cls2='r';
   }else if(missing){
     txt='One line has minutes but no reason. It will not be saved until a reason is picked.';
