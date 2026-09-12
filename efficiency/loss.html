@@ -1572,6 +1572,13 @@ function engagedOf(id){
   var f=facts(id);
   return (f && typeof f.engaged === 'number') ? f.engaged : null;
 }
+/* The ERP's own Engagement% (column F), shown for reference next to the cap.
+   Display only. The cap itself is never computed from this, it comes from
+   the real Input Min minutes summed server-side, see engagedOf(). */
+function engPctOf(id){
+  var f=facts(id);
+  return (f && typeof f.engPct === 'number') ? f.engPct : null;
+}
 function overCap(id,v){
   if(!v || v.unav) return false;
   var cap=capOf(id), m=totMin(v,id);
@@ -2101,6 +2108,15 @@ function refreshModalTotals(){
   }
 
   var rows='<tr><td>Available minutes</td><td class="n">'+avail+'</td></tr>';
+
+  /* ERP's own Engagement% (column F), reference only. Shown whenever the
+     sheet has it, independent of whether the minute-based cap below is
+     ready, so the leader always sees something rather than a blank gap. */
+  var engPct = engPctOf(MID);
+  if(engPct!==null){
+    rows+='<tr class="sub"><td>Engagement % (ERP)</td><td class="n">'
+        + engPct.toFixed(1)+'%</td></tr>';
+  }
 
   /* The ceiling, shown as the two numbers it is made of rather than as a rule
      the leader has to take on trust. Available minus the minutes he was
