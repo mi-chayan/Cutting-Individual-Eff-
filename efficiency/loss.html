@@ -340,6 +340,31 @@
                  font-size:13.5px;font-weight:800;color:var(--navy)}
   .fxt tr.fin td.n{font-size:17px}
   .fxcap{font-size:9.5px;color:var(--mut);font-weight:600;margin:-2px 0 4px}
+
+  /* The allowance meter. Two bars instead of two numbers a leader had to do
+     mental subtraction on: bar 1 splits the whole day into worked (grey,
+     already spoken for) and free to lose (green, actually available for
+     loss time); bar 2 shows how much of that green allowance today's entry
+     has used, red the instant it goes over, same red the field itself
+     turns. */
+  .meter{padding:3px 0 5px}
+  .meter .mline{display:flex;justify-content:space-between;align-items:baseline;
+                font-size:11.5px;font-weight:700;color:var(--navy)}
+  .meter .mline b{font-variant-numeric:tabular-nums}
+  .meter .mtag{font-size:9.5px;font-weight:800;color:var(--violet);background:#EFE8FB;
+               border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .mbar{height:14px;border-radius:7px;overflow:hidden;display:flex;background:#EEF0F7;
+        border:1px solid var(--line);margin:5px 0 7px}
+  .mseg{height:100%}
+  .mseg.w{background:#C3C9E2}
+  .mseg.f{background:var(--green)}
+  .mfree{margin-bottom:6px}
+  .mfree b{color:var(--green);font-size:13.5px}
+  .abar{height:14px;border-radius:7px;background:#EEF0F7;border:1px solid var(--line);
+        overflow:hidden;margin-bottom:5px}
+  .afill{height:100%;background:var(--green);transition:width .15s ease,background .15s ease}
+  .afill.over{background:var(--red)}
+
   .effrow{display:flex;gap:9px;margin-top:9px}
   .effbox{flex:1 1 0;background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 11px;text-align:center}
   .effbox .k{font-size:8.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
@@ -2160,13 +2185,30 @@ function refreshModalTotals(){
     }
   }
 
-  /* The ceiling, ONE row: worked-on-markers and what is left of the day,
-     side by side rather than stacked, so the two numbers that make up the
-     cap cost one row instead of two. */
+  /* The ceiling, as two bars instead of two numbers to do mental subtraction
+     on. Bar 1: the whole day split into worked (already spoken for) and free
+     to lose (actually available). Bar 2: how much of that green allowance
+     today's entries (already submitted + adding now) have used, filling
+     live as the leader types and turning the same red the field itself
+     turns the instant he goes over. */
   var engM = engagedOf(MID);
-  if(engM!==null && engM>0 && cap!==null){
-    rows+='<tr class="sub"><td>Worked '+Math.round(engM)+' min'
-        + '</td><td class="n"><b>Free to lose '+Math.floor(cap)+'</b></td></tr>';
+  if(engM!==null && engM>0 && cap!==null && avail>0){
+    var workedPct=Math.max(0,Math.min(100,(engM/avail)*100));
+    var freePct=Math.max(0,100-workedPct);
+    var usedNow=Math.max(0,m);
+    var usePct=cap>0 ? Math.min(100,(usedNow/cap)*100) : (usedNow>0?100:0);
+    var overNow=usedNow>cap;
+    var engPctV=engPctOf(MID);
+    var engBadge=(engPctV!==null) ? ('<span class="mtag">Eng '+engPctV.toFixed(0)+'%</span>') : '';
+    rows+='<tr><td colspan="2"><div class="meter">'
+      + '<div class="mline"><span>Worked <b>'+Math.round(engM)+'</b> of <b>'+avail+'</b> min</span>'+engBadge+'</div>'
+      + '<div class="mbar"><div class="mseg w" style="width:'+workedPct+'%"></div>'
+      + '<div class="mseg f" style="width:'+freePct+'%"></div></div>'
+      + '<div class="mline mfree"><span>Free to lose</span><b>'+Math.floor(cap)+' min</b></div>'
+      + '<div class="abar"><div class="afill'+(overNow?' over':'')+'" style="width:'+usePct+'%"></div></div>'
+      + '<div class="mline"><span>Loss entered so far</span>'
+      + '<b'+(overNow?' style="color:var(--red)"':'')+'>'+usedNow+' / '+Math.floor(cap)+' min</b></div>'
+      + '</div></td></tr>';
   }
 
   if(MDRAFT.unav){
