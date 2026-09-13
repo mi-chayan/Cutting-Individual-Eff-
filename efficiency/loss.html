@@ -732,6 +732,15 @@ function nudgeDashboard(dateStr, floorStr){
 var TOKEN=null, FLOOR='', FLOORS=[], CENTRAL=false, USER='';
 var OPS=[], RSN=[], VAL={}, SAVED={}, TODAY='', VIEW=[];
 var LOCKDATE='', LOCKED=false;
+/* LAST_EFF_DATE is the newest date the EFF sheet actually has for this floor.
+   A day beyond it has no working-hour truth yet -- the report lands the
+   MORNING AFTER, so loss time against it would be entered blind. LAST_EFF_KNOWN
+   false means the tab could not even be read, which is warned about too. */
+var LAST_EFF_DATE='', LAST_EFF_KNOWN=false, EFF_BLOCKED=false;
+/* True only for a date the page guessed on open, never one the floor leader
+   actually picked. Lets boot() silently retarget once to the newest date
+   that has data, instead of opening straight into a blocked screen. */
+var AUTO_DATE=false;
 var OVER=[];
 var WH={};
 /* The operator whose popup was opened last. Closing the popup used to drop
@@ -1122,6 +1131,7 @@ window.addEventListener('message', function(ev){
   api({action:'day',token:TOKEN,floor:FLOOR,date:d,fresh:1}).then(function(r){
     if(!r.ok) throw new Error(r.msg||'could not read the day');
     if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
+    if(r.lastEffDate!==undefined){ LAST_EFF_DATE=r.lastEffDate||''; LAST_EFF_KNOWN=true; }
     WH={};
     if(r.wh) for(var k in r.wh) if(r.wh.hasOwnProperty(k)){
       var f=r.wh[k];
@@ -1204,13 +1214,16 @@ function startApp(){
   el('app').classList.remove('hide');
   el('who').textContent = USER ? (USER+'  ·') : '';
   setupFloorControl();
-  if(!el('dt').value) el('dt').value = TODAY;
+  if(!el('dt').value){ el('dt').value = TODAY; AUTO_DATE = true; }
   el('dlabel').textContent = pretty(el('dt').value);
-  /* Nothing is FETCHED here, but anything already held is shown. Opening the
-     page used to pull a whole floor before the leader had chosen anything,
-     which was the slowest thing this screen did and usually the wrong floor
-     and the wrong day. */
-  if(!replayCache()){ showReady(); markDirty(); }
+  /* If a parked answer for this exact floor and date is already held, it is
+     shown for free. Otherwise the page used to just sit on "choose a floor
+     and press Load" -- but the date sitting in the box on a fresh open is a
+     guess (today), and today's efficiency report almost never exists yet, it
+     lands the morning after. So the first load is fetched automatically, and
+     boot() below silently snaps the date to the newest one that actually has
+     data before painting anything, rather than opening onto a blocked day. */
+  if(!replayCache()){ boot(); }
   tellParent('Loss Time');
 }
 
@@ -1221,6 +1234,8 @@ function replayCache(){
   var c=lcGet(FLOOR,d);
   if(!c) return false;
   OPS=c.operators||[]; RSN=c.reasons||[]; LOCKDATE=c.lockDate||'';
+  LAST_EFF_DATE=c.lastEffDate||''; LAST_EFF_KNOWN=(c.lastEffDate!==undefined && c.lastEffDate!==null);
+  AUTO_DATE=false;   /* a parked answer for THIS exact date is a real answer, not a guess */
   /* The figures are parked SEPARATELY now, because the operators no longer
      carry them: stage one never asks for them. The old shape, where they were
      stamped onto each operator, is still read so a tab that was open across
@@ -1345,6 +1360,7 @@ function paintLoadBtn(){
 
 /* Changing the date arms Load rather than firing one. */
 function onDateChange(){
+  AUTO_DATE=false;   /* the floor leader chose this date, never overrule it */
   el('dlabel').textContent=pretty(el('dt').value);
   applyLock(el('dt').value);
   showReady(); markDirty();
@@ -1375,6 +1391,22 @@ function boot(){
     if(!r.ok){ runEnd(tok); fail(r.msg); return; }
     OPS=r.operators; RSN=r.reasons; TODAY=r.today; CENTRAL=r.central; FLOORS=r.floors||FLOORS;
     LOCKDATE=r.lockDate||'';
+    LAST_EFF_DATE=r.lastEffDate||''; LAST_EFF_KNOWN=(r.lastEffDate!==undefined);
+
+    /* AUTO-LOAD ON OPEN, one shot. `d` here was never picked by anyone, it was
+       today's date left in the box by startApp(). If the efficiency report
+       has not reached that far -- the normal case, it lands a day behind --
+       retarget silently to the newest date that DOES have data and load that
+       instead. Never fires a second time: a manual date change or a Load on a
+       cached answer clears AUTO_DATE first. */
+    if(AUTO_DATE){
+      AUTO_DATE=false;
+      if(LAST_EFF_KNOWN && LAST_EFF_DATE && d>LAST_EFF_DATE){
+        el('dt').value=LAST_EFF_DATE;
+        boot();
+        return;
+      }
+    }
 
     /* An older deployment of the Apps Script ignores nowh and stamps the
        figures onto the operators anyway. Take them when they are there rather
@@ -1420,7 +1452,7 @@ function boot(){
        asking for Load again. */
     lcSet(FLOOR, dd,
           {operators:r.operators, reasons:r.reasons, lockDate:r.lockDate||'',
-           day:r.day, wh:(stamped?WH:null)});
+           lastEffDate:r.lastEffDate||'', day:r.day, wh:(stamped?WH:null)});
     /* Tells the shell this page has painted, which ends its "still loading"
        state and lets Refresh be pressed. */
     tellParent('Loss Time \u00b7 '+pretty(dd));
@@ -1495,6 +1527,7 @@ function loadDay(fresh){
     if(!runCurrent(tok)) return;      /* superseded by a newer Load */
     if(!r.ok){ runEnd(tok); fail(r.msg); return; }
     if(r.lockDate!==undefined) LOCKDATE=r.lockDate||'';
+    if(r.lastEffDate!==undefined){ LAST_EFF_DATE=r.lastEffDate||''; LAST_EFF_KNOWN=true; }
 
     /* An older deployment ignores nowh and sends the figures anyway. */
     WH={}; var stamped=false;
@@ -1516,7 +1549,7 @@ function loadDay(fresh){
     barSet(0.5);
     LOADED=true; DIRTY=false; paintLoadBtn();
     var prev=lcGet(FLOOR,d);
-    if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; if(stamped) prev.wh=WH; lcSet(FLOOR,d,prev); }
+    if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; prev.lastEffDate=LAST_EFF_DATE; if(stamped) prev.wh=WH; lcSet(FLOOR,d,prev); }
 
     if(stamped){ barSet(1); runEnd(tok); }
     else       { loadFigures(d, tok, fresh===true); }   /* stage two */
@@ -1538,13 +1571,32 @@ function goToday(){
    leader filling in a whole floor before being told it was never allowed. */
 function applyLock(d){
   LOCKED = !!(LOCKDATE && String(d) <= LOCKDATE);
+
+  /* The other end of the editable window. Not yet pushed = not yet known, so
+     an unreadable tab (LAST_EFF_KNOWN false) blocks exactly like a date past
+     the last pushed one does. */
+  EFF_BLOCKED = !LAST_EFF_KNOWN || !LAST_EFF_DATE || String(d) > LAST_EFF_DATE;
+
+  if(LAST_EFF_KNOWN && LAST_EFF_DATE) el('dt').max = LAST_EFF_DATE;
+  else el('dt').removeAttribute('max');
+
   el('lockPill').classList.toggle('hide', !LOCKED);
-  el('saveBtn').disabled = LOCKED;
-  el('allUnav').disabled = LOCKED;
+  el('saveBtn').disabled = LOCKED || EFF_BLOCKED;
+  el('allUnav').disabled = LOCKED || EFF_BLOCKED;
+
   if(LOCKED){
     el('lockPill').textContent='Locked to '+pretty(LOCKDATE);
     say('smsg','This date is closed. Loss time up to and including <b>'
       + esc(pretty(LOCKDATE))+'</b> can no longer be edited.','i');
+  }else if(EFF_BLOCKED){
+    if(!LAST_EFF_KNOWN || !LAST_EFF_DATE){
+      say('smsg','<b>Cannot enter loss time.</b> No date at all is on record in the '
+        + 'efficiency sheet for floor '+esc(FLOOR)+'. Tell IT before entering anything.','r');
+    }else{
+      say('smsg','<b>Cannot enter loss time for '+esc(pretty(d))+'.</b> The efficiency '
+        + 'report is only pushed up to <b>'+esc(pretty(LAST_EFF_DATE))+'</b> so far, '
+        + 'it lands the morning after. Come back tomorrow for '+esc(pretty(d))+' figures.','r');
+    }
   }
 }
 
@@ -1720,7 +1772,7 @@ function render(){
      + '<td class="ctr">'+whCell(o.id)+'</td>'
      + '<td class="ctr">'+workCell(o.id)+'</td>'
      + '<td class="ctr"><input class="chk sm" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
-     +   (LOCKED?' disabled':'')
+     +   ((LOCKED||EFF_BLOCKED)?' disabled':'')
      +   ' onclick="event.stopPropagation()"'
      +   ' onchange="setUnav(\''+o.id+'\',this.checked)"></td>'
      + '<td id="ls_'+o.id+'">'+lossCell(o.id)+'</td>'
@@ -1773,7 +1825,7 @@ function markPicked(id, flash){
    simply reads PIB N/A. Destroying somebody's recorded minutes as a side
    effect of a tick is the kind of thing nobody expects. */
 function setUnav(id,on){
-  if(LOCKED) return;
+  if(LOCKED || EFF_BLOCKED) return;
   if(!VAL[id]) VAL[id]=blank();
   VAL[id].unav=!!on;
   touch(id);
@@ -1781,7 +1833,7 @@ function setUnav(id,on){
 
 var BULK=false;
 function setAllUnav(on){
-  if(LOCKED) return;
+  if(LOCKED || EFF_BLOCKED) return;
   BULK=true;
   VIEW.forEach(function(id){ setUnav(id,on); });
   BULK=false;
@@ -1795,7 +1847,7 @@ function syncAllUnav(){
   VIEW.forEach(function(id){ if((VAL[id]||blank()).unav) on++; });
   box.checked=(n>0 && on===n);
   box.indeterminate=(on>0 && on<n);
-  box.disabled=(n===0 || LOCKED);
+  box.disabled=(n===0 || LOCKED || EFF_BLOCKED);
 }
 
 function updateKpis(){
@@ -1822,13 +1874,13 @@ function updateKpis(){
   /* Submit pulses while anything is unsaved. Done in the popup only puts the
      entry on the list, and without this a leader closes twenty popups and
      walks away believing the job is finished. */
-  el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED);
+  el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED && !EFF_BLOCKED);
 
   OVER=over;
   var sb=el('saveBtn');
-  if(sb) sb.disabled = LOCKED || SAVING || over.length>0;
+  if(sb) sb.disabled = LOCKED || EFF_BLOCKED || SAVING || over.length>0;
 
-  if(LOCKED) return;                    /* the lock notice owns the strip */
+  if(LOCKED || EFF_BLOCKED) return;     /* the lock/eff-gate notice owns the strip */
 
   var m=el('smsg');
   if(over.length){
@@ -1854,6 +1906,12 @@ function opById(id){
 function openModal(id){
   if(LOCKED){
     toast('This date is locked. '+esc(pretty(LOCKDATE))+' and earlier cannot be edited.','r');
+    return;
+  }
+  if(EFF_BLOCKED){
+    toast((LAST_EFF_KNOWN && LAST_EFF_DATE)
+      ? ('Efficiency report only pushed up to '+esc(pretty(LAST_EFF_DATE))+'. Cannot enter this date yet.')
+      : 'No date on record in the efficiency sheet for this floor. Cannot enter loss time.', 'r');
     return;
   }
   /* The entry box shows what a number of minutes WOULD do to Input Min and
@@ -2141,6 +2199,23 @@ function renderModal(){
 function refreshModalTotals(){
   if(!MDRAFT) return;
 
+  /* Belt and braces: openModal() already refuses a blocked date, this only
+     covers the date turning blocked WHILE the popup is open (a Refresh that
+     lands mid-edit). No preview, no Done, same as the missing-report case. */
+  if(EFF_BLOCKED){
+    var tblB=el('mBreak');
+    tblB.innerHTML='';
+    el('mCap').textContent=(LAST_EFF_KNOWN && LAST_EFF_DATE)
+      ? ('Efficiency report only pushed up to '+LAST_EFF_DATE+'. This date cannot be entered.')
+      : 'No date on record in the efficiency sheet for this floor. Cannot enter loss time.';
+    el('mOut').innerHTML='&ndash;'; el('mEff').innerHTML='&ndash;';
+    el('mDone').disabled=true;
+    var wB=el('mWarn');
+    wB.innerHTML='This date is blocked, nothing here can be saved.';
+    wB.className='mwarn r';
+    return;
+  }
+
   var f=facts(MID);
   var cap=capOf(MID);
   var wmin=workMin(MID);
@@ -2335,6 +2410,7 @@ var SAVING = false;
 
 function doSave(){
   if(LOCKED){ toast('This date is locked.','r'); return; }
+  if(EFF_BLOCKED){ toast('This date cannot be saved yet, the efficiency report has not reached it.','r'); return; }
   if(SAVING){ toast('A save is already on its way. Give it a moment.',''); return; }
 
   var rows=[], bad=[], over=[], seen={};
