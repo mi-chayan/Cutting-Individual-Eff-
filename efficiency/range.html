@@ -2465,76 +2465,103 @@ function xlsWrap(t,sheetName,fileName){
 }
 function safeName(s){ return String(s).replace(/[^A-Za-z0-9]+/g,'_'); }
 
-/* Same trick as xlsWrap, but for more than one named tab. Excel's HTML/XML
-   hybrid format matches worksheet definitions to top-level <table> tags by
-   ORDER, one tab per table, so each sheet below must be exactly ONE <table>
-   (title rows, header row and data rows all as <tr> inside it) or the tabs
-   come out blank or merged. */
-function xlsWrapMulti(sheets,fileName){
-  var wsDefs=sheets.map(function(s){
-    return '<x:ExcelWorksheet><x:Name>'+s.name+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>';
+/* The combined Full Table + Summary workbook needs two REAL, separately
+   populated tabs. The HTML+mso hack that xlsWrap() uses elsewhere renders
+   every <table> in the body onto ONE sheet no matter how many
+   <x:ExcelWorksheet> names are declared, which is exactly the "Summary tab
+   is blank" fault sir found, 13-Sep-2026 — both tables landed in the first
+   named tab and the second sat empty. Excel's 2003 XML Spreadsheet format
+   (SpreadsheetML) is the one actually built for genuine multi-sheet output
+   from plain text, one <Worksheet ss:Name=...> per tab, so the combined
+   workbook uses that instead. Saved with an .xls extension, same as every
+   other export on this page; Excel opens SpreadsheetML content correctly
+   from that extension, past the one "format doesn't match extension"
+   prompt it is already used to showing for this style of file. */
+function xCell(v,style,type){
+  type = type || (typeof v==='number' ? 'Number' : 'String');
+  var val = (type==='Number') ? (isFinite(v)?v:0) : esc(v==null?'':String(v));
+  return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="'+type+'">'+val+'</Data></Cell>';
+}
+function xRow(cells){ return '<Row>'+cells.join('')+'</Row>'; }
+
+function xWorkbook(sheets,fileName){
+  var styles=
+      '<Style ss:ID="title"><Font ss:Bold="1" ss:Size="15" ss:Color="#333D6D"/></Style>'
+    + '<Style ss:ID="meta"><Font ss:Size="9" ss:Color="#555555"/></Style>'
+    + '<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#333D6D" ss:Pattern="Solid"/></Style>'
+    + '<Style ss:ID="txt"><NumberFormat ss:Format="@"/></Style>'
+    + '<Style ss:ID="pct2"><NumberFormat ss:Format="0.00%"/></Style>'
+    + '<Style ss:ID="hl"><Interior ss:Color="#EAF2FF" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0%"/></Style>'
+    + '<Style ss:ID="bold"><Font ss:Bold="1"/></Style>'
+    + '<Style ss:ID="boldhl"><Font ss:Bold="1"/><Interior ss:Color="#EAF2FF" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0%"/></Style>'
+    + '<Style ss:ID="foot"><Font ss:Size="9" ss:Color="#888888"/></Style>';
+
+  var body=sheets.map(function(s){
+    return '<Worksheet ss:Name="'+esc(s.name)+'"><Table>'+s.rows.join('')+'</Table></Worksheet>';
   }).join('');
-  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
-    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>'+wsDefs
-    +'</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
-    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'
-    + sheets.map(function(s){return s.html}).join('') + '</body></html>';
-  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+
+  var xml='<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>'
+    + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" '
+    + 'xmlns:o="urn:schemas-microsoft-com:office:office" '
+    + 'xmlns:x="urn:schemas-microsoft-com:office:excel" '
+    + 'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" '
+    + 'xmlns:html="http://www.w3.org/TR/REC-html40">'
+    + '<Styles>'+styles+'</Styles>'+body+'</Workbook>';
+
+  var blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download=fileName;
   document.body.appendChild(a); a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
 }
 
-/* One <table> covering title, header and every data row of the Full Table
-   report, for the combined Full Table + Summary workbook. */
-function fullTableSheetHtml(list){
-  var n=COLS.length;
-  var t='<table border="1"><tr><td colspan="'+n+'" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; Individual PIB Report (Full Table)</td></tr>'
-      + '<tr><td colspan="'+n+'">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Rows: '+list.length
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Data through: '+esc(prettyDate(THROUGH))
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Sheet updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr>'
-      + '<tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
+/* Title, meta, header and every data row of the Full Table report, as
+   SpreadsheetML rows for the combined workbook. */
+function fullTableRows(list){
+  var rows=[];
+  rows.push(xRow([xCell('SOSL Cutting Section – Individual PIB Report (Full Table)','title')]));
+  rows.push(xRow([xCell('Period: '+periodLabel()+'   |   Scope: '+scopeLabel()+'   |   Rows: '+list.length
+    +'   |   Data through: '+prettyDate(THROUGH)+'   |   Sheet updated: '+STAMP,'meta')]));
+  rows.push(xRow([]));
+  rows.push(xRow(COLS.map(function(c){ return xCell(c.h,'hdr'); })));
   list.forEach(function(r){
-    t+='<tr>'+COLS.map(function(c){
+    rows.push(xRow(COLS.map(function(c){
       var v=r[c.k];
-      if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
-      if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
-      if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
-      if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
-      if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
-      return '<td>'+(Number(v)||0)+'</td>';
-    }).join('')+'</tr>';
+      if(c.k==='opId') return xCell(padId(v),'txt','String');
+      if(c.t==='s')    return xCell(v||'',null,'String');
+      if(c.t==='y')    return xCell(v?'Yes':'',null,'String');
+      if(c.t==='d')    return xCell(prettyDate(v),null,'String');
+      if(c.t==='p')    return xCell(Number(v)||0,'pct2','Number');
+      return xCell(Number(v)||0,null,'Number');
+    })));
   });
-  t+='<tr><td></td></tr><tr><td colspan="'+n+'">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
-  return t;
+  rows.push(xRow([]));
+  rows.push(xRow([xCell('© 2026 SNOWTEX CI Team | Help 2803','foot')]));
+  return rows;
 }
 
-/* Same, one <table>, for the Summary report. "Team Efficiency (%)" replaces
-   the old "Efficiency (%)" header, and its column is tinted to match the
-   on-screen highlight. */
-function summarySheetHtml(list,MX){
+/* Same, as SpreadsheetML rows, for the Summary report. "Team Efficiency (%)"
+   replaces the old "Efficiency (%)" header, and its column carries the same
+   light-blue tint as the on-screen highlight. */
+function summaryRows(list,MX){
   var present={}; list.forEach(function(r){ present[r.floor]=true; });
   var sol=SOL_FLOORS.filter(function(f){return present[f]});
   var ssl=SSL_FLOORS.filter(function(f){return present[f]});
   var oth=Object.keys(present).filter(function(f){
     return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0; }).sort();
 
-  var t='<table border="1"><tr><td colspan="14" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; PIB Summary ('+esc(MX.label)+')</td></tr>'
-      + '<tr><td colspan="14">Period: '+esc(periodLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Metric: '+esc(MX.label)+' ('+esc(MX.note)+')'
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Data through: '+esc(prettyDate(THROUGH))
-      + '&nbsp;&nbsp;|&nbsp;&nbsp;Sheet updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr>'
-      + '<tr>'+th2('Floor')+th2('Operators (count)')+th2('Avg Days Worked (count)')
-      + th2('Input (min)')+th2('Output (min)')+th2('Team Efficiency (%)')
-      + th2('Avg '+MX.label+' (points)')+th2('Best Operator (points)')+th2('Lowest Operator (points)')
-      + th2('>=90% (operators)')+th2('75-89% (operators)')+th2('50-74% (operators)')+th2('<50% (operators)')
-      + th2('Indv Not Counted (days)')+'</tr>';
+  var rows=[];
+  rows.push(xRow([xCell('SOSL Cutting Section – PIB Summary ('+MX.label+')','title')]));
+  rows.push(xRow([xCell('Period: '+periodLabel()+'   |   Scope: '+scopeLabel()+'   |   Metric: '+MX.label+' ('+MX.note+')'
+    +'   |   Data through: '+prettyDate(THROUGH)+'   |   Sheet updated: '+STAMP,'meta')]));
+  rows.push(xRow([]));
+  rows.push(xRow([
+    xCell('Floor','hdr'), xCell('Operators (count)','hdr'), xCell('Avg Days Worked (count)','hdr'),
+    xCell('Input (min)','hdr'), xCell('Output (min)','hdr'), xCell('Team Efficiency (%)','hdr'),
+    xCell('Avg '+MX.label+' (points)','hdr'), xCell('Best Operator (points)','hdr'), xCell('Lowest Operator (points)','hdr'),
+    xCell('>=90% (operators)','hdr'), xCell('75-89% (operators)','hdr'), xCell('50-74% (operators)','hdr'), xCell('<50% (operators)','hdr'),
+    xCell('Indv Not Counted (days)','hdr')
+  ]));
 
   var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
   var XP=personIndex(list), XL=Object.keys(XP).map(function(k){ return XP[k] });
@@ -2542,30 +2569,39 @@ function summarySheetHtml(list,MX){
     if(!fl) return XL;
     return XL.filter(function(o){ return fl.indexOf(o.mainFloor)>=0 });
   };
-  var row=function(label,rows,bold,fl){
-    var s=statsOf(rows, peopleOf(fl)), st=bold?' style="font-weight:bold"':'';
-    return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td>'
-     + '<td>'+(Math.round(s.avgDays*10)/10)+'</td>'
-     + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
-     + '<td style="mso-number-format:\'0.0%\';background:#EAF2FF">'+s.eff+'</td>'
-     + '<td>'+(Math.round(s.avg*10)/10)+'</td><td>'+(Math.round(s.best*10)/10)+'</td>'
-     + '<td>'+(Math.round(s.worst*10)/10)+'</td>'
-     + '<td>'+s.b.top+'</td><td>'+s.b.hi+'</td><td>'+s.b.mid+'</td><td>'+s.b.lo+'</td>'
-     + '<td>'+s.unav+'</td></tr>';
+  var row=function(label,rowsIn,bold,fl){
+    var s=statsOf(rowsIn, peopleOf(fl)), st=bold?'bold':null, effSt=bold?'boldhl':'hl';
+    return xRow([
+      xCell(label, st, 'String'),
+      xCell(s.nOps, st),
+      xCell(Math.round(s.avgDays*10)/10, st),
+      xCell(Math.round(s.inM), st),
+      xCell(Math.round(s.outM), st),
+      xCell(s.eff, effSt),
+      xCell(Math.round(s.avg*10)/10, st),
+      xCell(Math.round(s.best*10)/10, st),
+      xCell(Math.round(s.worst*10)/10, st),
+      xCell(s.b.top||0, st),
+      xCell(s.b.hi||0, st),
+      xCell(s.b.mid||0, st),
+      xCell(s.b.lo||0, st),
+      xCell(s.unav||0, st)
+    ]);
   };
-  sol.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
-  if(sol.length) t+=row('SOL total',pick(sol),true,sol);
-  ssl.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
-  if(ssl.length) t+=row('SSL total',pick(ssl),true,ssl);
-  oth.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+  sol.forEach(function(f){ rows.push(row(f,pick([f]),false,[f])); });
+  if(sol.length) rows.push(row('SOL total',pick(sol),true,sol));
+  ssl.forEach(function(f){ rows.push(row(f,pick([f]),false,[f])); });
+  if(ssl.length) rows.push(row('SSL total',pick(ssl),true,ssl));
+  oth.forEach(function(f){ rows.push(row(f,pick([f]),false,[f])); });
   var XC=XL.filter(function(o){ return o.central });
   if(XC.length){
     var cid={}; XC.forEach(function(o){ cid[o.opId]=1 });
-    t+=row('Central (boosters)', list.filter(function(r){ return cid[r.opId] }), true, ['CENTRAL']);
+    rows.push(row('Central (boosters)', list.filter(function(r){ return cid[r.opId] }), true, ['CENTRAL']));
   }
-  t+=row('SOSL overall',list,true,null);
-  t+='<tr><td></td></tr><tr><td colspan="14">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
-  return t;
+  rows.push(row('SOSL overall',list,true,null));
+  rows.push(xRow([]));
+  rows.push(xRow([xCell('© 2026 SNOWTEX CI Team | Help 2803','foot')]));
+  return rows;
 }
 
 function exportGrid(){
@@ -2596,9 +2632,9 @@ function exportExcel(){
   /* Full Table and Summary are asked to travel together, one workbook, two
      named tabs, regardless of which of the two the user was looking at. */
   if(view==='tbl' || view==='sum'){
-    xlsWrapMulti([
-      {name:'Full Table', html: fullTableSheetHtml(list)},
-      {name:'Summary',    html: summarySheetHtml(list, MX)}
+    xWorkbook([
+      {name:'Full Table', rows: fullTableRows(list)},
+      {name:'Summary',    rows: summaryRows(list, MX)}
     ], 'SOSL_PIB_FullTable_Summary_'+safeName(periodLabel())+'_'+(scopeSel||'All')+'.xls');
     return;
   }
