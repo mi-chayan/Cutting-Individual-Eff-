@@ -144,6 +144,14 @@
   .sc.top{background:#E8F0FC;color:#14509E}
   .sc.na{color:#C2C6D6}
   td.tot{background:#F1F2F7 !important;font-weight:800}
+
+  /* Team Efficiency% column, called out per sir's request so it reads first
+     in the Summary table. A flat tint, not score banding like .sc, because
+     this is one number for the whole floor, not a graded score. Lower CSS
+     specificity than tr.grp/tr.totalrow on purpose, so subtotal and grand
+     total rows keep their own navy/grey styling instead of turning blue. */
+  thead th.effcol{background:var(--blue) !important}
+  tbody td.effcol{background:#EAF2FF !important;font-weight:800;color:#0B4A93}
   .lgd{display:flex;gap:14px;align-items:center;font-size:10px;color:var(--mut);
        font-weight:700;padding:8px 13px;border-top:1px solid var(--line);flex:0 0 auto}
   .lgd i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
@@ -185,6 +193,7 @@
 
   .printhead{display:none}
   .printfoot{display:none}
+  #pm{display:none}
   @media print{
     @page{size:A4 landscape;margin:9mm 8mm}
     body{background:#fff;font-size:8pt}
@@ -207,7 +216,7 @@
              -webkit-print-color-adjust:exact;print-color-adjust:exact}
     tr.totalrow td{background:#333D6D !important;color:#fff !important;position:static;
              -webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .sc,td.tot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sc,td.tot,.effcol{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     tbody tr{page-break-inside:avoid}
     thead{display:table-header-group}
     .printfoot{display:block !important;margin-top:4mm;font-size:6.5pt;color:#666;text-align:center;
@@ -221,6 +230,13 @@
                            border-bottom:.6mm solid #333D6D;padding:0 0 2.5mm 0}
     body.pmodal .modal .mh .mini,body.pmodal .modal .mh .x{display:none !important}
     body.pmodal .modal .mb{overflow:visible}
+
+    /* printing Full Table + Summary together: the live .wrap hides, the
+       hidden #pm island (built fresh by printBothPages) shows instead, one
+       report per page. */
+    body.pmulti .wrap{display:none !important}
+    body.pmulti #pm{display:block !important}
+    .pbreak{page-break-before:always}
   }
   @media(max-width:700px){ .strip{padding:6px 9px;gap:7px} .wrap{padding:10px 9px 20px} .chips{padding:8px 9px 0} }
 
@@ -533,6 +549,10 @@
 
   <div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>
 </div>
+
+<!-- Built fresh, only when printing/exporting Full Table or Summary, so those
+     two always travel together instead of just whichever tab was open. -->
+<div id="pm"></div>
 
 <!-- ===== floor grid modal ===== -->
 <!-- Clicking the backdrop closes it, the same as the popup on the Loss Time
@@ -2032,7 +2052,7 @@ function renderSummary(list){
     + hd('Avg Days<br>Worked','count')
     + hd('Input','minutes')
     + hd('Output','minutes')
-    + hd('Efficiency','%')
+    + hd('Team Efficiency','%','effcol')
     + hd('Avg '+esc(MX.label),'points')
     + hd('Best<br>Operator','points')
     + hd('Lowest<br>Operator','points')
@@ -2072,7 +2092,7 @@ function renderSummary(list){
      + '<td class="mono">'+fmt(s.avgDays,1)+'</td>'
      + '<td class="mono">'+fmt(s.inM,0)+'</td>'
      + '<td class="mono">'+fmt(s.outM,0)+'</td>'
-     + '<td class="mono">'+fmt(s.eff*100,1)+'%</td>'
+     + '<td class="mono effcol">'+fmt(s.eff*100,1)+'%</td>'
      + '<td class="mono sc '+scClass(s.avg,max)+'">'+fmt(s.avg,1)+'</td>'
      + '<td class="mono">'+fmt(s.best,1)+'</td>'
      + '<td class="mono">'+fmt(s.worst,1)+'</td>'
@@ -2370,7 +2390,64 @@ function printGrid(){
 }
 
 /* ---------- print ---------- */
-function doPrint(){ window.focus(); window.print(); }
+function doPrint(){
+  /* Full Table and Summary are asked to travel together, so printing from
+     either one prints both, one report per page. Score Matrix is its own
+     thing and keeps printing on its own. */
+  if(view==='tbl' || view==='sum'){ printBothPages(); return; }
+  window.focus(); window.print();
+}
+
+/* Renders each of the two reports through the real renderTable()/renderSummary()
+   functions (so the printed columns can never drift from what's on screen),
+   snapshots the resulting table HTML, restores the page exactly as it was,
+   then prints the two snapshots stacked with a page break between them. */
+function printBothPages(){
+  var savedView=view, list=inScope(), M=METRICS[metric];
+
+  view='tbl'; renderTable(list);
+  var tRows=list.length, tFixed=el('mainTbl').classList.contains('fixed'),
+      tCols=el('cg').innerHTML, tHead=el('th').innerHTML, tBody=el('tb').innerHTML;
+
+  view='sum'; renderSummary(list);
+  var sRows=el('ph3').textContent, sFixed=el('mainTbl').classList.contains('fixed'),
+      sCols=el('cg').innerHTML, sHead=el('th').innerHTML, sBody=el('tb').innerHTML;
+
+  view=savedView; render();   /* leave the live page exactly as the user had it */
+
+  var meta='Period: <b>'+esc(periodLabel())+'</b>&nbsp;&nbsp;|&nbsp;&nbsp;'
+    + 'Scope: <b>'+esc(scopeLabel())+'</b>&nbsp;&nbsp;|&nbsp;&nbsp;'
+    + 'Data through: <b>'+esc(prettyDate(THROUGH))+'</b>&nbsp;&nbsp;|&nbsp;&nbsp;'
+    + 'Sheet updated: <b>'+esc(STAMP)+'</b>';
+
+  function head(title,rows){
+    return '<div class="printhead"><img src="../logo.jpg" alt="">'
+      + '<div><h1>'+esc(title)+'</h1><div class="meta">'+meta
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Rows: <b>'+esc(String(rows))+'</b></div></div></div>';
+  }
+  function section(title,rows,fixed,cols,thead,tbody,brk){
+    return (brk?'<div class="pbreak"></div>':'')+head(title,rows)
+      + '<div class="card"><div class="scroll"><table class="'+(fixed?'fixed':'')+'">'
+      + '<colgroup>'+cols+'</colgroup><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>'
+      + '<div class="printfoot">&copy; 2026 SNOWTEX CI Team &bull; Help 2803</div>';
+  }
+
+  el('pm').innerHTML =
+      section('SOSL Cutting Section – Individual PIB Report', tRows, tFixed, tCols, tHead, tBody, false)
+    + section('SOSL Cutting Section – PIB Summary ('+M.label+')', sRows, sFixed, sCols, sHead, sBody, true);
+
+  document.body.classList.add('pmulti');
+  window.focus();
+  window.print();
+
+  var cleanup=function(){
+    document.body.classList.remove('pmulti');
+    el('pm').innerHTML='';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(cleanup, 5000);   /* fallback for a browser that never fires afterprint */
+}
 
 /* ---------- Excel ---------- */
 function th2(s){return '<th style="background:#333D6D;color:#fff;font-weight:bold">'+esc(s)+'</th>'}
@@ -2387,6 +2464,109 @@ function xlsWrap(t,sheetName,fileName){
   setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
 }
 function safeName(s){ return String(s).replace(/[^A-Za-z0-9]+/g,'_'); }
+
+/* Same trick as xlsWrap, but for more than one named tab. Excel's HTML/XML
+   hybrid format matches worksheet definitions to top-level <table> tags by
+   ORDER, one tab per table, so each sheet below must be exactly ONE <table>
+   (title rows, header row and data rows all as <tr> inside it) or the tabs
+   come out blank or merged. */
+function xlsWrapMulti(sheets,fileName){
+  var wsDefs=sheets.map(function(s){
+    return '<x:ExcelWorksheet><x:Name>'+s.name+'</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>';
+  }).join('');
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+    +'<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>'+wsDefs
+    +'</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    +'<style>td,th{font-family:Calibri,sans-serif;font-size:11pt;vertical-align:middle}</style></head><body>'
+    + sheets.map(function(s){return s.html}).join('') + '</body></html>';
+  var blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=fileName;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);document.body.removeChild(a)},1200);
+}
+
+/* One <table> covering title, header and every data row of the Full Table
+   report, for the combined Full Table + Summary workbook. */
+function fullTableSheetHtml(list){
+  var n=COLS.length;
+  var t='<table border="1"><tr><td colspan="'+n+'" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      + 'SOSL Cutting Section &ndash; Individual PIB Report (Full Table)</td></tr>'
+      + '<tr><td colspan="'+n+'">Period: '+esc(periodLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Rows: '+list.length
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Data through: '+esc(prettyDate(THROUGH))
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Sheet updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr>'
+      + '<tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
+  list.forEach(function(r){
+    t+='<tr>'+COLS.map(function(c){
+      var v=r[c.k];
+      if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
+      if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
+      if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
+      if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
+      if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
+      return '<td>'+(Number(v)||0)+'</td>';
+    }).join('')+'</tr>';
+  });
+  t+='<tr><td></td></tr><tr><td colspan="'+n+'">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  return t;
+}
+
+/* Same, one <table>, for the Summary report. "Team Efficiency (%)" replaces
+   the old "Efficiency (%)" header, and its column is tinted to match the
+   on-screen highlight. */
+function summarySheetHtml(list,MX){
+  var present={}; list.forEach(function(r){ present[r.floor]=true; });
+  var sol=SOL_FLOORS.filter(function(f){return present[f]});
+  var ssl=SSL_FLOORS.filter(function(f){return present[f]});
+  var oth=Object.keys(present).filter(function(f){
+    return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0; }).sort();
+
+  var t='<table border="1"><tr><td colspan="14" style="font-size:15pt;font-weight:bold;color:#333D6D">'
+      + 'SOSL Cutting Section &ndash; PIB Summary ('+esc(MX.label)+')</td></tr>'
+      + '<tr><td colspan="14">Period: '+esc(periodLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Metric: '+esc(MX.label)+' ('+esc(MX.note)+')'
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Data through: '+esc(prettyDate(THROUGH))
+      + '&nbsp;&nbsp;|&nbsp;&nbsp;Sheet updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr>'
+      + '<tr>'+th2('Floor')+th2('Operators (count)')+th2('Avg Days Worked (count)')
+      + th2('Input (min)')+th2('Output (min)')+th2('Team Efficiency (%)')
+      + th2('Avg '+MX.label+' (points)')+th2('Best Operator (points)')+th2('Lowest Operator (points)')
+      + th2('>=90% (operators)')+th2('75-89% (operators)')+th2('50-74% (operators)')+th2('<50% (operators)')
+      + th2('Indv Not Counted (days)')+'</tr>';
+
+  var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
+  var XP=personIndex(list), XL=Object.keys(XP).map(function(k){ return XP[k] });
+  var peopleOf=function(fl){
+    if(!fl) return XL;
+    return XL.filter(function(o){ return fl.indexOf(o.mainFloor)>=0 });
+  };
+  var row=function(label,rows,bold,fl){
+    var s=statsOf(rows, peopleOf(fl)), st=bold?' style="font-weight:bold"':'';
+    return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td>'
+     + '<td>'+(Math.round(s.avgDays*10)/10)+'</td>'
+     + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
+     + '<td style="mso-number-format:\'0.0%\';background:#EAF2FF">'+s.eff+'</td>'
+     + '<td>'+(Math.round(s.avg*10)/10)+'</td><td>'+(Math.round(s.best*10)/10)+'</td>'
+     + '<td>'+(Math.round(s.worst*10)/10)+'</td>'
+     + '<td>'+s.b.top+'</td><td>'+s.b.hi+'</td><td>'+s.b.mid+'</td><td>'+s.b.lo+'</td>'
+     + '<td>'+s.unav+'</td></tr>';
+  };
+  sol.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+  if(sol.length) t+=row('SOL total',pick(sol),true,sol);
+  ssl.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+  if(ssl.length) t+=row('SSL total',pick(ssl),true,ssl);
+  oth.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
+  var XC=XL.filter(function(o){ return o.central });
+  if(XC.length){
+    var cid={}; XC.forEach(function(o){ cid[o.opId]=1 });
+    t+=row('Central (boosters)', list.filter(function(r){ return cid[r.opId] }), true, ['CENTRAL']);
+  }
+  t+=row('SOSL overall',list,true,null);
+  t+='<tr><td></td></tr><tr><td colspan="14">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
+  return t;
+}
 
 function exportGrid(){
   var g=curGrid(), isOee=(gridKind==='oee');
@@ -2412,93 +2592,43 @@ function exportGrid(){
 
 function exportExcel(){
   var list=inScope(), MX=METRICS[metric];
-  var viewTxt = view==='mat' ? ('Score Matrix - '+MX.label)
-              : view==='sum' ? ('Summary - '+MX.label) : 'Full Table';
 
+  /* Full Table and Summary are asked to travel together, one workbook, two
+     named tabs, regardless of which of the two the user was looking at. */
+  if(view==='tbl' || view==='sum'){
+    xlsWrapMulti([
+      {name:'Full Table', html: fullTableSheetHtml(list)},
+      {name:'Summary',    html: summarySheetHtml(list, MX)}
+    ], 'SOSL_PIB_FullTable_Summary_'+safeName(periodLabel())+'_'+(scopeSel||'All')+'.xls');
+    return;
+  }
+
+  /* Score Matrix export is unchanged, its own single-sheet file. */
+  var viewTxt='Score Matrix - '+MX.label;
   var t='<table><tr><td colspan="20" style="font-size:15pt;font-weight:bold;color:#333D6D">'
-      + 'SOSL Cutting Section &ndash; Individual PIB '+(view==='mat'?'Score Matrix':'Report')+'</td></tr>'
+      + 'SOSL Cutting Section &ndash; Individual PIB Score Matrix</td></tr>'
       + '<tr><td colspan="20">Period: '+esc(periodLabel())
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Scope: '+esc(scopeLabel())
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Metric: '+esc(MX.label)+' ('+esc(MX.note)+')'
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Data through: '+esc(prettyDate(THROUGH))
       + '&nbsp;&nbsp;|&nbsp;&nbsp;Sheet updated: '+esc(STAMP)+'</td></tr><tr><td></td></tr></table>';
 
-  if(view==='mat'){
-    var M=buildMatrix(list);
-    t+='<table border="1"><tr>'+th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('Type');
-    M.dates.forEach(function(d){ t+=th2(prettyDate(d)); });
-    t+=th2('Days')+th2('Total')+th2('Average')+th2('Indv Not Counted')+'</tr>';
-    M.rows.forEach(function(o){
-      t+='<tr><td>'+esc(o.floor)+'</td>'
-       + '<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
-       + '<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+esc(o.type||'')+'</td>';
-      M.dates.forEach(function(d){
-        var v=o.s[d];
-        t+= (v===undefined||v===null) ? '<td></td>' : '<td>'+v+'</td>';
-      });
-      t+='<td>'+o.days+'</td><td>'+(Math.round(o.total*10)/10)+'</td>'
-       + '<td>'+(Math.round(o.avg*10)/10)+'</td><td>'+(o.unav||0)+'</td></tr>';
+  var M=buildMatrix(list);
+  t+='<table border="1"><tr>'+th2('Floor')+th2('Op. ID')+th2('Op. Name')+th2('Designation')+th2('Type');
+  M.dates.forEach(function(d){ t+=th2(prettyDate(d)); });
+  t+=th2('Days')+th2('Total')+th2('Average')+th2('Indv Not Counted')+'</tr>';
+  M.rows.forEach(function(o){
+    t+='<tr><td>'+esc(o.floor)+'</td>'
+     + '<td style="mso-number-format:\'\\@\'">'+esc(padId(o.opId))+'</td>'
+     + '<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+esc(o.type||'')+'</td>';
+    M.dates.forEach(function(d){
+      var v=o.s[d];
+      t+= (v===undefined||v===null) ? '<td></td>' : '<td>'+v+'</td>';
     });
-    t+='</table>';
-  }else if(view==='sum'){
-    var present={}; list.forEach(function(r){ present[r.floor]=true; });
-    var sol=SOL_FLOORS.filter(function(f){return present[f]});
-    var ssl=SSL_FLOORS.filter(function(f){return present[f]});
-    var oth=Object.keys(present).filter(function(f){
-      return SOL_FLOORS.indexOf(f)<0 && SSL_FLOORS.indexOf(f)<0; }).sort();
-
-    t+='<table border="1"><tr>'+th2('Floor')+th2('Operators (count)')+th2('Avg Days Worked (count)')
-     + th2('Input (min)')+th2('Output (min)')+th2('Efficiency (%)')
-     + th2('Avg '+MX.label+' (points)')+th2('Best Operator (points)')+th2('Lowest Operator (points)')
-     + th2('>=90% (operators)')+th2('75-89% (operators)')+th2('50-74% (operators)')+th2('<50% (operators)')
-     + th2('Indv Not Counted (days)')+'</tr>';
-
-    var pick=function(fl){ return list.filter(function(r){return fl.indexOf(r.floor)>=0}); };
-    /* Same rule as the screen: a person is counted once, at their main floor. */
-    var XP = personIndex(list);
-    var XL = Object.keys(XP).map(function(k){ return XP[k] });
-    var peopleOf=function(fl){
-      if(!fl) return XL;
-      return XL.filter(function(o){ return fl.indexOf(o.mainFloor)>=0 });
-    };
-    var row=function(label,rows,bold,fl){
-      var s=statsOf(rows, peopleOf(fl)), st=bold?' style="font-weight:bold"':'';
-      return '<tr'+st+'><td>'+esc(label)+'</td><td>'+s.nOps+'</td>'
-       + '<td>'+(Math.round(s.avgDays*10)/10)+'</td>'
-       + '<td>'+fmt(s.inM,0)+'</td><td>'+fmt(s.outM,0)+'</td>'
-       + '<td style="mso-number-format:\'0.0%\'">'+s.eff+'</td>'
-       + '<td>'+(Math.round(s.avg*10)/10)+'</td><td>'+(Math.round(s.best*10)/10)+'</td>'
-       + '<td>'+(Math.round(s.worst*10)/10)+'</td>'
-       + '<td>'+s.b.top+'</td><td>'+s.b.hi+'</td><td>'+s.b.mid+'</td><td>'+s.b.lo+'</td>'
-       + '<td>'+s.unav+'</td></tr>';
-    };
-    sol.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
-    if(sol.length) t+=row('SOL total',pick(sol),true,sol);
-    ssl.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
-    if(ssl.length) t+=row('SSL total',pick(ssl),true,ssl);
-    oth.forEach(function(f){ t+=row(f,pick([f]),false,[f]); });
-    var XC = XL.filter(function(o){ return o.central });
-    if(XC.length){
-      var cid={}; XC.forEach(function(o){ cid[o.opId]=1 });
-      t+=row('Central (boosters)', list.filter(function(r){ return cid[r.opId] }), true, ['CENTRAL']);
-    }
-    t+=row('SOSL overall',list,true,null);
-    t+='</table>';
-  }else{
-    t+='<table border="1"><tr>'+COLS.map(function(c){return th2(c.h)}).join('')+'</tr>';
-    list.forEach(function(r){
-      t+='<tr>'+COLS.map(function(c){
-        var v=r[c.k];
-        if(c.k==='opId') return '<td style="mso-number-format:\'\\@\'">'+esc(padId(v))+'</td>';
-        if(c.t==='s')    return '<td>'+esc(v||'')+'</td>';
-        if(c.t==='y')    return '<td>'+(v?'Yes':'')+'</td>';
-        if(c.t==='d')    return '<td>'+esc(prettyDate(v))+'</td>';
-        if(c.t==='p')    return '<td style="mso-number-format:\'0.00%\'">'+(Number(v)||0)+'</td>';
-        return '<td>'+(Number(v)||0)+'</td>';
-      }).join('')+'</tr>';
-    });
-    t+='</table>';
-  }
+    t+='<td>'+o.days+'</td><td>'+(Math.round(o.total*10)/10)+'</td>'
+     + '<td>'+(Math.round(o.avg*10)/10)+'</td><td>'+(o.unav||0)+'</td></tr>';
+  });
+  t+='</table>';
   t+='<table><tr><td></td></tr><tr><td colspan="20">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
 
   xlsWrap(t,'PIB','SOSL_PIB_'+safeName(viewTxt)+'_'+safeName(periodLabel())+'_'+(scopeSel||'All')+'.xls');
