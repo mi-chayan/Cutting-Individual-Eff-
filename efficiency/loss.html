@@ -1214,16 +1214,32 @@ function startApp(){
   el('app').classList.remove('hide');
   el('who').textContent = USER ? (USER+'  ·') : '';
   setupFloorControl();
-  if(!el('dt').value){ el('dt').value = TODAY; AUTO_DATE = true; }
+
+  /* The best guess for the date box is whichever date THIS FLOOR last had
+     data for, remembered across visits (localStorage, below) -- not "today",
+     which almost never has a report yet, it lands the morning after. Still a
+     guess, so AUTO_DATE stays on and boot() will correct it if a newer day
+     has since landed. */
+  var remembered = llGet(FLOOR);
+  if(!el('dt').value){
+    el('dt').value = (remembered && remembered.lastEffDate) ? remembered.lastEffDate : TODAY;
+    AUTO_DATE = true;
+  }
   el('dlabel').textContent = pretty(el('dt').value);
-  /* If a parked answer for this exact floor and date is already held, it is
-     shown for free. Otherwise the page used to just sit on "choose a floor
-     and press Load" -- but the date sitting in the box on a fresh open is a
-     guess (today), and today's efficiency report almost never exists yet, it
-     lands the morning after. So the first load is fetched automatically, and
-     boot() below silently snaps the date to the newest one that actually has
-     data before painting anything, rather than opening onto a blocked day. */
-  if(!replayCache()){ boot(); }
+
+  if(replayCache()){
+    /* This exact floor and date was already fetched THIS tab session --
+       painted for free, nothing to wait on. */
+  }else if(paintRemembered(remembered)){
+    /* No same-session copy, but a cross-session one is on hand: painted
+       immediately, so the screen is never blank or "Choose a floor" on a
+       fresh tab. boot(true) then confirms it quietly in the background --
+       silent so it does not blank the table it is only meant to refresh. */
+    boot(true);
+  }else{
+    /* Truly nothing held anywhere. Only case left where a wait is real. */
+    boot();
+  }
   tellParent('Loss Time');
 }
 
@@ -1337,6 +1353,48 @@ function lcSet(floor,date,payload){
 function lcDrop(floor,date){
   try{ sessionStorage.removeItem(lcKey(floor,date)); }catch(e){}
 }
+/* Same reasoning for the cross-session copy: dropped rather than patched, so
+   a tab closed right after a save and reopened later does one real boot()
+   instead of ever risking pre-save entries painted on faith. */
+function llDrop(floor){
+  try{ localStorage.removeItem(llKey(floor)); }catch(e){}
+}
+
+/* ---------- remember the last GOOD day, across visits ----------
+   lcGet/lcSet above die with the tab, so a brand new tab always waited on a
+   full boot() before showing anything, even for a floor opened five minutes
+   ago on a different tab. This copy lives in localStorage, one slot per
+   floor (not per date, there is only ever ONE "newest day"), and is written
+   only when the date just loaded is CONFIRMED to be the newest one the EFF
+   sheet actually has (dd === LAST_EFF_DATE) -- never a guess, never a
+   blocked date, so it can always be painted on faith the instant the page
+   opens, before any network round trip. */
+var LL_PFX='sosl_loss_last_';
+function llKey(floor){ return LL_PFX+floor; }
+function llGet(floor){
+  try{ var v=localStorage.getItem(llKey(floor)); return v?JSON.parse(v):null; }
+  catch(e){ return null; }
+}
+function llSet(floor,payload){
+  try{ localStorage.setItem(llKey(floor), JSON.stringify(payload)); }catch(e){}
+}
+/* Paints straight from that remembered copy, exactly like replayCache does
+   from the session one. Left marked as a guess (AUTO_DATE stays whatever the
+   caller set it to) because a newer day may exist since this was written --
+   the caller follows up with a silent boot() to confirm. */
+function paintRemembered(c){
+  if(!c || !c.date) return false;
+  OPS=c.operators||[]; RSN=c.reasons||[]; LOCKDATE=c.lockDate||'';
+  LAST_EFF_DATE=c.lastEffDate||''; LAST_EFF_KNOWN=(c.lastEffDate!==undefined && c.lastEffDate!==null);
+  WH=c.wh||{};
+  WH_PENDING=false;
+  el('dt').value=c.date;
+  el('dlabel').textContent=pretty(c.date);
+  applyLock(c.date);
+  apply(c.day||{entries:[]}); render();
+  LOADED=true; DIRTY=false; paintLoadBtn();
+  return true;
+}
 
 /* ---------- the Load button ----------
    Nothing is fetched when the page opens. The floor leader picks a date and a
@@ -1378,11 +1436,14 @@ function doLoad(){
   if(!LOADED || DIRTY) boot(); else loadDay(true);
 }
 
-function boot(){
+function boot(silent){
   var d=el('dt').value||TODAY;
   var label='Loss Time, floor '+FLOOR+', '+pretty(d);
   var tok=runBegin(label);
-  el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
+  /* silent=true is a background confirm of a day already painted from the
+     remembered copy (see startApp): the table stays exactly as it is until
+     real data lands, rather than flashing to a loading row and back. */
+  if(!silent) el('tb').innerHTML='<tr><td colspan="12" class="loading">'+esc(label)+'…</td></tr>';
   /* nowh=1 is STAGE ONE: the operator list, the reasons and whatever is
      already saved, none of which touches the efficiency spreadsheet. */
   api({action:'boot',token:TOKEN,floor:FLOOR,date:d,nowh:1}, label).then(function(r){
@@ -1394,16 +1455,21 @@ function boot(){
     LAST_EFF_DATE=r.lastEffDate||''; LAST_EFF_KNOWN=(r.lastEffDate!==undefined);
 
     /* AUTO-LOAD ON OPEN, one shot. `d` here was never picked by anyone, it was
-       today's date left in the box by startApp(). If the efficiency report
-       has not reached that far -- the normal case, it lands a day behind --
+       a guess left in the box by startApp() (today, or a remembered date that
+       may since be stale). If the efficiency report has not reached that far,
        retarget silently to the newest date that DOES have data and load that
        instead. Never fires a second time: a manual date change or a Load on a
-       cached answer clears AUTO_DATE first. */
+       cached answer clears AUTO_DATE first.
+       runEnd(tok) here matters: this call's busy()/island is being abandoned
+       in favour of the one the re-issued boot() opens, and without closing it
+       first the busy count never returns to zero, so the loading pill would
+       sit on screen forever even once everything has actually finished. */
     if(AUTO_DATE){
       AUTO_DATE=false;
       if(LAST_EFF_KNOWN && LAST_EFF_DATE && d>LAST_EFF_DATE){
         el('dt').value=LAST_EFF_DATE;
-        boot();
+        runEnd(tok);
+        boot(silent);
         return;
       }
     }
@@ -1453,6 +1519,16 @@ function boot(){
     lcSet(FLOOR, dd,
           {operators:r.operators, reasons:r.reasons, lockDate:r.lockDate||'',
            lastEffDate:r.lastEffDate||'', day:r.day, wh:(stamped?WH:null)});
+    /* And, only when this IS the newest date the sheet actually has, park it
+       across tab sessions too, so the NEXT time this floor is opened -- a
+       brand new tab included -- there is something real to paint before any
+       network call at all. A blocked or manually-picked older date is never
+       remembered here, only the genuine newest day. */
+    if(dd === LAST_EFF_DATE){
+      llSet(FLOOR, {date:dd, operators:r.operators, reasons:r.reasons,
+                     lockDate:r.lockDate||'', lastEffDate:r.lastEffDate||'',
+                     day:r.day, wh:(stamped?WH:null), ts:Date.now()});
+    }
     /* Tells the shell this page has painted, which ends its "still loading"
        state and lets Refresh be pressed. */
     tellParent('Loss Time \u00b7 '+pretty(dd));
@@ -1497,6 +1573,8 @@ function loadFigures(d, tok, fresh){
     runEnd(tok);
     var prev=lcGet(FLOOR,d);
     if(prev){ prev.wh=WH; lcSet(FLOOR,d,prev); }
+    var prevL=llGet(FLOOR);
+    if(prevL && prevL.date===d){ prevL.wh=WH; llSet(FLOOR,prevL); }
   }).catch(function(e){
     if(!runCurrent(tok)) return;
     /* The figures failing must never make the page unusable. The operator list
@@ -1550,6 +1628,13 @@ function loadDay(fresh){
     LOADED=true; DIRTY=false; paintLoadBtn();
     var prev=lcGet(FLOOR,d);
     if(prev){ prev.day=r.day; prev.lockDate=LOCKDATE; prev.lastEffDate=LAST_EFF_DATE; if(stamped) prev.wh=WH; lcSet(FLOOR,d,prev); }
+    if(d === LAST_EFF_DATE){
+      var prevL=llGet(FLOOR);
+      var base=(prevL && prevL.date===d) ? prevL : {operators:OPS, reasons:RSN};
+      llSet(FLOOR, {date:d, operators:base.operators, reasons:base.reasons,
+                     lockDate:LOCKDATE, lastEffDate:LAST_EFF_DATE,
+                     day:r.day, wh:(stamped?WH:(base.wh||null)), ts:Date.now()});
+    }
 
     if(stamped){ barSet(1); runEnd(tok); }
     else       { loadFigures(d, tok, fresh===true); }   /* stage two */
@@ -2623,6 +2708,7 @@ function settle(r, rows, sending, theDate, theFloor){
   /* The day just changed on the server, so the parked copy is stale and must
      never be replayed over the top of it. */
   lcDrop(theFloor, theDate);
+  llDrop(theFloor);
 
   nudgeDashboard(theDate, theFloor);
 }
