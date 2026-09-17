@@ -1666,8 +1666,8 @@ function applyLock(d){
   else el('dt').removeAttribute('max');
 
   el('lockPill').classList.toggle('hide', !LOCKED);
-  el('saveBtn').disabled = LOCKED || EFF_BLOCKED;
-  el('allUnav').disabled = LOCKED || EFF_BLOCKED;
+  el('saveBtn').disabled = LOCKED;
+  el('allUnav').disabled = LOCKED;
 
   if(LOCKED){
     el('lockPill').textContent='Locked to '+pretty(LOCKDATE);
@@ -1675,12 +1675,14 @@ function applyLock(d){
       + esc(pretty(LOCKDATE))+'</b> can no longer be edited.','i');
   }else if(EFF_BLOCKED){
     if(!LAST_EFF_KNOWN || !LAST_EFF_DATE){
-      say('smsg','<b>Cannot enter loss time.</b> No date at all is on record in the '
-        + 'efficiency sheet for floor '+esc(FLOOR)+'. Tell IT before entering anything.','r');
+      say('smsg','<b>No efficiency data yet for floor '+esc(FLOOR)+'.</b> You can still mark '
+        + 'operators Unavailable and Save. Loss time in minutes needs the efficiency report '
+        + 'and stays blocked until it arrives.','i');
     }else{
-      say('smsg','<b>Cannot enter loss time for '+esc(pretty(d))+'.</b> The efficiency '
-        + 'report is only pushed up to <b>'+esc(pretty(LAST_EFF_DATE))+'</b> so far, '
-        + 'it lands the morning after. Come back tomorrow for '+esc(pretty(d))+' figures.','r');
+      say('smsg','<b>Efficiency report for '+esc(pretty(d))+' not pushed yet</b> (up to '
+        + '<b>'+esc(pretty(LAST_EFF_DATE))+'</b> so far, it lands the morning after). You can '
+        + 'still mark operators Unavailable and Save now. Loss time in minutes unlocks once '
+        + 'the report reaches '+esc(pretty(d))+'.','i');
     }
   }
 }
@@ -1857,7 +1859,7 @@ function render(){
      + '<td class="ctr">'+whCell(o.id)+'</td>'
      + '<td class="ctr">'+workCell(o.id)+'</td>'
      + '<td class="ctr"><input class="chk sm" type="checkbox" id="c_'+o.id+'" '+(v.unav?'checked':'')
-     +   ((LOCKED||EFF_BLOCKED)?' disabled':'')
+     +   (LOCKED?' disabled':'')
      +   ' onclick="event.stopPropagation()"'
      +   ' onchange="setUnav(\''+o.id+'\',this.checked)"></td>'
      + '<td id="ls_'+o.id+'">'+lossCell(o.id)+'</td>'
@@ -1910,7 +1912,7 @@ function markPicked(id, flash){
    simply reads PIB N/A. Destroying somebody's recorded minutes as a side
    effect of a tick is the kind of thing nobody expects. */
 function setUnav(id,on){
-  if(LOCKED || EFF_BLOCKED) return;
+  if(LOCKED) return;
   if(!VAL[id]) VAL[id]=blank();
   VAL[id].unav=!!on;
   touch(id);
@@ -1918,7 +1920,7 @@ function setUnav(id,on){
 
 var BULK=false;
 function setAllUnav(on){
-  if(LOCKED || EFF_BLOCKED) return;
+  if(LOCKED) return;
   BULK=true;
   VIEW.forEach(function(id){ setUnav(id,on); });
   BULK=false;
@@ -1932,7 +1934,7 @@ function syncAllUnav(){
   VIEW.forEach(function(id){ if((VAL[id]||blank()).unav) on++; });
   box.checked=(n>0 && on===n);
   box.indeterminate=(on>0 && on<n);
-  box.disabled=(n===0 || LOCKED || EFF_BLOCKED);
+  box.disabled=(n===0 || LOCKED);
 }
 
 function updateKpis(){
@@ -1959,11 +1961,11 @@ function updateKpis(){
   /* Submit pulses while anything is unsaved. Done in the popup only puts the
      entry on the list, and without this a leader closes twenty popups and
      walks away believing the job is finished. */
-  el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED && !EFF_BLOCKED);
+  el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED);
 
   OVER=over;
   var sb=el('saveBtn');
-  if(sb) sb.disabled = LOCKED || EFF_BLOCKED || SAVING || over.length>0;
+  if(sb) sb.disabled = LOCKED || SAVING || over.length>0;
 
   if(LOCKED || EFF_BLOCKED) return;     /* the lock/eff-gate notice owns the strip */
 
@@ -2495,7 +2497,9 @@ var SAVING = false;
 
 function doSave(){
   if(LOCKED){ toast('This date is locked.','r'); return; }
-  if(EFF_BLOCKED){ toast('This date cannot be saved yet, the efficiency report has not reached it.','r'); return; }
+  /* EFF_BLOCKED no longer stops Save outright, 17-Sep-2026. A dirty operator on an
+     unpushed date can only be an Unavailable tick: openModal() still refuses to open
+     on a blocked date, so add/remove can never be non-empty here. See applyLock(). */
   if(SAVING){ toast('A save is already on its way. Give it a moment.',''); return; }
 
   var rows=[], bad=[], over=[], seen={};
