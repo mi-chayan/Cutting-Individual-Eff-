@@ -1858,7 +1858,10 @@ function personIndex(list){
 function statsOf(rows, people){
   var max=METRICS[metric].max;
   var inM=0, outM=0;
-  rows.forEach(function(r){ inM+=r.inMin; outM+=r.outMin; });
+  /* Unavailable men are dropped entirely, same rule as daily.html's
+     floorAgg(): their minutes never enter Input or Output, so a day nobody
+     worked cannot drag Team Efficiency% down. 17-Sep-2026. */
+  rows.forEach(function(r){ if(r.unav) return; inM+=r.inMin; outM+=r.outMin; });
 
   var ppl = people || [];
   var avgs = ppl.map(function(o){ return o.avg; });
@@ -1907,6 +1910,8 @@ function teamEffAgg(rows){
 
   rows.forEach(function(r){
     var floor = r.floor; if(!floor) return;
+    if(r.unav) return;   /* dropped entirely: Input, Output, Man Count and the
+                            below-65% count never see an Unavailable day. 17-Sep-2026. */
     var inn = Number(r.inMin)||0, out = Number(r.outMin)||0;
 
     var b = fl(floor);
