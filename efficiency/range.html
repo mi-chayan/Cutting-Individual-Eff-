@@ -1871,9 +1871,16 @@ function statsOf(rows, people){
   var b={top:0,hi:0,mid:0,lo:0};
   avgs.forEach(function(v){ b[scClass(v,max)]++; });
   var mean=function(a){ return a.length ? a.reduce(function(x,y){return x+y},0)/a.length : 0; };
+  /* Efficiency cannot run past 100%, sir's rule 17-Sep-2026: Output shown
+     equal to Input and Eff% capped at 100% whenever the raw numbers would
+     put Output ahead. Capped here, once, so the on-screen table and the
+     Excel export (both read this return value) always agree. */
+  var effRaw = inM>0 ? outM/inM : 0;
+  var effCap = Math.min(1, effRaw);
+  var outCap = inM>0 ? Math.min(outM, inM) : outM;
   return {
-    nOps:ppl.length, avgDays:mean(dayc), inM:inM, outM:outM,
-    eff:(inM>0?outM/inM:0), avg:mean(avgs),
+    nOps:ppl.length, avgDays:mean(dayc), inM:inM, outM:outCap,
+    eff:effCap, avg:mean(avgs),
     best:(avgs.length?Math.max.apply(null,avgs):0),
     worst:(avgs.length?Math.min.apply(null,avgs):0),
     b:b, unav:unav
@@ -1943,7 +1950,10 @@ function teamEffAgg(rows){
       var b = f[k];
       b.man = Object.keys(b.ids).length;
       b.u65 = b.u65 || 0;
-      b.eff = b.inMin > 0 ? (b.outMin / b.inMin * 100) : 0;
+      /* Same 100% cap as statsOf(), sir's rule 17-Sep-2026: Output shown
+         equal to Input when the raw numbers would put Output ahead. */
+      b.outMin = b.inMin > 0 ? Math.min(b.outMin, b.inMin) : b.outMin;
+      b.eff = b.inMin > 0 ? Math.min(100, b.outMin / b.inMin * 100) : 0;
       return b;
     });
 }
