@@ -681,6 +681,7 @@
 </div>
 
 <div id="dnote" class="dnote"></div>
+<div id="unavnote" class="dnote"></div>
 <!-- Loss reason tooltip. Lives outside #content on purpose: #content is
      replaced wholesale on every render, and an element inside it would be
      destroyed and its listeners lost. -->
@@ -1539,6 +1540,30 @@ function dnote(txt){
   n.className = txt ? 'dnote on' : 'dnote';
 }
 
+/* Second banner, independent of dnote(). dnote() only fires once, right after
+   a network load, for floors the API returned nothing for at all (26-Aug
+   class of bug). It says nothing about a floor that DID return every
+   operator but where every one of them carries the Unavailable flag from the
+   Loss Time sheet, which floorAgg() then correctly zeroes out of Man Count
+   and Team Eff%. That floor's row simply stops appearing in the table with
+   no reason given on screen, which a floor leader cannot tell apart from
+   "not pushed yet". This is computed fresh on every render(), not just after
+   a load, so it stays correct across a cache hit and a filter change too. */
+function paintUnavNote(floorsAll){
+  var n=document.getElementById('unavnote');
+  if(!n) return;
+  var hit=floorsAll.filter(function(f){ return f.man===0 && f.unav>0; });
+  if(!hit.length){ n.innerHTML=''; n.className='dnote'; return; }
+  var bits=hit.map(function(f){ return f.floor+' ('+f.unav+')'; });
+  var txt=(hit.length===1
+    ? 'Floor '+hit[0].floor+' has every operator ('+hit[0].unav+') marked Unavailable for '+prettyDate(DAY)+'.'
+    : 'Floors '+bits.join(', ')+' have every operator marked Unavailable for '+prettyDate(DAY)+'.')
+    + ' Team Eff% cannot be computed for '+(hit.length===1?'it':'them')
+    + '; check the Loss Time entries for '+(hit.length===1?'this floor':'these floors')+'.';
+  n.innerHTML=txt;
+  n.className='dnote on';
+}
+
 function applySnapshot(res){
   DATES=res.dates||[]; LATEST=res.latest||''; STAMP=res.generatedAt||'';
   DATA=mapRows(res.rows);
@@ -2149,6 +2174,7 @@ function render(){
   document.getElementById('showing').textContent='Showing: '+prettyDate(DAY);
   syncDateLabel();
   var S=currentSets(), tot=S.tot;
+  paintUnavNote(S.floorsAll);
   var scopeLabel = floorFilter ? ('Floor '+floorFilter)
                  : (factFilter ? (factFilter+' (all floors)') : 'All Floors');
   document.body.classList.toggle('single-floor', !!floorFilter);
