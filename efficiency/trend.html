@@ -924,8 +924,8 @@ function shortDate(iso){
   var p=String(iso||'').split('-'); if(p.length!==3) return iso||'';
   return Number(p[2])+' '+MONS[Number(p[1])-1];
 }
-function pctClass(p){ return p<65?'red':(p<90?'amber':'green'); }
-function effColour(p){ return p<65?'#D64550':(p<90?'#C77700':'#1E8E4E'); }
+function pctClass(p){ return p<65?'red':(p<=90?'amber':'green'); }
+function effColour(p){ return p<65?'#D64550':(p<=90?'#C77700':'#1E8E4E'); }
 
 /* ---------- progress ----------
    Eases toward 90 and waits there. The step shrinks as it climbs, so a slow
@@ -1112,7 +1112,7 @@ function build(){
     d.men[r.floor+'|'+r.opId]=1;
     /* Bands are per operator-day here on purpose: this chart is about how the
        floor looked ON each day, not how a man averaged over the period. */
-    if(r.eff<65) d.lo++; else if(r.eff<90) d.mid++; else d.hi++;
+    if(r.eff<65) d.lo++; else if(r.eff<=90) d.mid++; else d.hi++;
   });
   DATES=Object.keys(dates).sort();
   var byDay=DATES.map(function(k){
@@ -1182,7 +1182,7 @@ function build(){
 
   /* ---- band mix over the period, per OPERATOR average ---- */
   var band={lo:0,mid:0,hi:0};
-  ops.forEach(function(o){ if(o.eff<65)band.lo++; else if(o.eff<90)band.mid++; else band.hi++; });
+  ops.forEach(function(o){ if(o.eff<65)band.lo++; else if(o.eff<=90)band.mid++; else band.hi++; });
 
   var tIn=0,tOut=0,tLoss=0;
   rows.forEach(function(r){ tIn+=r.inMin; tOut+=r.outMin; tLoss+=r.lossMin; });
@@ -1356,7 +1356,7 @@ function mx(kind){
       if(!c){ h+='<td class="na">&ndash;</td>'; return; }
       if(kind==='eff'){
         h+='<td class="cell" style="background:'+effBg(c.eff)+';color:'+effFg(c.eff)+'" title="'
-          +esc(f+'  '+prettyDate(d)+'\nEff '+fmt(c.eff,1)+'%')+'">'+fmt(c.eff,0)+'</td>';
+          +esc(f+'  '+prettyDate(d)+'\nEff '+fmt(c.eff,1)+'%')+'">'+fmt(c.eff,1)+'</td>';
       }else{
         var a=maxLoss?c.loss/maxLoss:0;
         h+='<td class="cell" style="background:rgba(199,119,0,'+(0.08+a*0.72).toFixed(2)+');color:'
@@ -1374,12 +1374,12 @@ function mx(kind){
   h+='</tbody><tfoot><tr><td>All</td>';
   D.dates.forEach(function(d){
     var day=D.byDay.filter(function(x){return x.date===d})[0];
-    h+='<td>'+(kind==='eff' ? (day?fmt(day.eff,0):'&ndash;') : (day&&day.loss?num(day.loss):'&ndash;'))+'</td>';
+    h+='<td>'+(kind==='eff' ? (day?fmt(day.eff,1):'&ndash;') : (day&&day.loss?num(day.loss):'&ndash;'))+'</td>';
   });
   h+='<td>'+(kind==='eff'?fmt(D.totals.eff,1):num(D.totals.loss))+'</td></tr></tfoot></table></div>';
   return h;
 }
-function effBg(p){ return p<65?'#D64550':(p<90?'#1E8E4E':'#1D6FD0') }
+function effBg(p){ return p<65?'#D64550':(p<=90?'#1E8E4E':'#1D6FD0') }
 function effFg(){ return '#fff' }
 
 /* ---------- floor ranking, sortable like the weekly report ---------- */

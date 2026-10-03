@@ -1946,7 +1946,7 @@ function effTd(o){
          + ' title="No efficiency is calculated for a day the operator was'
          + ' marked unavailable.">&ndash;</td>';
   }
-  return '<td class="pct '+pctClass(o.eff)+'" data-elk="'+lk+'">'+fmt(o.eff,0)+'%</td>';
+  return '<td class="pct '+pctClass(o.eff)+'" data-elk="'+lk+'">'+fmt(o.eff,1)+'%</td>';
 }
 
 function lossTd(o){
@@ -2500,7 +2500,7 @@ function exportExcel(){
       +'<td>'+esc(o.name)+'</td><td>'+esc(o.desig)+'</td><td>'+fmt(o.avgWh,2)+'</td>'
       +pctTd(o.avgEng,0)+'<td>'+esc(o.typeStr)+'</td>'
       +'<td>'+fmt(o.lossMin,0)+'</td><td>'+esc(reasonFor(o.floor,o.opId))+'</td>'
-      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,0)+'</tr>';
+      +'<td>'+fmt(o.inMin,0)+'</td><td>'+fmt(o.outMin,0)+'</td>'+pctTd(o.eff,1)+'</tr>';
   });
   t+='</table>';
   t+='<table><tr><td></td></tr><tr><td colspan="10">&copy; 2026 SNOWTEX CI Team | Help 2803</td></tr></table>';
