@@ -741,7 +741,7 @@ var LAST_EFF_DATE='', LAST_EFF_KNOWN=false, EFF_BLOCKED=false;
    actually picked. Lets boot() silently retarget once to the newest date
    that has data, instead of opening straight into a blocked screen. */
 var AUTO_DATE=false;
-var OVER=[];
+var OVER=[], UNAVBAD=[];
 var WH={};
 /* The operator whose popup was opened last. Closing the popup used to drop
    you back into a list of identical rows with nothing to say which one you
@@ -1918,13 +1918,84 @@ function setUnav(id,on){
   touch(id);
 }
 
+/* ---------- the Unavailable rule, 7-Oct-2026 ----------
+   A man who worked more than half of his day cannot be marked Unavailable.
+   Unavailable also drops him out of Team Eff%, so ticking it for a man who was
+   producing would hide real output. For him the leader enters lost minutes.
+
+     share = Engaged Min / Gross (Input Min + saved loss), blocked above 50%
+
+   Exception: every operator of the floor Unavailable at once, a holiday or a
+   dead line, so nobody was producing. A man whose Unavailable flag is already
+   on the sheet is never re-judged. apiSave_ enforces the same rule (Gate 3),
+   this is only so the leader hears it at the tick and not after Submit.
+   No share, no report yet or no marker data, never blocks. */
+var UNAV_MAX=0.5;
+function engShareOf(id){
+  var f=facts(id);
+  if(!f || f.inn===null || f.inn===undefined) return null;
+  var e=(typeof f.engaged==='number') ? f.engaged : 0;
+  var g=(Number(f.inn)||0)+(Number(f.loss)||0);
+  if(g<=0 || e<=0) return null;
+  return e/g;
+}
+function unavBlocked(id){
+  var s=engShareOf(id);
+  return s!==null && s>UNAV_MAX && !savedUnav(id);
+}
+/* Would the whole floor be Unavailable if `id` were set to `on`? */
+function floorAllUnav(id, on){
+  if(!OPS.length) return false;
+  return OPS.every(function(o){
+    return String(o.id)===String(id) ? !!on : !!(VAL[o.id]||blank()).unav;
+  });
+}
+function unavMsg(id){
+  var f=facts(id), o=opById(id), s=engShareOf(id);
+  var g=(Number(f.inn)||0)+(Number(f.loss)||0);
+  var cap=capOf(id);
+  return '<b>'+esc(o?o.name:id)+'</b> worked '+(s*100).toFixed(1)+'% of his day ('
+    +Math.round(f.engaged)+' of '+Math.round(g)+' min). A man who worked cannot be '
+    +'Unavailable. Enter his lost minutes instead'
+    +(cap!==null ? ', up to <b>'+Math.floor(cap)+' min</b> free to lose' : '')+'.';
+}
+
+function setUnav(id,on,force){
+  if(LOCKED) return;
+  if(on && !force && unavBlocked(id) && !floorAllUnav(id,true)){
+    var c0=el('c_'+id); if(c0) c0.checked=false;
+    say('smsg', unavMsg(id)+' To mark the whole floor Unavailable, tick every operator.', 'r');
+    toast('Not allowed. He worked '+(engShareOf(id)*100).toFixed(1)+'% of his day.','r',6000);
+    return;
+  }
+  if(!VAL[id]) VAL[id]=blank();
+  VAL[id].unav=!!on;
+  touch(id);
+}
+
 var BULK=false;
 function setAllUnav(on){
   if(LOCKED) return;
+  /* Ticking the header box covers the whole floor only when every operator not
+     in the current view is already ticked. If not, men who worked are skipped
+     and named, never silently flagged. */
+  var covers = !on || OPS.every(function(o){
+    return VIEW.indexOf(o.id)>=0 || !!(VAL[o.id]||blank()).unav;
+  });
+  var skipped=[];
   BULK=true;
-  VIEW.forEach(function(id){ setUnav(id,on); });
+  VIEW.forEach(function(id){
+    if(on && !covers && unavBlocked(id)){ skipped.push(id); return; }
+    setUnav(id,on,true);
+  });
   BULK=false;
   syncAllUnav();
+  if(skipped.length){
+    var nm=skipped.map(function(id){ var o=opById(id); return esc(o?o.name:id); });
+    say('smsg','<b>'+skipped.length+' operator'+(skipped.length===1?'':'s')+' skipped.</b> '
+      +nm.join(', ')+(skipped.length===1?' worked':' worked') +' more than 50% of the day and cannot be Unavailable. '
+      +'Enter lost minutes for them, or clear the search and tick every operator of the floor to mark the whole floor Unavailable.','r');
+  }
 }
 
 function syncAllUnav(){
@@ -1964,8 +2035,19 @@ function updateKpis(){
   el('saveBtn').classList.toggle('hot', pend>0 && !LOCKED);
 
   OVER=over;
+  /* The same rule at the point of Submit. Ticks are already refused one by one,
+     but untick one man of a fully Unavailable floor and the rest lose the
+     exception, so this is judged on the whole screen as it stands. */
+  var uv=[];
+  if(!OPS.every(function(o){ return !!(VAL[o.id]||blank()).unav; })){
+    OPS.forEach(function(o){
+      var v=VAL[o.id]||blank();
+      if(v.unav && unavBlocked(o.id)) uv.push(o);
+    });
+  }
+  UNAVBAD=uv;
   var sb=el('saveBtn');
-  if(sb) sb.disabled = LOCKED || SAVING || over.length>0;
+  if(sb) sb.disabled = LOCKED || SAVING || over.length>0 || uv.length>0;
 
   if(LOCKED || EFF_BLOCKED) return;     /* the lock/eff-gate notice owns the strip */
 
@@ -1974,6 +2056,10 @@ function updateKpis(){
     say('smsg','<b>Cannot submit.</b> Loss is more than the minutes available for '
       + over.map(function(o){ return esc(o.name)+' ('+o.m+' min, only '+o.cap+' available)' }).join(', ')
       + '. Check the Min / Hr unit. If the operator was out all day, tick <b>Unavailable</b> instead.','r');
+  }
+  else if(uv.length){
+    say('smsg','<b>Cannot submit.</b> '+uv.map(function(o){ return unavMsg(o.id); }).join(' ')
+      +' Or tick every operator of the floor to mark the whole floor Unavailable.','r');
   }
   else if(warn.length) say('smsg','Over 10 hours, please double check: '+warn.join(', ')+'. You can still submit.','i');
   else if(m.className.indexOf('i')>=0 || m.className.indexOf('r')>=0) say('smsg','','');
@@ -2075,7 +2161,15 @@ function closeModal(){
 
 function toggleUnav(){
   if(!MDRAFT) return;
-  MDRAFT.unav=!MDRAFT.unav;
+  var turnOn=!MDRAFT.unav;
+  if(turnOn && unavBlocked(MID) && !floorAllUnav(MID,true)){
+    renderModal();                       /* puts the tick back */
+    var w=el('mWarn');
+    w.innerHTML=unavMsg(MID)+' To mark the whole floor Unavailable, tick every operator on the list.';
+    w.className='mwarn r';
+    return;
+  }
+  MDRAFT.unav=turnOn;
   renderModal();
 }
 
@@ -2548,6 +2642,17 @@ function doSave(){
     });
   });
 
+  var uvs=[];
+  if(!OPS.every(function(o){ return !!(VAL[o.id]||blank()).unav; })){
+    rows.forEach(function(r){
+      if(r.unav && unavBlocked(r.opId)) uvs.push(r.opId);
+    });
+  }
+  if(uvs.length){
+    say('smsg','<b>Cannot submit.</b> '+uvs.map(function(id){ return unavMsg(id); }).join(' ')
+      +' Or tick every operator of the floor to mark the whole floor Unavailable.','r');
+    return;
+  }
   if(over.length){
     say('smsg','<b>Cannot submit.</b> Loss is more than the day had left for '
       + over.join(', ') + '. A man cannot lose time he was working. '
