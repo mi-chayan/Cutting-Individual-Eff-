@@ -1770,9 +1770,12 @@ function engagedOf(id){
   var f=facts(id);
   return (f && typeof f.engaged === 'number') ? f.engaged : null;
 }
-/* The ERP's own Engagement% (column F), shown for reference next to the cap.
-   Display only. The cap itself is never computed from this, it comes from
-   the real Input Min minutes summed server-side, see engagedOf(). */
+/* The ERP's own Engagement% (column F). NOT used for display any more,
+   19-Oct-2026: Sumon Ahmed, 2A, 18-Oct-2026 showed "Eng 1%" here while
+   column V (engagedOf, the figure the cap is built from) had him at 677
+   of 649 available minutes, over 100%. Column F and column V disagreed,
+   and the chip trusted the wrong one. Kept only for debugging the raw
+   feed; engShareOf()/engagedOf()+avail is what the page now shows. */
 function engPctOf(id){
   var f=facts(id);
   return (f && typeof f.engPct === 'number') ? f.engPct : null;
@@ -2436,7 +2439,12 @@ function refreshModalTotals(){
      it, independent of whether the minute-based cap below is ready. */
   var engChip = el('mChipEng');
   if(engChip){
-    var engPct = engPctOf(MID);
+    /* 19-Oct-2026: was engPctOf(MID), the ERP's raw column F. That field can
+       disagree with the engaged minutes (column V) the cap itself trusts, so
+       the chip now derives its own percentage from the same engaged/avail
+       pair the bar below uses, never from the ERP's precomputed figure. */
+    var engM0 = engagedOf(MID);
+    var engPct = (engM0!==null && avail>0) ? (engM0/avail*100) : null;
     if(engPct!==null){
       engChip.textContent = 'Eng '+engPct.toFixed(0)+'%';
       engChip.style.display = '';
@@ -2459,7 +2467,9 @@ function refreshModalTotals(){
     var redMin=Math.min(usedNow, avail-greenMin);
     var greyMin=Math.max(0, avail-greenMin-redMin);
     var freeLeft=Math.max(0, cap-usedNow);
-    var engPctV=engPctOf(MID);
+    /* 19-Oct-2026: same fix as the header chip, derive from engM/avail
+       rather than trusting the ERP's raw column F percentage. */
+    var engPctV=(avail>0) ? (engM/avail*100) : null;
     var engBadge=(engPctV!==null) ? ('<span class="mtag">Eng '+engPctV.toFixed(0)+'%</span>') : '';
     rows+='<tr><td colspan="2"><div class="meter">'
       + '<div class="mline"><span>Engaged <b>'+Math.round(engM)+'</b> min '
